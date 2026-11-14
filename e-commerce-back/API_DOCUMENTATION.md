@@ -1,1777 +1,836 @@
+# CCTV E-Commerce API Documentation
 
-# E-Commerce Backend API Documentation
+Base URL: `http://localhost:3007` (configurable with `PORT` / `BASE_URL`).
+All routes are prefixed with `/v1`.
 
-> **Base URL:** `http://localhost:3007/v1`
-> **Currency (configurable):** EGP (Egyptian Pound)
-> **Auth Format:** `Authorization: <role> <token>` (e.g. `Authorization: user eyJhbGciOiJIUzI1NiIs...`)
+## Contents
 
----
+- [Conventions](#conventions)
+- [Health](#health)
+- [Authentication](#authentication-endpoints)
+- [User Profile](#user-profile)
+- [Categories](#categories)
+- [Subcategories](#subcategories)
+- [Products](#products)
+- [Cart](#cart)
+- [Wishlist](#wishlist)
+- [Orders and Payments](#orders-and-payments)
+- [Installation Requests](#installation-requests)
+- [Contact](#contact)
+- [Security Logs](#security-logs)
+- [Data Models](#data-models)
+- [Security Behavior](#security-behavior)
 
-## Table of Contents
+## Conventions
 
-1. [Authentication](#1-authentication-auth)
-2. [User Profile](#2-user-profile-user)
-3. [Phone Verification (WhatsApp OTP)](#3-phone-verification-phone)
-4. [Categories](#4-categories-category)
-5. [Subcategories](#5-subcategories-subcategory)
-6. [Products](#6-products-products)
-7. [Cart](#7-cart-cart)
-8. [Wishlist](#8-wishlist-wishlist)
-9. [Orders & Payments](#9-orders--payment-order)
-10. [Security Logs](#10-security-logs-admin)
-11. [Error Handling & Auth System](#11-error-handling--auth-system)
-12. [Database Models](#12-database-models)
+### Authentication header
 
----
+Protected routes read the role from the first segment of the header and use it to
+select the JWT signing secret:
 
-## 1. Authentication (`/v1/auth`)
+```http
+Authorization: user <accessToken>
+Authorization: admin <accessToken>
+Authorization: superAdmin <accessToken>
+```
 
-### 1.1 POST `/v1/auth/signup` — Register a new user
+Access and refresh tokens are JWTs with a `type` claim. A refresh token sent to a
+protected route, or an access token sent to the refresh endpoint, is rejected.
 
-**Auth:** None  
-**Rate Limit:** None
+### Response shape
 
-**Request Body (JSON):**
+Successful responses use:
+
+```json
+{ "message": "Human-readable result", "data": {} }
+```
+
+Validation failures use:
+
 ```json
 {
-  "email": "john@example.com",
-  "password": "123456",
-  "confirmPassword": "123456",
+  "message": "validation error",
+  "error": [{ "path": "email", "message": "Invalid email address" }]
+}
+```
+
+Other errors use `{ "message": "..." }` and may include `errors`.
+
+### Common status codes
+
+| Code | Meaning |
+|------|---------|
+| 200 | Success |
+| 201 | Created |
+| 400 | Invalid input, invalid id, invalid status transition |
+| 401 | Missing or invalid access token |
+| 403 | Authenticated but not allowed |
+| 404 | Resource not found |
+| 409 | Duplicate resource or conflicting state |
+| 413 | Request body too large |
+| 500 | Unhandled server/SMTP/provider error |
+| 502 | Payment session could not be created |
+| 503 | Optional integration is not configured (Google, Redis, contact recipient) |
+
+### Pagination and sorting
+
+List endpoints that paginate accept `page` (1-based, default 1) and `limit`
+(max 100). Product lists default to 10 per page; category lists to 20;
+subcategory lists to 25; order and installation admin lists to 20 and 50
+respectively.
+
+Sorting uses `field_asc` or `field_desc`:
+
+- Products: `price`, `en_name`, `ar_name`, `fr_name`, `createdAt`
+- Categories and subcategories: `en_name`, `ar_name`, `fr_name`, `isActive`,
+  `createdAt`, `updatedAt`
+
+Invalid pagination or sort values return `400`.
+
+### Rate limits
+
+Rate limits are per IP, in memory, and per process:
+
+| Endpoint group | Limit |
+|----------------|-------|
+| Signup | 5 requests / 60 s |
+| Login | 10 / 60 s |
+| Resend verification, forgot password | 3 / 60 s |
+| Reset password | 5 / 60 s |
+| Refresh access token | 20 / 60 s |
+| Create order | 20 / 60 s |
+| Contact form | 5 / 60 s |
+
+---
+
+## Health
+
+### `GET /v1/health`
+
+Public. Returns the API status and configured currency.
+
+```json
+{ "status": "ok", "currency": "SAR" }
+```
+
+---
+
+## Authentication Endpoints
+
+### `POST /v1/auth/signup`
+
+Public, rate-limited. A super admin access token may create staff accounts.
+
+```json
+{
+  "email": "user@example.com",
+  "password": "minimum-8-characters",
+  "confirmPassword": "minimum-8-characters",
   "role": "user",
-  "phone": "+201234567890"
+  "phone": "+966500000000"
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `email` | string | **Yes** | Unique email address. Name is auto-derived from the part before `@`. |
-| `password` | string | **Yes** | Min 6, max 20 characters |
-| `confirmPassword` | string | **Yes** | Must match `password` |
-| `role` | string | No | One of: `user`, `admin`, `superAdmin` (default: `user`) |
-| `phone` | string | No | International format (e.g. `+2126xxxxxxxx`) |
+- `role` is optional (`user`, `admin`, `superAdmin`); privileged roles require a
+  super admin token.
+- Public signups are created inactive until email verification. Staff accounts
+  created by a super admin are active immediately.
+- `name` and the Arabic/French profile fields are not accepted here; `phone` is
+  optional and must use international format.
 
-**Success Response** `201 Created`:
+`201` response:
+
 ```json
 {
-  "message": "Signup successful — verification email sent"
+  "message": "Signup successful — verification email sent",
+  "data": { "email": "user@example.com" }
 }
 ```
-> The user is created with `isActive: false`. A verification email is sent. The user **cannot login** until email is verified.
 
-**Error Responses:**
-- `400` — `{ "message": "Email already exists" }`
-- `400` — `{ "message": "Passwords do not match" }`
-- `400` — `{ "message": "validation error", "error": [...] }` (Joi validation details)
+If SMTP is unavailable, the account is still created and the message says the
+verification email could not be sent.
 
----
+### `POST /v1/auth/login`
 
-### 1.2 POST `/v1/auth/login` — Login with email/password
+Public, rate-limited.
 
-**Auth:** None  
-**Rate Limit:** None
-
-**Request Body (JSON):**
 ```json
-{
-  "email": "john@example.com",
-  "password": "123456"
-}
+{ "email": "user@example.com", "password": "minimum-8-characters" }
 ```
 
-**Success Response** `200 OK`:
+`200` response:
+
 ```json
 {
   "message": "Login successful",
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+    "accessToken": "<jwt>",
+    "refreshToken": "<jwt>",
+    "role": "user",
+    "user": {
+      "_id": "507f1f77bcf86cd799439011",
+      "name": "user",
+      "email": "user@example.com",
+      "imageURL": null
+    }
   }
 }
 ```
-- `accessToken` expires in **30 minutes** (configurable via `ACCESS_TOKEN`)
-- `refreshToken` expires in **1 year** (configurable via `REFRESH_TOKEN`)
-- Tokens are signed with **role-specific secrets** (`SIGNATURE_USER`, `SIGNATURE_ADMIN`, `SIGNATURE_SUPER_ADMIN`)
 
-**How to use tokens in subsequent requests:**
-```
-Authorization: user eyJhbGciOiJIUzI1NiIs...
-```
-Replace `user` with the actual role (`admin`, `user`, `superAdmin`).
+Unknown email, Google-only account, wrong password, unverified account, and
+blocked account return `401` or `403` as appropriate without revealing which
+emails exist (except the explicit verification/blocked messages).
 
-**Error Responses:**
-- `400` — `{ "message": "Invalid email or password" }`
-- `400` — `{ "message": "This account uses Google login" }` (if user was created via Google OAuth and has no password)
-- `401` — `{ "message": "Please verify your email first" }` (if `isActive` is false)
+### `GET /v1/auth/google/signup`
 
----
+Public. Redirects to Google. Returns `503` when
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are not configured. State is stored in
+a signed HttpOnly cookie and verified on the callback.
 
-### 1.3 GET `/v1/auth/google/signup` — Google OAuth Signup
+### `GET /v1/auth/google/signup/callback`
 
-**Auth:** None  
-**Rate Limit:** None
+Public callback. Creates an active `user` account and returns the same token
+payload as login:
 
-**Query Parameters:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `role` | string | `user` | Role to assign to new user: `user`, `admin`, `superAdmin` |
-
-**Behavior:** Redirects the browser to Google's OAuth consent screen. After user grants permission, Google redirects to the callback URL.
-
-**Callback:** `GET /v1/auth/google/signup/callback`
-
-**Success Response** `200 OK` (from callback):
 ```json
 {
   "message": "Google signup successful",
   "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
-    "user": { "_id": "abc123def456", "role": "user" }
+    "accessToken": "<jwt>",
+    "refreshToken": "<jwt>",
+    "user": { "_id": "...", "role": "user", "name": "user", "email": "user@example.com" }
   }
 }
 ```
 
-**Error Responses (callback):**
-- `400` — `{ "message": "An account with this email already exists. Please login instead." }`
-- `400` — `{ "message": "No email found from Google account" }`
-- `400` — `{ "message": "Role must be one of: admin, user, superAdmin" }` (if invalid role in query)
+### `GET /v1/auth/google/login`
 
----
+Public. Redirects to Google, or `503` when unconfigured.
 
-### 1.4 GET `/v1/auth/google/login` — Google OAuth Login
+### `GET /v1/auth/google/login/callback`
 
-**Auth:** None  
-**Behavior:** Redirects to Google's OAuth consent screen for existing users.
+Public. Redirects to:
 
-**Callback:** `GET /v1/auth/google/login/callback`
+```text
+${FRONTEND_URL}/auth/callback#accessToken=...&refreshToken=...&role=...
+```
 
-**Success Response** `200 OK` (from callback):
+Tokens are placed in the URL fragment so they are not sent to the server or
+recorded in server logs.
+
+### `GET /v1/auth/verify-email/:token`
+
+Public. Marks the account active. Returns `{ "message": "Email verified successfully" }`.
+Already-verified accounts return `{ "message": "Email already verified" }`.
+
+### `POST /v1/auth/resend-verify-email`
+
+Public, rate-limited.
+
 ```json
-{
-  "message": "Google login successful",
-  "data": {
-    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-    "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
-    "user": { "_id": "abc123def456", "role": "user" }
-  }
-}
+{ "email": "user@example.com" }
 ```
 
-**Error Responses (callback):**
-- `400` — `{ "message": "No account found with this email. Please signup first." }`
-- `400` — `{ "message": "Please verify your email first." }` (if user registered via email but hasn't verified yet)
+Always returns a generic `200` so account existence is not disclosed.
 
----
+### `POST /v1/auth/forgot-password`
 
-### 1.5 GET `/v1/auth/verify-email/:token` — Verify Email
+Public, rate-limited. Requires Redis; otherwise returns `503`.
 
-**Auth:** None  
-**Rate Limit:** None
-
-**Path Parameters:**
-| Param | Type | Description |
-|-------|------|-------------|
-| `token` | string | JWT token from verification email link |
-
-**Success Response** `200 OK`:
 ```json
-{
-  "message": "Email verified successfully"
-}
+{ "email": "user@example.com" }
 ```
-Or if already verified:
+
+Always returns a generic `200` when the flow is available. Reset tokens are
+single-use and expire after 15 minutes.
+
+### `POST /v1/auth/reset-password/:token`
+
+Public, rate-limited.
+
 ```json
-{
-  "message": "Email already verified"
-}
+{ "password": "new-password", "confirmPassword": "new-password" }
 ```
 
-**Error Responses:**
-- `400` — `{ "message": "Invalid or expired token" }`
+`200` on success; `400` for an invalid/used token; `503` when Redis is
+unavailable.
 
----
+### `POST /v1/auth/access-token`
 
-### 1.6 POST `/v1/auth/resend-verify-email` — Resend Verification Email
+Rate-limited. Send the refresh token as either the whole header or the second
+segment:
 
-**Auth:** None  
-**Rate Limit:** 1 request per 60 seconds
-
-**Request Body (JSON):**
-```json
-{
-  "email": "john@example.com"
-}
+```http
+Authorization: user <refreshToken>
 ```
 
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Verification email resent"
-}
-```
+`200` response:
 
-**Error Responses:**
-- `400` — `{ "message": "User not found" }`
-- `200` — `{ "message": "Email already verified" }` (if already active)
-
----
-
-### 1.7 POST `/v1/auth/forgot-password` — Forgot Password
-
-**Auth:** None  
-**Rate Limit:** 1 request per 60 seconds
-
-**Request Body (JSON):**
-```json
-{
-  "email": "john@example.com"
-}
-```
-
-**Success Response** `200 OK` (always returns this message regardless of whether email exists — security best practice):
-```json
-{
-  "message": "If the email exists, a reset link has been sent"
-}
-```
-
-**How it works:**
-1. Generates a JWT token (expires 15 minutes)
-2. Stores token in Redis with key `reset:<token>` (expires 900 seconds)
-3. Sends email with reset link: `{BASE_URL}/v1/auth/reset-password/{token}`
-
----
-
-### 1.8 POST `/v1/auth/reset-password/:token` — Reset Password
-
-**Auth:** None  
-**Rate Limit:** 1 request per 60 seconds
-
-**Path Parameters:**
-| Param | Type | Description |
-|-------|------|-------------|
-| `token` | string | JWT token from reset password email link |
-
-**Request Body (JSON):**
-```json
-{
-  "password": "newpassword123",
-  "confirmPassword": "newpassword123"
-}
-```
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Password reset successful"
-}
-```
-
-**Error Responses:**
-- `400` — `{ "message": "Passwords do not match" }`
-- `400` — `{ "message": "Invalid or expired token" }`
-- `400` — `{ "message": "User not found" }`
-
----
-
-### 1.9 POST `/v1/auth/access-token` — Refresh Access Token
-
-**Auth:** Valid refresh token in Authorization header  
-**Rate Limit:** None
-
-**Headers (any format works):**
-```
-Authorization: user|admin|superAdmin <refreshToken>
-Authorization: Bearer <refreshToken>
-Authorization: <refreshToken>
-```
-
-**Success Response** `200 OK`:
 ```json
 {
   "message": "Access token refreshed successfully",
-  "data": {
-    "accessToken": "eyJ..."
-  }
+  "data": { "accessToken": "<jwt>" }
 }
 ```
 
-**Error Responses:**
-- `401` — `{ "message": "Login required" }`
-- `401` — `{ "message": "Invalid token format" }`
-- `401` — `{ "message": "Invalid or expired refresh token" }`
-- `401` — `{ "message": "User not found" }`
-- `500` — `{ "message": "Token generation failed" }`
+---
+
+## User Profile
+
+### `GET /v1/user/profile`
+
+Authenticated. Returns the caller's profile without `password` or `googleId`.
+
+### `PUT /v1/user/profile`
+
+Authenticated. Accepts JSON or `multipart/form-data` with an optional `image`
+file (max 2 MB).
+
+```json
+{ "name": "New name", "phone": "+966500000000" }
+```
+
+`200` returns the updated public profile. Replacing an existing image deletes
+the old stored file.
+
+### `POST /v1/user/upload-avatar`
+
+Authenticated. `multipart/form-data` with field `image` (max 2 MB). Returns:
+
+```json
+{ "message": "Avatar uploaded", "data": { "imageURL": "https://..." } }
+```
 
 ---
 
-## 2. User Profile (`/v1/user`)
+## Categories
 
-### 2.1 GET `/v1/user/profile` — Get My Profile
+### `GET /v1/category`
 
-**Auth:** Required (any authenticated user)  
-**Rate Limit:** None
+Public. Returns active categories with active subcategories and active products
+populated:
 
-**Headers:**
+```json
+{ "message": "Categories", "data": [/* categories */] }
 ```
-Authorization: user eyJhbGciOiJIUzI1NiIs...
+
+### `GET /v1/category/:id/subcategories`
+
+Public. Returns active subcategories and active products for an active category;
+`404` when the category is missing or inactive.
+
+### `POST /v1/category/admin`
+
+Admin/SuperAdmin. JSON or multipart with field `image` (max 10 MB).
+
+```json
+{ "en_name": "Cameras", "ar_name": "كاميرات", "fr_name": "Caméras" }
 ```
 
-**Success Response** `200 OK`:
+`en_name` is required. Duplicate English, Arabic, or French names return `409`.
+
+### `PUT /v1/category/admin/:id`
+
+Admin/SuperAdmin. JSON or multipart with optional `image` (max 2 MB). Accepts any
+of `en_name`, `ar_name`, `fr_name`, `imageURL`; at least one field is required.
+
+### `GET /v1/category/admin`
+
+Admin/SuperAdmin. Paginated list including inactive categories. Query:
+`page`, `limit`, `sort`.
+
+### `GET /v1/category/admin/:id`
+
+Admin/SuperAdmin. Returns a category with all subcategories and products.
+
+### `DELETE /v1/category/admin/:id`
+
+Admin/SuperAdmin. Soft-deletes the category and cascades `isActive: false` to its
+subcategories and their products.
+
+---
+
+## Subcategories
+
+### `GET /v1/subcategory`
+
+Public. Returns active subcategories with active products populated.
+
+### `GET /v1/subcategory/:id`
+
+Public. Returns an active subcategory with active products, or `404`.
+
+### `GET /v1/subcategory/admin`
+
+Admin/SuperAdmin. Paginated list including inactive subcategories. Query:
+`page`, `limit`, `sort`, `categoryId`, `en_name`, `q` (regex search on
+`en_name`).
+
+### `GET /v1/subcategory/admin/:id`
+
+Admin/SuperAdmin. Returns a subcategory with all products.
+
+### `POST /v1/subcategory/admin`
+
+Admin/SuperAdmin.
+
+```json
+{ "en_name": "Indoor cameras", "ar_name": "كاميرات داخلية", "categoryId": "507f1f77bcf86cd799439011" }
+```
+
+The parent category must exist. Duplicate names inside the same category return
+`409`.
+
+### `PUT /v1/subcategory/admin/:id`
+
+Admin/SuperAdmin. Accepts `en_name`, `ar_name`, `fr_name`, `categoryId`,
+`isActive`; at least one field is required. Changing `isActive` updates all
+products in the subcategory.
+
+### `DELETE /v1/subcategory/admin/:id`
+
+Admin/SuperAdmin. Soft-deletes the subcategory and its products.
+
+---
+
+## Products
+
+### Product payload
+
+JSON create/update:
+
 ```json
 {
-  "message": "Profile",
-  "data": {
-    "_id": "abc123def456",
-    "name": "john_doe",
-    "email": "john@example.com",
-    "isActive": true,
-    "imageURL": "https://res.cloudinary.com/.../profiles/abc123.jpg",
-    "role": "user",
-    "phone": "+201234567890",
-    "googleId": null,
-    "isBlocked": false,
-    "createdAt": "2026-06-14T10:00:00.000Z",
-    "updatedAt": "2026-06-14T10:00:00.000Z"
-  }
-}
-```
-> Note: `password` field is excluded from response.
-
-**Error Responses:**
-- `401` — `{ "message": "Login required" }`
-- `404` — `{ "message": "User not found" }`
-
----
-
-### 2.2 PUT `/v1/user/profile` — Update Profile
-
-**Auth:** Required (any authenticated user)  
-**Rate Limit:** None  
-**Content-Type:** `multipart/form-data`
-
-**Request Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `phone` | string | No | International format (e.g. `+2126xxxxxxxx`) |
-| `image` | file | No | Profile picture (JPEG, PNG, GIF, WebP — max 2MB) |
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Profile updated",
-  "data": {
-    "_id": "abc123def456",
-    "name": "john_doe",
-    "email": "john@example.com",
-    "imageURL": "https://res.cloudinary.com/.../profiles/new123.jpg",
-    "phone": "+201234567890",
-    "role": "user",
-    ...
-  }
+  "en_name": "Indoor camera",
+  "ar_name": "كاميرا داخلية",
+  "fr_name": "Caméra intérieure",
+  "en_description": "1080p indoor camera",
+  "ar_description": "كاميرا داخلية 1080p",
+  "fr_description": "Caméra intérieure 1080p",
+  "price": 199.99,
+  "discount": 10,
+  "subcategoryId": "507f1f77bcf86cd799439011",
+  "variants": [{ "color": "White", "size": "2TB", "stock": 20 }],
+  "colorImages": [{ "color": "White", "imageURL": "data:image/png;base64,..." }]
 }
 ```
 
-**How it works:**
-- If a new image is uploaded, the old image is **deleted from Cloudinary** before uploading the new one.
-- Image validation is done via `file-type` package (checks actual file bytes, not just extension).
+`multipart/form-data` rules:
 
-**Error Responses:**
-- `400` — `{ "message": "No fields to update" }`
-- `400` — `{ "message": "Invalid file type: ... Only JPEG, PNG, GIF, and WebP are allowed." }`
+- `variants` and `colorImages` must be JSON strings.
+- `images` accepts up to 5 files, each up to the route limit.
+- `colorImages[].imageURL` may be a hosted URL or a data URI; data URIs are
+  uploaded to storage.
+- `size` is a free-form label and is not a garment size.
+- Missing `color`/`size` labels normalize to `Default`.
+- At least one variant is required. `stock` is required and is an integer >= 0.
 
----
+Product responses expose `variants` as an array, `imageURLs` as an array,
+`colorImages` as an object keyed by color, and `currency`.
 
-### 2.3 POST `/v1/user/upload-avatar` — Upload Avatar
+### `GET /v1/products`
 
-**Auth:** Required (any authenticated user)  
-**Rate Limit:** None  
-**Content-Type:** `multipart/form-data`
+Public. Active products only.
 
-**Request Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `image` | file | **Yes** | Avatar image (JPEG, PNG, GIF, WebP — max 2MB) |
+Query: `page`, `limit`, `minPrice`, `maxPrice`, `search` (English/Arabic/French
+name), `sort` (`price_asc|desc`, `en_name_asc|desc`, `ar_name_asc|desc`,
+`fr_name_asc|desc`, `createdAt_asc|desc`).
 
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Avatar uploaded",
-  "data": {
-    "imageURL": "https://res.cloudinary.com/.../profiles/abc123.jpg"
-  }
-}
-```
-
-**Error Responses:**
-- `400` — `{ "message": "No image provided" }`
-
----
-
-## 3. Phone Verification (`/v1/phone`)
-
-### 3.1 POST `/v1/phone/send-otp` — Send OTP via WhatsApp
-
-**Auth:** Required (user role)  
-**Rate Limit:** None
-
-**Request Body (JSON):**
-```json
-{
-  "phone": "+212612345678"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `phone` | string | **Yes** | International format (e.g. `+2126xxxxxxxx`) |
-
-**How it works:**
-1. Generates a 6-digit numeric OTP (e.g. `482931`)
-2. Stores OTP in **Redis** with key `otp:+212612345678`, expires in **5 minutes** (300 seconds)
-3. Sends OTP via **Infobip WhatsApp API** to the provided phone number
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "OTP sent to your WhatsApp"
-}
-```
-
----
-
-### 3.2 POST `/v1/phone/verify-otp` — Verify OTP
-
-**Auth:** Required (user role)  
-**Rate Limit:** None
-
-**Request Body (JSON):**
-```json
-{
-  "phone": "+212612345678",
-  "otp": "482931"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `phone` | string | **Yes** | Same phone used in send-otp |
-| `otp` | string | **Yes** | 6-digit code received via WhatsApp |
-
-**How it works:**
-1. Looks up OTP from Redis by key `otp:{phone}`
-2. If not found → expired. If mismatch → invalid.
-3. On success: deletes OTP from Redis, saves `phone` to the authenticated user's profile.
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Phone number verified and saved successfully"
-}
-```
-
-**Error Responses:**
-- `400` — `{ "message": "OTP expired or not found. Request a new one." }`
-- `400` — `{ "message": "Invalid OTP" }`
-- `401` — `{ "message": "Authentication required" }`
-
----
-
-## 4. Categories (`/v1/category`)
-
-### 4.1 GET `/v1/category` — List Active Categories (Public)
-
-**Auth:** None  
-**Rate Limit:** None
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Categories",
-  "data": [
-    {
-      "_id": "abc123def456",
-      "en_name": "Electronics",
-      "ar_name": "إلكترونيات",
-      "fr_name": "Électronique",
-      "imageURL": "https://res.cloudinary.com/.../categories/abc.jpg",
-      "addedByEmail": "admin@example.com",
-      "isActive": true,
-      "createdAt": "2026-06-14T10:00:00.000Z",
-      "updatedAt": "2026-06-14T10:00:00.000Z",
-      "subcategories": [
-        {
-          "_id": "abc123def456",
-          "en_name": "Mobile Phones",
-          "isActive": true,
-          "products": [
-            { "_id": "abc123def456", "en_name": "iPhone 15", "isActive": true }
-          ]
-        }
-      ]
-    }
-  ]
-}
-```
-> Only returns categories where `isActive: true`. Subcategories and products are also filtered to active ones.
-
----
-
-### 4.2 GET `/v1/category/:id/subcategories` — Get Subcategories by Category (Public)
-
-**Auth:** None
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Subcategories",
-  "data": [
-    {
-      "_id": "abc123def456",
-      "en_name": "Mobile Phones",
-      "categoryId": "abc123def456",
-      "isActive": true,
-      "products": [...]
-    }
-  ]
-}
-```
-
-**Error Responses:**
-- `404` — `{ "message": "Category not found" }`
-
----
-
-### 4.3 POST `/v1/category/admin` — Create Category (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Content-Type:** `application/json` (no file) or `multipart/form-data` (with image)
-
-**Request Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `en_name` | string | **Yes** | English name (unique) |
-| `ar_name` | string | No | Arabic name (unique) |
-| `fr_name` | string | No | French name (unique) |
-| `image` | file | No | Category image (JPEG, PNG, GIF, WebP — max 2MB) |
-
-**Success Response** `201 Created`:
-```json
-{
-  "message": "Category created",
-  "data": {
-    "_id": "abc123def456",
-    "en_name": "Electronics",
-    "ar_name": "إلكترونيات",
-    "fr_name": "Électronique",
-    "imageURL": "https://res.cloudinary.com/.../categories/abc.jpg",
-    "addedByEmail": "admin@example.com",
-    "isActive": true,
-    "updatedAt": "2026-06-14T10:00:00.000Z",
-    "createdAt": "2026-06-14T10:00:00.000Z"
-  }
-}
-```
-
-**Error Responses:**
-- `400` — `{ "message": "Category already exists" }`
-
----
-
-### 4.4 PUT `/v1/category/admin/:id` — Update Category (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Content-Type:** `application/json` (no file) or `multipart/form-data` (with image)
-
-**Request Fields (all optional):**
-| Field | Type | Description |
-|-------|------|-------------|
-| `en_name` | string | New English name |
-| `ar_name` | string | New Arabic name (send `""` to clear) |
-| `fr_name` | string | New French name (send `""` to clear) |
-| `image` | file | New category image (replaces old one) |
-| `imageURL` | string | Set image URL directly |
-| `addedByEmail` | string | Change admin email |
-
-**Success Response** `200 OK` (same shape as create)
-
-**How it works:** If a new image is uploaded, the **old image is deleted from Cloudinary**.
-
-**Error Responses:**
-- `404` — `{ "message": "Category not found" }`
-- `400` — `{ "message": "No fields to update" }`
-
----
-
-### 4.5 GET `/v1/category/admin` — List All Categories (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Includes inactive categories, subcategories, and products.**
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Categories",
-  "data": [
-    {
-      "_id": "abc123def456",
-      "en_name": "Electronics",
-      "isActive": true,
-      "subcategories": [
-        {
-          "_id": "abc123def456",
-          "en_name": "Mobile Phones",
-          "products": [ ... ]
-        }
-      ]
-    }
-  ]
-}
-```
-
----
-
-### 4.6 GET `/v1/category/admin/:id` — Get Category by ID (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
----
-
-### 4.7 DELETE `/v1/category/admin/:id` — Soft Delete Category (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
-**Cascade behavior:** Deleting a category also sets `isActive: false` on:
-- All subcategories belonging to this category
-- All products belonging to those subcategories
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Category soft deleted"
-}
-```
-
-**Error Responses:**
-- `404` — `{ "message": "Category not found" }`
-
----
-
-## 5. Subcategories (`/v1/subcategory`)
-
-### 5.1 GET `/v1/subcategory` — List Active Subcategories (Public)
-
-**Auth:** None
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Subcategories",
-  "data": [
-    {
-      "_id": "abc123def456",
-      "en_name": "Mobile Phones",
-      "ar_name": "هواتف محمولة",
-      "fr_name": "Téléphones portables",
-      "categoryId": "abc123def456",
-      "addedByEmail": "admin@example.com",
-      "isActive": true,
-      "createdAt": "...",
-      "updatedAt": "...",
-      "products": [
-        {
-          "_id": "abc123def456",
-          "en_name": "iPhone 15",
-          "isActive": true,
-          ...
-        }
-      ]
-    }
-  ]
-}
-```
-
----
-
-### 5.2 GET `/v1/subcategory/:id` — Get Active Subcategory by ID (Public)
-
-**Auth:** None
-
----
-
-### 5.3 GET `/v1/subcategory/admin` — List All Subcategories (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Includes inactive subcategories.**
-
----
-
-### 5.4 GET `/v1/subcategory/admin/:id` — Get Subcategory by ID (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
----
-
-### 5.5 POST `/v1/subcategory/admin` — Create Subcategory (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Content-Type:** `application/json`
-
-**Request Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `en_name` | string | **Yes** | Unique English name |
-| `ar_name` | string | No | Arabic name |
-| `fr_name` | string | No | French name |
-| `categoryId` | string | **Yes** | Parent category ID (MongoDB ObjectId) |
-
-**Success Response** `201 Created` (same shape as category create)
-
-**Error Responses:**
-- `404` — `{ "message": "Category not found" }`
-- `400` — `{ "message": "Subcategory already exists" }`
-
----
-
-### 5.6 PUT `/v1/subcategory/admin/:id` — Update Subcategory (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Content-Type:** `application/json`
-
-**Optional fields:** `en_name`, `ar_name`, `fr_name`, `categoryId`, `addedByEmail`
-
----
-
-### 5.7 DELETE `/v1/subcategory/admin/:id` — Soft Delete Subcategory (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
-**Cascade behavior:** Sets `isActive: false` on all products belonging to this subcategory.
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Subcategory soft deleted"
-}
-```
-
----
-
-## 6. Products (`/v1/products`)
-
-### 6.1 GET `/v1/products` — List Active Products (Public)
-
-**Auth:** None  
-**Rate Limit:** None
-
-**Query Parameters:**
-| Param | Type | Default | Description |
-|-------|------|---------|-------------|
-| `page` | integer | 1 | Page number (min 1) |
-| `limit` | integer | 10 | Items per page (1–100) |
-| `minPrice` | number | — | Minimum price filter |
-| `maxPrice` | number | — | Maximum price filter |
-| `sort` | string | — | Sort format: `price_asc`, `price_desc`, `name_asc`, `name_desc` |
-
-**Example request:**
-```
-GET /v1/products?page=1&limit=20&minPrice=100&maxPrice=1000&sort=price_asc
-```
-
-**Success Response** `200 OK`:
 ```json
 {
   "message": "Products",
-  "data": {
-    "products": [
-      {
-        "_id": "abc123def456",
-        "en_name": "iPhone 15",
-        "ar_name": "آيفون 15",
-        "fr_name": "iPhone 15",
-        "en_description": "Latest Apple smartphone",
-        "ar_description": "أحدث هاتف من أبل",
-        "fr_description": "Dernier smartphone Apple",
-        "price": 999.99,
-        "discount": 10,
-        "imageURLs": "[\"https://res.cloudinary.com/.../products/img1.jpg\",\"https://res.cloudinary.com/.../products/img2.jpg\"]",
-        "colorImages": "{\"Navy\":\"https://.../navy.jpg\",\"White\":\"https://.../white.jpg\"}",
-        "variants": "[{\"color\":\"Navy\",\"size\":\"s\",\"stock\":5},{\"color\":\"Navy\",\"size\":\"m\",\"stock\":10},{\"color\":\"White\",\"size\":\"m\",\"stock\":3}]",
-        "subcategoryId": "abc123def456",
-        "addedByEmail": "admin@example.com",
-        "isActive": true,
-        "currency": "EGP"
-      }
-    ],
-    "total": 45,
-    "page": 1,
-    "limit": 20,
-    "currency": "EGP"
-  }
-}
-```
-> `imageURLs`, `colorImages`, and `variants` are JSON strings — parse them on the client.
-> `discount` is a percentage (0–100). The effective price = `price - (price * discount / 100)`.
-
----
-
-### 6.2 GET `/v1/products/:id` — Get Active Product by ID (Public)
-
-**Auth:** None
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Product",
-  "data": {
-    "_id": "abc123def456",
-    "en_name": "iPhone 15",
-    "price": 999.99,
-    "discount": 10,
-    "imageURLs": "[\"https://...\"]",
-    "colorImages": "{\"Navy\":\"https://.../navy.jpg\"}",
-    "variants": "[{\"color\":\"Navy\",\"size\":\"s\",\"stock\":5},{\"color\":\"Navy\",\"size\":\"m\",\"stock\":10}]",
-    "currency": "EGP",
-    ...
-  }
-}
-```
-> Note: See full schema in the admin-list response above.
-
----
-
-### 6.3 GET `/v1/products/category/:categoryId` — Products by Category (Public)
-
-**Auth:** None  
-**Supports same query parameters as `GET /products` (page, limit, minPrice, maxPrice, sort).**
-
-**How it works:** Finds all active subcategories belonging to the given category, then returns products in those subcategories.
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Products",
-  "data": {
-    "products": [],
-    "total": 0,
-    "currency": "EGP"
-  }
-}
-```
-> Returns `products: []` if no subcategories found for the category.
-
----
-
-### 6.4 GET `/v1/products/subcategory/:subcategoryId` — Products by Subcategory (Public)
-
-**Auth:** None  
-**Supports same query parameters.**
-
----
-
-### 6.5 POST `/v1/products/admin` — Create Product (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Content-Type:** `application/json` (no files) or `multipart/form-data` (with images)
-
-**Request Fields:**
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `en_name` | string | **Yes** | Unique English name |
-| `en_description` | string | **Yes** | English description |
-| `price` | number | **Yes** | Price (min 1) |
-| `subcategoryId` | string | **Yes** | Parent subcategory ID (MongoDB ObjectId) |
-| `ar_name` | string | No | Arabic name |
-| `fr_name` | string | No | French name |
-| `ar_description` | string | No | Arabic description |
-| `fr_description` | string | No | French description |
-| `discount` | number | No | Discount percentage (0–100, default 0) |
-| `colorImages` | object[] | No | Array of `{ color, imageURL }` — maps each color to its image. If files are uploaded via `images[]`, omit `imageURL` and the first images are assigned to colors by index order. Example: |
-| `variants` | object[] | **Yes** (min 1) | Array of variant objects: |
-
-| Variant Field | Type | Description |
-|--------------|------|-------------|
-| `color` | string | Color name from allowed palette (see below) |
-| `size` | string | Size: `"xs"`, `"s"`, `"m"`, `"l"`, `"xl"`, `"xxl"` |
-| `stock` | number | Stock for this specific color/size combination (min 0) |
-
-**Allowed Colors:**
-
-| Color Name | Hex |
-|------------|------|
-| `"Blue"` | `#1B2BFF` |
-| `"Green"` | `#1AFF12` |
-| `"Yellow"` | `#F3FF12` |
-| `"Orange"` | `#FF7512` |
-| `"Red"` | `#FF1212` |
-| `"Pink"` | `#FF1BDD` |
-| `"Navy"` | `#1A2B48` |
-| `"White"` | `#FBFBFB` |
-| `"Purple"` | `#991BFF` |
-| `"Black"` | `#0E0E0E` |
-
-**Example variants and colorImages:**
-```json
-{
-  "variants": [
-    { "color": "Yellow", "size": "xs", "stock": 6 },
-    { "color": "Orange", "size": "xs", "stock": 1 },
-    { "color": "Blue", "size": "m", "stock": 10 }
-  ],
-  "colorImages": [
-    { "color": "Yellow", "imageURL": "https://.../yellow.jpg" },
-    { "color": "Orange", "imageURL": "https://.../orange.jpg" },
-    { "color": "Blue", "imageURL": "https://.../blue.jpg" }
-  ]
-}
-```
-> **With file uploads:** Omit `imageURL` from each entry. The first uploaded image maps to the first color in the array, second to second, etc.
-
-| `images[]` | file[] | No | Up to 5 images (JPEG, PNG, GIF, WebP — max 2MB each) |
-
-**Success Response** `201 Created`:
-```json
-{
-  "message": "Product created",
-  "data": {
-    "_id": "abc123def456",
-    "en_name": "iPhone 15",
-    "imageURLs": "[\"https://cloudinary.com/.../img1.jpg\",\"https://cloudinary.com/.../img2.jpg\"]",
-    "currency": "EGP",
-    ...
-  }
+  "data": { "products": [], "total": 0, "page": 1, "limit": 10, "currency": "SAR" }
 }
 ```
 
+### `GET /v1/products/:id`
+
+Public. Active product or `404`.
+
+### `GET /v1/products/category/:categoryId`
+
+Public. Active products in active subcategories of the category. Same query and
+pagination as the main list. A valid category with no matching products returns
+an empty list.
+
+### `GET /v1/products/subcategory/:subcategoryId`
+
+Public. Active products in the subcategory. Same query and pagination.
+
+### `POST /v1/products/admin`
+
+Admin/SuperAdmin. `multipart/form-data`, field `images` (up to 5, each max 2 MB),
+plus the product fields above.
+
+### `PUT /v1/products/admin/:id`
+
+Admin/SuperAdmin. `multipart/form-data`, field `images` (up to 5, each max 10 MB).
+At least one field is required. Uploading new images replaces and deletes the
+previous stored images. `isActive` accepts `"true"`/`"false"` from multipart.
+
+### `GET /v1/products/admin`
+
+Admin/SuperAdmin. Paginated list including inactive products. Same query as the
+public list.
+
+### `GET /v1/products/admin/:id`
+
+Admin/SuperAdmin. Returns a product regardless of `isActive`.
+
+### `DELETE /v1/products/admin/:id`
+
+Admin/SuperAdmin. Soft-deletes the product (`isActive: false`).
+
 ---
 
-### 6.6 PUT `/v1/products/admin/:id` — Update Product (Admin)
+## Cart
 
-**Auth:** Required (admin or superAdmin)  
-**Content-Type:** `application/json` (no files) or `multipart/form-data` (with images)
+All cart routes require a `user` role access token.
 
-**How it works with images:**
-- If new `images[]` are uploaded, **all existing images are deleted from Cloudinary** and replaced.
-- If `imageURLs` string is sent (without files), it sets the image URLs directly.
-- If neither is sent, existing images are kept.
-- **Variants:** When updating, send the full `variants` array — it replaces the existing one entirely.
+### `POST /v1/cart`
 
----
-
-### 6.7 GET `/v1/products/admin` — List All Products (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Includes inactive products.**
-
----
-
-### 6.8 GET `/v1/products/admin/:id` — Get Product by ID (Admin)
-
-**Auth:** Required (admin or superAdmin)  
-**Includes inactive products.**
-
----
-
-### 6.9 DELETE `/v1/products/admin/:id` — Soft Delete Product (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
-**Success Response** `200 OK`:
 ```json
 {
-  "message": "Product soft deleted"
-}
-```
-
----
-
-## 7. Cart (`/v1/cart`)
-
-> **All cart endpoints require authentication with role `user`.**
-
-### 7.1 POST `/v1/cart` — Add Item to Cart
-
-**Auth:** Required (user)  
-**Rate Limit:** None
-
-**Request Body (JSON):**
-```json
-{
-  "productId": "abc123def456",
-  "color": "Navy",
-  "size": "m",
+  "productId": "507f1f77bcf86cd799439011",
+  "color": "White",
+  "size": "2TB",
   "quantity": 2
 }
 ```
 
-**Behavior:**
-- If the same product variant (same color + size) is already in the user's cart, the quantity is **increased** by the given amount (not replaced).
-- Quantity cannot exceed the specific variant's `stock`.
-- Validates that the product exists, is active, and the variant exists.
+`color` and `size` are optional and default to `Default`. The product must be
+active and the variant must exist with enough stock. Adding an existing
+variant/color/size combination increases its quantity.
 
-**Success Responses:**
-- `201 Created` (new item):
+`201` when a new line is created; `200` when an existing line is updated.
+
+### `GET /v1/cart`
+
+Returns lines with populated product summary, availability, stock, unit price,
+line subtotal, cart subtotal, shipping cost, total, and currency.
+
+### `PUT /v1/cart/:productId/:color/:size`
+
 ```json
-{
-  "message": "Item added to cart",
-  "data": {
-    "_id": "abc123def456",
-    "userId": "abc123def456",
-    "productId": "abc123def456",
-    "color": "Navy",
-    "size": "m",
-    "quantity": 2,
-    "updatedAt": "...",
-    "createdAt": "..."
-  }
-}
-```
-- `200 OK` (existing item, quantity increased):
-```json
-{
-  "message": "Cart updated",
-  "data": { ... }
-}
+{ "quantity": 3 }
 ```
 
-**Error Responses:**
-- `404` — `{ "message": "Product not found or inactive" }`
-- `400` — `{ "message": "Variant Navy/m not found for this product" }`
-- `400` — `{ "message": "Requested quantity exceeds stock. Available: 5 for Navy/m" }`
+Use the exact stored labels (URL-encoded); use `Default` for the default
+variant. Rejects quantity above available stock.
+
+### `DELETE /v1/cart/:productId/:color/:size`
+
+Removes one line.
+
+### `DELETE /v1/cart`
+
+Clears the caller's cart.
 
 ---
 
-### 7.2 GET `/v1/cart` — View Cart
+## Wishlist
 
-**Auth:** Required (user)
+All wishlist routes require a `user` role access token.
 
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Cart",
-  "data": {
-    "items": [
-      {
-        "_id": "abc123def456",
-        "productId": "abc123def456",
-        "color": "Navy",
-        "size": "m",
-        "quantity": 2,
-        "product": {
-          "_id": "abc123def456",
-          "en_name": "iPhone 15",
-          "ar_name": "آيفون 15",
-          "fr_name": "iPhone 15",
-          "price": 999.99,
-          "discount": 10,
-          "imageURLs": "[\"https://...\"]"
-        },
-        "subtotal": 1799.98
-      }
-    ],
-    "subtotal": 1799.98,
-    "shippingCost": 50,
-    "total": 1849.98,
-    "currency": "EGP"
-  }
-}
-```
-> `subtotal` = sum of (price - price × discount / 100) × quantity  
-> `shippingCost` = based on `SHIPPING_COST_TYPE` (fixed or percentage of subtotal) from env  
-> `total` = subtotal + shippingCost
+### `POST /v1/wishlist/:productId`
+
+Adds an active product. Duplicate adds return `409`.
+
+### `GET /v1/wishlist`
+
+Returns the caller's wishlist with populated product summaries.
+
+### `DELETE /v1/wishlist/:productId`
+
+Removes one product from the wishlist.
 
 ---
 
-### 7.3 PUT `/v1/cart/:productId/:color/:size` — Update Cart Item Quantity
+## Orders and Payments
 
-**Auth:** Required (user)
+### Order statuses
 
-**Request Body (JSON):**
-```json
-{
-  "quantity": 5
-}
-```
+| Field | Values |
+|-------|--------|
+| `orderStatus` | `pending`, `processing`, `shipped`, `delivered`, `cancelled` |
+| `paymentStatus` | `pending`, `paid`, `failed` |
+| `shippingStatus` | `pending`, `prepared`, `shipped`, `delivered`, `returned`, `cancelled` |
 
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Cart updated",
-  "data": { ... }
-}
-```
+These are independent. The webhook changes payment status only. Installation has
+its own workflow.
 
-**Error Responses:**
-- `404` — `{ "message": "Item not found in cart" }`
-- `400` — `{ "message": "Product is no longer available" }`
-- `400` — `{ "message": "Requested quantity exceeds stock (50 available)" }`
+### `POST /v1/order`
 
----
+Authenticated. Rate-limited.
 
-### 7.4 DELETE `/v1/cart/:productId/:color/:size` — Remove Item from Cart
-
-**Auth:** Required (user)
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Item removed from cart"
-}
-```
-
----
-
-### 7.5 DELETE `/v1/cart` — Clear Entire Cart
-
-**Auth:** Required (user)
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Cart cleared"
-}
-```
-
----
-
-## 8. Wishlist (`/v1/wishlist`)
-
-> **All wishlist endpoints require authentication with role `user`.**
-
-### 8.1 POST `/v1/wishlist/:productId` — Add to Wishlist
-
-**Auth:** Required (user)
-
-**Path Parameters:**
-| Param | Type | Description |
-|-------|------|-------------|
-| `productId` | string | Product ID to add (MongoDB ObjectId) |
-
-**Success Response** `201 Created`:
-```json
-{
-  "message": "Added to wishlist",
-  "data": {
-    "_id": "abc123def456",
-    "userId": "abc123def456",
-    "productId": "abc123def456",
-    "updatedAt": "...",
-    "createdAt": "..."
-  }
-}
-```
-
-**Error Responses:**
-- `404` — `{ "message": "Product not found or inactive" }`
-- `400` — `{ "message": "Product already in wishlist" }`
-
----
-
-### 8.2 GET `/v1/wishlist` — View Wishlist
-
-**Auth:** Required (user)
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Wishlist",
-  "data": [
-    {
-      "_id": "abc123def456",
-      "userId": "abc123def456",
-      "productId": "abc123def456",
-      "product": {
-        "_id": "abc123def456",
-        "en_name": "iPhone 15",
-        "price": 999.99,
-        "discount": 10,
-        "imageURLs": "[\"https://...\"]"
-      }
-    }
-  ]
-}
-```
-
----
-
-### 8.3 DELETE `/v1/wishlist/:productId` — Remove from Wishlist
-
-**Auth:** Required (user)
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Removed from wishlist"
-}
-```
-
-**Error Responses:**
-- `404` — `{ "message": "Item not found in wishlist" }`
-
----
-
-## 9. Orders & Payment (`/v1/order`)
-
-### 9.1 POST `/v1/order` — Create Order
-
-**Auth:** Required (user)  
-**Rate Limit:** 1 request per 60 seconds
-
-**Request Body (JSON):**
 ```json
 {
   "items": [
-    { "productId": "abc123def456", "color": "Navy", "size": "m", "quantity": 2 },
-    { "productId": "abc123def456", "color": "Blue", "size": "l", "quantity": 1 }
+    {
+      "productId": "507f1f77bcf86cd799439011",
+      "color": "White",
+      "size": "2TB",
+      "quantity": 2
+    }
   ],
   "paymentMethod": "cod",
   "shippingAddress": {
-    "fullName": "John Doe",
-    "phone": "+201234567890",
-    "street": "123 Main St",
-    "city": "Cairo",
-    "state": "Cairo",
+    "fullName": "Customer",
+    "phone": "+966500000000",
+    "street": "Street",
+    "city": "Riyadh",
+    "state": "Riyadh",
     "zipCode": "12345",
-    "country": "Egypt"
-  }
+    "country": "Saudi Arabia"
+  },
+  "installation": {
+    "preferredDate": "2026-12-01T10:00:00.000Z",
+    "notes": "Second floor"
+  },
+  "idempotencyKey": "checkout-attempt-1"
 }
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `items[].productId` | string | **Yes** | Product ID (MongoDB ObjectId) |
-| `items[].color` | string | **Yes** | Color name from allowed palette |
-| `items[].size` | string | **Yes** | Size: `xs`, `s`, `m`, `l`, `xl`, `xxl` |
-| `items[].quantity` | number | **Yes** | Quantity (min 1) |
-| `paymentMethod` | string | **Yes** | `cod` (Cash on Delivery) or `card` (Stripe) |
-| `shippingAddress` | object | **Yes** | Shipping address object |
+- `items` must contain at least one active product with an existing variant and
+  enough stock.
+- Prices and totals are calculated server-side; client prices are ignored.
+- `installation` is optional. When present, an installation request is created
+  for `cod` orders immediately, and for `card` orders after the payment session
+  is created successfully.
+- `idempotencyKey` is optional. Repeating the same key for the same user returns
+  the existing order with `200` instead of creating a duplicate.
+- Stock is reserved in a MongoDB transaction, so MongoDB must run as a replica
+  set for checkout to work.
 
-**How it works (behind the scenes):**
+`cod` response: `201`
 
-1. **Stock validation & deduction:** Uses a **MongoDB transaction** (session). For each item:
-   - Checks product exists
-   - Checks stock >= requested quantity
-   - Calculates discounted price: `price - (price * discount / 100)`
-   - Deducts quantity from stock
-2. **Total calculation:**
-   - Subtotal = sum of (discountedPrice × quantity) for all items
-   - Shipping cost: **Only applied for COD orders**
-     - If `SHIPPING_COST_TYPE = fixed`: shipping = `SHIPPING_COST_VALUE` (e.g. 50 EGP)
-     - If `SHIPPING_COST_TYPE = percentage`: shipping = subtotal × `SHIPPING_COST_VALUE` / 100
-   - Grand total = subtotal + shipping cost
-3. **Order creation:** Stores items (JSON), shipping address (JSON), amounts, payment/order status.
-
----
-
-#### A) COD Payment Response `201 Created`:
 ```json
-{
-  "message": "Order created",
-  "data": {
-    "_id": "abc123def456",
-    "userId": "abc123def456",
-    "items": [
-      {
-        "productId": "abc123def456",
-        "quantity": 2,
-        "price": 899.99,
-        "en_name": "iPhone 15",
-        "ar_name": "آيفون 15",
-        "fr_name": "iPhone 15"
-      }
-    ],
-    "totalAmount": 1849.98,
-    "shippingCost": 50,
-    "paymentMethod": "cod",
-    "paymentStatus": "pending",
-    "orderStatus": "pending",
-    "shippingAddress": {
-      "fullName": "John Doe",
-      "phone": "+201234567890",
-      "street": "123 Main St",
-      "city": "Cairo",
-      "state": "Cairo",
-      "zipCode": "12345",
-      "country": "Egypt"
-    },
-    "currency": "EGP",
-    "createdAt": "...",
-    "updatedAt": "..."
-  }
-}
+{ "message": "Order created", "data": {/* order */} }
 ```
 
----
+`card` response: `201`
 
-#### B) Card (Stripe) Payment Response `201 Created`:
 ```json
 {
   "message": "Redirect to payment",
   "data": {
-    "url": "https://checkout.stripe.com/c/pay/cs_test_...",
-    "orderId": "abc123def456"
-  }
-}
-```
-> **Frontend flow:** Redirect the user to the `url`. After successful payment, Stripe redirects to:
-> - Success: `{BASE_URL}/complete?session_id={CHECKOUT_SESSION_ID}`
-> - Cancel: `{BASE_URL}/cancel`
-
-**Error Responses:**
-- `400` — `{ "message": "Insufficient stock for iPhone 15. Available: 5, requested: 10" }`
-- `404` — `{ "message": "Product with id 999 not found" }`
-
----
-
-### 9.2 GET `/v1/order/mine` — Get My Orders
-
-**Auth:** Required (user)
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Orders",
-  "data": {
-    "orders": [
-      {
-        "_id": "abc123def456",
-        "totalAmount": 1849.98,
-        "orderStatus": "pending",
-        "paymentStatus": "pending",
-        "paymentMethod": "cod",
-        "items": [ ... ],
-        "shippingAddress": { ... },
-        "createdAt": "..."
-      }
-    ],
-    "currency": "EGP"
-  }
-}
-```
-> Orders are returned newest first.
-
----
-
-### 9.3 GET `/v1/order/:id` — Get Order by ID
-
-**Auth:** Required (user, admin, or superAdmin)  
-**Access rules:**
-- Regular `user` can only view their own orders
-- `admin` and `superAdmin` can view any order
-
-**Error Responses:**
-- `403` — `{ "message": "Access denied" }`
-
----
-
-### 9.4 GET `/v1/order/admin` — Get All Orders (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
----
-
-### 9.5 PATCH `/v1/order/admin/:id` — Update Order Status (Admin)
-
-**Auth:** Required (admin or superAdmin)
-
-**Request Body (JSON):**
-```json
-{
-  "orderStatus": "shipped",
-  "paymentStatus": "paid"
-}
-```
-
-| Field | Type | Required | Allowed Values |
-|-------|------|----------|----------------|
-| `orderStatus` | string | **Yes** | `pending`, `processing`, `shipped`, `delivered`, `cancelled` |
-| `paymentStatus` | string | No | `pending`, `paid`, `failed` |
-
-**Success Response** `200 OK`:
-```json
-{
-  "message": "Order updated",
-  "data": {
-    "_id": "abc123def456",
-    "orderStatus": "shipped",
-    "paymentStatus": "paid",
-    "items": [ ... ],
-    "shippingAddress": { ... },
-    "currency": "EGP"
+    "url": "https://checkout.stripe.com/...",
+    "orderId": "507f1f77bcf86cd799439011",
+    "currency": "SAR"
   }
 }
 ```
 
----
+If Stripe is not configured or session creation fails, the order is cancelled,
+reserved stock is restored, no installation request is created, and the response
+is `502`.
 
-### 9.6 POST `/v1/order/webhook` — Stripe Webhook
+### `GET /v1/order/mine`
 
-**Auth:** None (Stripe sends this)  
-**Content-Type:** `application/json` (raw body)
+Authenticated. Returns the caller's orders newest first:
 
-**Purpose:** Receives Stripe events. On `checkout.session.completed`, updates the order:
-- `paymentStatus` → `paid`
-- `orderStatus` → `processing`
+```json
+{ "message": "Orders", "data": { "orders": [], "currency": "SAR" } }
+```
 
-**Success Response** `200 OK`:
+### `GET /v1/order/admin`
+
+Admin/SuperAdmin. Paginated (`page`, `limit` default 50, max 100), newest first,
+with `total`.
+
+### `PATCH /v1/order/admin/:id`
+
+Admin/SuperAdmin. At least one field:
+
 ```json
 {
-  "received": true
+  "orderStatus": "cancelled",
+  "paymentStatus": "failed",
+  "shippingStatus": "returned",
+  "shippingCarrier": "Carrier name",
+  "trackingNumber": "TRACK-123"
 }
 ```
 
-**How to test locally:**
-- Use [Stripe CLI](https://stripe.com/docs/stripe-cli) to forward webhooks:
-  ```bash
-  stripe listen --forward-to localhost:3007/v1/order/webhook
-  ```
-- Set the generated webhook signing secret as `STRIPE_WEBHOOK_SECRET` in your `.env`
+Moving `orderStatus` into `cancelled` restores reserved stock. Concurrent status
+updates are not serialized, so pair this with the atomic-transition improvement
+listed in the audit.
+
+### `GET /v1/order/:id`
+
+Owner or admin. Returns the order with parsed `items` and `shippingAddress`.
+
+### `POST /v1/order/webhook`
+
+Public Stripe webhook. Must receive the raw request body and a valid
+`stripe-signature` header. The route is mounted before the JSON body parser.
+
+- `checkout.session.completed` and `checkout.session.async_payment_succeeded`
+  set `paymentStatus: "paid"` and store the provider reference.
+- `checkout.session.async_payment_failed` and `checkout.session.expired` set
+  `paymentStatus: "failed"` unless the order is already paid.
+- Response: `200 { "received": true }`, or `400` for an invalid signature/event.
 
 ---
 
-## 10. Security Logs (`/v1/admin`)
+## Installation Requests
 
-### 10.1 GET `/v1/admin/security/logs`
+Authenticated. Installation statuses:
 
-**Auth:** Required (superAdmin only)
+`PENDING`, `UNDER_REVIEW`, `SCHEDULED`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`.
 
-**Success Response** `200 OK`:
+### `POST /v1/installation`
+
+```json
+{
+  "orderId": "507f1f77bcf86cd799439011",
+  "contactName": "Customer",
+  "phone": "+966500000000",
+  "address": "Street, Riyadh",
+  "preferredDate": "2026-12-01T10:00:00.000Z",
+  "notes": "Second floor"
+}
+```
+
+The order must belong to the caller, must not be cancelled, and may have only one
+installation request (`409` for a duplicate).
+
+### `GET /v1/installation/mine`
+
+Returns the caller's requests with order status/payment/total populated.
+
+### `GET /v1/installation/admin`
+
+Admin/SuperAdmin. Paginated, optional `status` filter.
+
+### `PATCH /v1/installation/admin/:id`
+
+Admin/SuperAdmin. Accepts `status`, `scheduledAt`, `adminNotes`. At least one
+field is required. `scheduledAt` is required when setting status to `SCHEDULED`.
+Cancelling clears the order's `installationRequested` flag.
+
+### `GET /v1/installation/:id`
+
+Owner or admin.
+
+### `POST /v1/installation/:id/cancel`
+
+Owner only. Allowed while status is `PENDING`, `UNDER_REVIEW`, or `SCHEDULED`.
+
+---
+
+## Contact
+
+### `POST /v1/contact`
+
+Public, rate-limited.
+
+```json
+{
+  "name": "Customer",
+  "email": "customer@example.com",
+  "subject": "Question",
+  "message": "Is this camera compatible?"
+}
+```
+
+Sends an HTML-escaped email to `CONTACT_RECIPIENT_EMAIL` (falling back to
+`EMAIL`). Returns `503` when no recipient is configured. SMTP failures surface
+through the global error handler.
+
+---
+
+## Security Logs
+
+### `GET /v1/security/logs`
+
+SuperAdmin only. Reads the tail of `security.log`, newest first.
+
+Query: `limit` (1-1000, default 200).
+
 ```json
 {
   "message": "Security logs",
-  "data": [
-    {
-      "timestamp": "2026-06-14T10:15:30",
-      "timeZone": "Africa/Cairo",
-      "ipAddress": "192.168.1.45",
-      "type": "SECURITY_ALERT",
-      "potentialInjection": "SELECT * FROM users",
-      "message": "Possible injection attempt detected",
-      "level": "warn"
-    }
-  ]
-}
-```
-> Returns parsed entries from `security.log`. Returns empty array if file doesn't exist or is empty.
-
-**Error Responses:**
-- `403` — `{ "message": "Access denied" }` (if not superAdmin)
-
----
-
-## 11. Error Handling & Auth System
-
-### Global Response Format
-
-All API responses follow a consistent format:
-
-**Success:**
-```json
-{
-  "message": "Action completed",
-  "data": { ... }
+  "data": [/* parsed JSON log lines */],
+  "total": 10
 }
 ```
 
-**Error:**
-```json
-{
-  "message": "Error description",
-  "error": [ ... ]  // optional, only for validation errors
-}
-```
-
-### HTTP Status Codes Used
-
-| Code | Meaning |
-|------|---------|
-| `200` | Success (GET, PUT, PATCH, DELETE) |
-| `201` | Created (POST) |
-| `400` | Validation error / Bad request |
-| `401` | Unauthorized / Invalid token |
-| `403` | Forbidden (wrong role or blocked IP) |
-| `404` | Resource not found |
-| `413` | Request entity too large (increase `limit` in `express.json()`) |
-| `500` | Internal server error |
-
-### Authentication Flow
-
-1. **Signup** → User receives verification email → User clicks link → `isActive: true`
-2. **Login** → Server returns `accessToken` (30min) + `refreshToken` (1 year)
-3. **Authenticated requests** → Include header: `Authorization: <role> <token>`
-4. **Token verification** → Server extracts bearer role, selects role-specific secret, verifies JWT
-5. **Refresh token** → When `accessToken` expires, call `POST /v1/auth/access-token` with the `refreshToken` to get a new `accessToken`
-
-### Role-Based Access Control
-
-| Role | Access Level |
-|------|-------------|
-| `user` | Browse products, manage cart/wishlist, place orders, view own orders |
-| `admin` | CRUD categories, subcategories, products; view all orders; update order status |
-| `superAdmin` | All admin privileges + view security logs |
-
-### Security: Injection Detection
-
-All input validation uses a custom `detectInjection` Joi rule that scans for:
-- **SQL keywords:** `SELECT`, `DROP`, `UNION`, `INSERT`, `UPDATE`, `DELETE`
-- **NoSQL operators:** `$ne`, `$eq`, `$gt`, `$lt`, `$regex`
-- **Comment syntax:** `--`, `;`
-
-When detected:
-1. The request is rejected with `400 Bad Request`
-2. The incident is **logged** to `security.log` via Winston
-3. The attacker's **IP is permanently blocked** in Redis (key: `blocked:<ip>`)
-4. All subsequent requests from that IP receive `403 Access denied. IP is permanently blocked.`
-5. To unblock: `DEL blocked:<ip>` in Redis
-
-### Stripe Payment Flow (Card Orders)
-
-```
-User → POST /v1/order (paymentMethod: "card")
-  → Backend: validates stock, deducts stock, creates order (status: pending)
-  → Backend: creates Stripe Checkout Session with line items + metadata (orderId)
-  → Response: { url: "https://checkout.stripe.com/...", orderId: 1 }
-
-Frontend → redirects user to Stripe Checkout URL
-User → enters card details on Stripe hosted page
-User → completes/cancels payment
-
-Stripe → POST /v1/order/webhook (checkout.session.completed)
-  → Backend: verifies webhook signature
-  → Backend: updates order → paymentStatus: "paid", orderStatus: "processing"
-  → Response: { received: true }
-
-Stripe → redirects user to {BASE_URL}/complete?session_id={CHECKOUT_SESSION_ID}
-```
-
-### Image Upload
-
-Two modes configurable via `Image_TYPE`:
-
-| Mode | Storage | Description |
-|------|---------|-------------|
-| `CLOUDINARY` (default) | Cloudinary | Images uploaded to Cloudinary CDN. Deletes old images on update. |
-| `SERVER` | Local server | Images saved to `uploads/` folder. Served via `{SERVER}/uploads/{folder}/{filename}` |
-
-Supported formats: JPEG, PNG, GIF, WebP (validated by `file-type` package, not just extension).
-
-Max upload size: **2MB** per file (configurable via `upload(2)` parameter).
+The response is limited to entries parsed from the last 5 MB of the file.
+Malformed lines are skipped.
 
 ---
 
-## 12. Database Models (MongoDB)
+## Data Models
 
-> All models use `_id` (ObjectId) as the primary key. `createdAt` and `updatedAt` are auto-managed via Mongoose `timestamps: true`.
+### User
 
-### User (`users` collection)
+`name`, `email` (unique, lowercase), `password` (bcrypt hash, hidden by default),
+`role` (`user`/`admin`/`superAdmin`), `isActive` (for email/password accounts:
+email verified), `isBlocked`, `googleId`, `imageURL`, `phone`, timestamps.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `name` | String (unique) | Username |
-| `email` | String (unique) | Email address |
-| `password` | String (nullable) | Hashed password (null for Google OAuth users) |
-| `isActive` | Boolean | Email verified / soft delete |
-| `imageURL` | String (nullable) | Profile image URL |
-| `role` | String (`admin`|`user`|`superAdmin`) | User role |
-| `phone` | String (nullable) | Phone number |
-| `googleId` | String (nullable) | Google OAuth ID |
-| `isBlocked` | Boolean | Manually blocked flag |
+### Category
 
-### Category (`categories` collection)
+`en_name`, `ar_name`, `fr_name`, `imageURL`, `addedByEmail`, `isActive`,
+timestamps. Virtual `subcategories`.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `en_name` | String | English name |
-| `ar_name` | String (nullable) | Arabic name |
-| `fr_name` | String (nullable) | French name |
-| `imageURL` | String (nullable) | Category image URL |
-| `addedByEmail` | String | Admin email who created it |
-| `isActive` | Boolean | Soft delete flag |
+### Subcategory
 
-Virtual: `subcategories` — populated via `ref: "Subcategory"`, `foreignField: "categoryId"`
+`en_name`, `ar_name`, `fr_name`, `categoryId`, `addedByEmail`, `isActive`,
+timestamps. Virtual `products`.
 
-### Subcategory (`subcategories` collection)
+### Product
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `en_name` | String | English name |
-| `ar_name` | String (nullable) | Arabic name |
-| `fr_name` | String (nullable) | French name |
-| `categoryId` | ObjectId (ref: Category) | Parent category ID |
-| `addedByEmail` | String | Admin email who created it |
-| `isActive` | Boolean | Soft delete flag |
+`en_name`, `ar_name`, `fr_name`, `en_description`, `ar_description`,
+`fr_description`, `price`, `discount` (0-100), `subcategoryId`, `addedByEmail`,
+`isActive`, timestamps.
 
-Virtual: `products` — populated via `ref: "Product"`, `foreignField: "subcategoryId"`
+Stored as JSON strings:
 
-### Product (`products` collection)
+- `variants`: `[{ color, size, stock }]`
+- `imageURLs`: `string[]`
+- `colorImages`: `{ [color]: imageURL }`
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `en_name` | String | English name |
-| `ar_name` | String (nullable) | Arabic name |
-| `fr_name` | String (nullable) | French name |
-| `en_description` | String | English description |
-| `ar_description` | String (nullable) | Arabic description |
-| `fr_description` | String (nullable) | French description |
-| `price` | Number | Base price |
-| `discount` | Number | Discount percentage (0–100) |
-| `imageURLs` | String (JSON) | JSON array of image URLs |
-| `colorImages` | String (JSON) | JSON object mapping color names to image URLs: `{"Navy":"url","White":"url"}` |
-| `variants` | String (JSON) | JSON array of `{color, size, stock}` — each variant has its own stock |
-| `subcategoryId` | ObjectId (ref: Subcategory) | Parent subcategory ID |
-| `addedByEmail` | String | Admin email who created it |
-| `isActive` | Boolean | Soft delete flag |
+### Cart
 
-### Cart (`carts` collection)
+`userId`, `productId`, `color`, `size`, `quantity`. Unique per
+user + product + color + size.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `userId` | ObjectId (ref: User) | User ID (owner) |
-| `productId` | ObjectId (ref: Product) | Product ID |
-| `color` | String | Color name (e.g. `Navy`, `White`) |
-| `size` | String | Size (`xs`, `s`, `m`, `l`, `xl`, `xxl`) |
-| `quantity` | Number | Quantity (min 1) |
+### Wishlist
 
-Unique compound index: `(userId, productId, color, size)` — same variant can't be added twice.
+`userId`, `productId`. Unique per user + product.
 
-### Wishlist (`wishlists` collection)
+### Order
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `userId` | ObjectId (ref: User) | User ID (owner) |
-| `productId` | ObjectId (ref: Product) | Product ID |
+`userId`, `items` (JSON snapshot array), `subtotal`, `shippingCost`,
+`totalAmount`, `paymentMethod` (`cod`/`card`), `paymentStatus`, `paymentProvider`,
+`paymentReference`, `orderStatus`, `shippingStatus`, `shippingCarrier`,
+`trackingNumber`, `shippingAddress` (JSON object string), `installationRequested`,
+`installationRequestId`, `idempotencyKey`, timestamps.
 
-Unique compound index: `(userId, productId)` — prevents duplicates.
+Indexes: user + created date, status fields, and a partial unique index on
+user + idempotency key.
 
-### Order (`orders` collection)
+### InstallationRequest
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `_id` | ObjectId | Primary key |
-| `userId` | ObjectId (ref: User) | User ID (owner) |
-| `items` | String (JSON) | JSON: array of `{productId, quantity, price, en_name, ar_name, fr_name, color, size}` |
-| `totalAmount` | Number | Grand total (subtotal + shipping) |
-| `shippingCost` | Number | Shipping cost (0 for card orders) |
-| `paymentMethod` | String (`cod`|`card`) | Payment method |
-| `paymentStatus` | String (`pending`|`paid`|`failed`) | Payment status |
-| `orderStatus` | String (`pending`|`processing`|`shipped`|`delivered`|`cancelled`) | Order fulfillment status |
-| `shippingAddress` | String (JSON) | JSON: { fullName, phone, street, city, state, zipCode, country } |
+`orderId` (unique), `userId`, `status`, `contactName`, `phone`, `address`,
+`preferredDate`, `scheduledAt`, `notes`, `adminNotes`, timestamps.
 
 ---
 
-## Quick Reference: All Endpoints
+## Security Behavior
 
-| # | Method | Endpoint | Auth | Description |
-|---|--------|----------|------|-------------|
-| 1 | POST | `/v1/auth/signup` | — | Register new user |
-| 2 | POST | `/v1/auth/login` | — | Login with email/password |
-| 3 | GET | `/v1/auth/google/signup` | — | Google OAuth signup |
-| 4 | GET | `/v1/auth/google/signup/callback` | — | Google signup callback |
-| 5 | GET | `/v1/auth/google/login` | — | Google OAuth login |
-| 6 | GET | `/v1/auth/google/login/callback` | — | Google login callback |
-| 7 | GET | `/v1/auth/verify-email/:token` | — | Verify email |
-| 8 | POST | `/v1/auth/resend-verify-email` | R60 | Resend verification email |
-| 9 | POST | `/v1/auth/forgot-password` | R60 | Send password reset email |
-| 10 | POST | `/v1/auth/reset-password/:token` | R60 | Reset password |
-| 11 | POST | `/v1/auth/access-token` | — | Refresh access token |
-| 12 | GET | `/v1/user/profile` | User | Get profile |
-| 13 | PUT | `/v1/user/profile` | User | Update profile |
-| 14 | POST | `/v1/user/upload-avatar` | User | Upload avatar |
-| 15 | POST | `/v1/phone/send-otp` | User | Send OTP via WhatsApp |
-| 16 | POST | `/v1/phone/verify-otp` | User | Verify OTP |
-| 17 | GET | `/v1/category` | — | List active categories |
-| 18 | GET | `/v1/category/:id/subcategories` | — | Get subcategories by category |
-| 19 | POST | `/v1/category/admin` | Admin | Create category |
-| 20 | PUT | `/v1/category/admin/:id` | Admin | Update category |
-| 21 | GET | `/v1/category/admin` | Admin | List all categories |
-| 22 | GET | `/v1/category/admin/:id` | Admin | Get category by ID |
-| 23 | DELETE | `/v1/category/admin/:id` | Admin | Soft delete category |
-| 24 | GET | `/v1/subcategory` | — | List active subcategories |
-| 25 | GET | `/v1/subcategory/:id` | — | Get active subcategory |
-| 26 | POST | `/v1/subcategory/admin` | Admin | Create subcategory |
-| 27 | PUT | `/v1/subcategory/admin/:id` | Admin | Update subcategory |
-| 28 | GET | `/v1/subcategory/admin` | Admin | List all subcategories |
-| 29 | GET | `/v1/subcategory/admin/:id` | Admin | Get subcategory by ID |
-| 30 | DELETE | `/v1/subcategory/admin/:id` | Admin | Soft delete subcategory |
-| 31 | GET | `/v1/products` | — | List active products |
-| 32 | GET | `/v1/products/:id` | — | Get active product |
-| 33 | GET | `/v1/products/category/:categoryId` | — | Products by category |
-| 34 | GET | `/v1/products/subcategory/:subcategoryId` | — | Products by subcategory |
-| 35 | POST | `/v1/products/admin` | Admin | Create product |
-| 36 | PUT | `/v1/products/admin/:id` | Admin | Update product |
-| 37 | GET | `/v1/products/admin` | Admin | List all products |
-| 38 | GET | `/v1/products/admin/:id` | Admin | Get product by ID |
-| 39 | DELETE | `/v1/products/admin/:id` | Admin | Soft delete product |
-| 40 | POST | `/v1/cart` | User | Add item to cart |
-| 41 | GET | `/v1/cart` | User | View cart |
-| 42 | PUT | `/v1/cart/:productId/:color/:size` | User | Update cart quantity |
-| 43 | DELETE | `/v1/cart/:productId/:color/:size` | User | Remove item from cart |
-| 44 | DELETE | `/v1/cart` | User | Clear cart |
-| 45 | POST | `/v1/wishlist/:productId` | User | Add to wishlist |
-| 46 | GET | `/v1/wishlist` | User | View wishlist |
-| 47 | DELETE | `/v1/wishlist/:productId` | User | Remove from wishlist |
-| 48 | POST | `/v1/order` | User (R60) | Create order (COD/Card) |
-| 49 | GET | `/v1/order/mine` | User | Get my orders |
-| 50 | GET | `/v1/order/:id` | User | Get order by ID |
-| 51 | GET | `/v1/order/admin` | Admin | Get all orders |
-| 52 | PATCH | `/v1/order/admin/:id` | Admin | Update order status |
-| 53 | POST | `/v1/order/webhook` | — | Stripe webhook |
-| 54 | GET | `/v1/admin/security/logs` | SuperAdmin | View security logs |
-
-> `R60` = rate-limited: 1 request per 60 seconds
-
----
-
-## Tech Stack Summary
-
-| Layer | Technology |
-|-------|-----------|
-| Runtime | Node.js + TypeScript |
-| Framework | Express 5 |
-| ODM | Mongoose 9 |
-| Database | MongoDB |
-| Cache / OTP | Redis (Upstash) |
-| Auth | JWT (role-based secrets) + Passport (Google OAuth) |
-| Validation | Joi (with custom injection detection) |
-| Image Upload | Cloudinary (primary) or local server |
-| Payments | Stripe Checkout |
-| WhatsApp OTP | Infobip API |
-| Logging | Winston (`security.log`) |
-| Email | Nodemailer (Gmail SMTP) |
-| File Type Validation | `file-type` package (reads actual bytes) |
-| Testing | Jest (unit) + Cypress (E2E, ~106 tests) |
-
----
-
-## Running the Project
-
-```bash
-# 1. Install dependencies
-npm install
-
-# 2. Configure environment
-# Edit config/.env with your settings (database, Redis, Stripe, etc.)
-
-# 3. Start in development mode
-npm run dev
-
-# 4. Server runs on http://localhost:3007
-```
-
-### Available Scripts
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server with hot reload |
-| `npm run build` | Compile TypeScript |
-| `npm run start` | Run compiled JS |
-| `npm run test` | Run Jest tests |
-| `npm run cy:run` | Run Cypress E2E tests headlessly |
-| `npm run lint` | ESLint |
-| `npm run format` | Prettier |
+- Passwords are hashed with bcrypt; rounds are read from `HASH` and clamped to
+  8-15.
+- JWTs are signed with role-specific secrets and carry a purpose `type`.
+- Zod validates request bodies before controllers; unknown keys are preserved,
+  known fields are coerced/trimmed.
+- MongoDB operator keys (`$...`) and dotted keys are rejected in JSON bodies,
+  query strings, and route params before routing.
+- Helmet sets security headers; CORS uses `CORS_ORIGINS` when configured.
+- Uploads are held in memory, limited in size/count, and validated by magic
+  bytes (JPEG, PNG, GIF, WebP).
+- Stripe webhooks are signature-verified. Card data is never accepted or stored.
+- Password-reset tokens are single-use and require Redis.
+- Access tokens are not revoked on password change; refresh tokens are stateless.
+  Rotate the signing secrets to invalidate all issued tokens.

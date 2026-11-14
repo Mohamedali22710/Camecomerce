@@ -2,7 +2,7 @@
 import { Router } from "express";
 
 import { auth } from "../../common/middleware/auth.js";
-import { upload } from "../../common/middleware/multer.js";
+import { uploadArray } from "../../common/middleware/multer.js";
 import { allowRoles } from "../../common/utils/allowRoles.js";
 import { validateInput } from "../../common/utils/validate.js";
 
@@ -39,7 +39,7 @@ router.post(
   "/admin",
   auth,
   allowRoles("admin", "superAdmin"),
-  upload(2).array("images", 5),
+  uploadArray(2, "images", 5),
   validateInput(createProductValidate),
   createProduct,
 );
@@ -57,7 +57,7 @@ router.put(
   "/admin/:id",
   auth,
   allowRoles("admin", "superAdmin"),
-  upload(10).array("images", 5),
+  uploadArray(10, "images", 5),
   validateInput(updateProductValidate),
   updateProduct,
 );

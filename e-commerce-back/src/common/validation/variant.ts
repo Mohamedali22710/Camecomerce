@@ -4,7 +4,7 @@
  * accessories (for example color "White" + size "2TB") without clothing-only enums.
  * "size" is a free-form variant label, not a garment size.
  */
-import Joi from "joi";
+import { z } from "zod";
 
 export const DEFAULT_VARIANT_VALUE = "Default";
 
@@ -14,20 +14,27 @@ export interface ProductVariant {
   stock: number;
 }
 
-const label = Joi.string().trim().max(50).default(DEFAULT_VARIANT_VALUE);
-
-/** Joi schema for one product variant. */
-export const variantSchema = Joi.object({
-  color: label,
-  size: label,
-  stock: Joi.number().integer().min(0).required(),
-});
-
 const normalizeLabel = (value: unknown): string => {
   if (typeof value !== "string") {return DEFAULT_VARIANT_VALUE;}
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : DEFAULT_VARIANT_VALUE;
 };
+
+/** Free-form variant label with a stable fallback for blank input. */
+export const variantLabelSchema = z.preprocess(
+  (value) => (value === undefined || value === null ? DEFAULT_VARIANT_VALUE : value),
+  z
+    .string()
+    .max(50)
+    .transform((value) => normalizeLabel(value)),
+);
+
+/** Zod schema for one product variant. */
+export const variantSchema = z.looseObject({
+  color: variantLabelSchema,
+  size: variantLabelSchema,
+  stock: z.coerce.number().int().min(0),
+});
 
 /** Normalizes a variant coming from JSON, multipart form data, or a database row. */
 export const normalizeVariant = (value: Partial<ProductVariant>): ProductVariant => ({

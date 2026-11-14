@@ -21,7 +21,7 @@ interface BuildQueryParams {
 export const buildQuery = ({
   reqQuery,
   priceField = "price",
-  allowedSortFields = ["price", "name", "en_name", "createdAt"],
+  allowedSortFields = ["price", "en_name", "ar_name", "fr_name", "createdAt"],
   defaultSort = ["createdAt", "DESC"],
   extraWhere = {},
   searchFields = ["en_name", "ar_name", "fr_name"],

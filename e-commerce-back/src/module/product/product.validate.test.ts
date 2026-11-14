@@ -1,0 +1,69 @@
+import { describe, expect, it } from "@jest/globals";
+
+import { createProductValidate, updateProductValidate } from "./product.validate.js";
+
+const validProduct = {
+  en_name: "Indoor camera",
+  en_description: "A compact indoor camera",
+  price: "199.99",
+  subcategoryId: "507f1f77bcf86cd799439011",
+  variants: '[{"color":" White ","size":"2TB","stock":"5"}]',
+};
+
+describe("createProductValidate", () => {
+  it("parses multipart JSON and coerces numeric fields", () => {
+    const result = createProductValidate.safeParse(validProduct);
+
+    expect(result.success).toBe(true);
+    if (!result.success) {return;}
+    expect(result.data.price).toBe(199.99);
+    expect(result.data.variants).toEqual([
+      { color: "White", size: "2TB", stock: 5 },
+    ]);
+  });
+
+  it("fills missing variant labels with Default", () => {
+    const result = createProductValidate.safeParse({
+      ...validProduct,
+      variants: '[{"stock":1}]',
+    });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {return;}
+    expect(result.data.variants).toEqual([
+      { color: "Default", size: "Default", stock: 1 },
+    ]);
+  });
+
+  it("rejects an empty variant list", () => {
+    const result = createProductValidate.safeParse({
+      ...validProduct,
+      variants: "[]",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a variant without stock", () => {
+    const result = createProductValidate.safeParse({
+      ...validProduct,
+      variants: '[{"color":"White","size":"2TB"}]',
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("updateProductValidate", () => {
+  it("coerces the multipart isActive=false string to false", () => {
+    const result = updateProductValidate.safeParse({ isActive: "false" });
+
+    expect(result.success).toBe(true);
+    if (!result.success) {return;}
+    expect(result.data.isActive).toBe(false);
+  });
+
+  it("rejects an empty update", () => {
+    expect(updateProductValidate.safeParse({}).success).toBe(false);
+  });
+});

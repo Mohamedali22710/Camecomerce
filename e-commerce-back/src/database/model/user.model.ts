@@ -26,7 +26,8 @@ const userSchema = new Schema<IUser>(
       lowercase: true,
       trim: true,
     },
-    password: { type: String, default: null },
+    // Hidden by default; login explicitly asks for it with `.select("+password")`.
+    password: { type: String, default: null, select: false },
     // For email/password users this also means "email verified".
     isActive: { type: Boolean, default: false },
     imageURL: { type: String, default: null },

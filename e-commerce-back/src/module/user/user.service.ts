@@ -26,7 +26,7 @@ const normalizePhone = (phone: string): string => {
 };
 
 export const getProfile = async (req: Request, res: Response): Promise<void> => {
-  const user = await userModel.findById(requireUserId(req)).select("-password");
+  const user = await userModel.findById(requireUserId(req)).select("-password -googleId");
   if (!user) {throw new HttpError(404, "User not found");}
   res.status(200).json({ message: "Profile", data: user });
 };

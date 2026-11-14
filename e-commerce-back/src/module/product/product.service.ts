@@ -298,14 +298,6 @@ export const getProductsByCategory = async (req: Request, res: Response): Promis
   const subcategories = await subcategoryModel.find({ categoryId, isActive: true });
   const subcategoryIds = subcategories.map((subcategory) => subcategory._id);
 
-  if (subcategoryIds.length === 0) {
-    res.status(200).json({
-      message: "Products",
-      data: { products: [], total: 0, page: 1, limit: 0, currency: env.CURRENCY },
-    });
-    return;
-  }
-
   res.status(200).json({
     message: "Products",
     data: await paginated({ isActive: true, subcategoryId: { $in: subcategoryIds } }, req),

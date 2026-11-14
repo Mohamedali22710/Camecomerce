@@ -1,38 +1,43 @@
-/** Joi validation schemas for auth endpoints. */
-import Joi from "joi";
+/** Zod validation schemas for auth endpoints. */
+import { z } from "zod";
 
-const email = Joi.string().trim().lowercase().email().required();
-const password = Joi.string().min(8).max(128).required();
+import { emailSchema, passwordSchema, phoneSchema } from "../../common/validation/fields.js";
 
-/** Validation schema for user signup. Name is derived from the email prefix. */
-export const signupValidate = Joi.object({
-  email,
-  password,
-  confirmPassword: password.valid(Joi.ref("password")).messages({
-    "any.only": "Passwords do not match",
-  }),
-  role: Joi.string().valid("admin", "user", "superAdmin").optional(),
-  phone: Joi.string()
-    .pattern(/^\+?[1-9]\d{6,14}$/)
-    .optional()
-    .allow(""),
+const passwordConfirmation = z.object({
+  password: passwordSchema,
+  confirmPassword: passwordSchema,
 });
 
+const passwordsMatch = (data: { password: string; confirmPassword: string }) =>
+  data.password === data.confirmPassword;
+
+const passwordMismatch = {
+  path: ["confirmPassword"],
+  message: "Passwords do not match",
+};
+
+/** Validation schema for user signup. Name is derived from the email prefix. */
+export const signupValidate = z
+  .looseObject({
+    email: emailSchema,
+    password: passwordSchema,
+    confirmPassword: passwordSchema,
+    role: z.enum(["admin", "user", "superAdmin"]).optional(),
+    phone: phoneSchema.optional().or(z.literal("")),
+  })
+  .refine(passwordsMatch, passwordMismatch);
+
 /** Validation schema for email/password login. */
-export const loginValidate = Joi.object({
-  email,
-  password: Joi.string().required(),
+export const loginValidate = z.looseObject({
+  email: emailSchema,
+  password: z.string().min(1),
 });
 
 /** Validation schema for password reset. */
-export const resetPasswordValidate = Joi.object({
-  password,
-  confirmPassword: password.valid(Joi.ref("password")).messages({
-    "any.only": "Passwords do not match",
-  }),
-});
+export const resetPasswordValidate = passwordConfirmation.refine(
+  passwordsMatch,
+  passwordMismatch,
+);
 
 /** Validation schema for endpoints that only accept an email address. */
-export const emailOnlyValidate = Joi.object({
-  email,
-});
+export const emailOnlyValidate = z.looseObject({ email: emailSchema });

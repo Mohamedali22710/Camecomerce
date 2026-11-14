@@ -1,19 +1,23 @@
-/** Joi validation schemas for category endpoints. */
-import Joi from "joi";
+/** Zod validation schemas for category endpoints. */
+import { z } from "zod";
 
-const name = Joi.string().trim().max(200);
+const name = z.string().trim().max(200);
 
 /** Validation schema for creating a category. */
-export const createCategoryValidate = Joi.object({
-  en_name: name.required(),
-  ar_name: name.optional().allow("", null),
-  fr_name: name.optional().allow("", null),
+export const createCategoryValidate = z.looseObject({
+  en_name: name,
+  ar_name: name.optional().nullable(),
+  fr_name: name.optional().nullable(),
 });
 
 /** Validation schema for updating a category. */
-export const updateCategoryValidate = Joi.object({
-  en_name: name.optional(),
-  ar_name: name.optional().allow("", null),
-  fr_name: name.optional().allow("", null),
-  imageURL: Joi.string().trim().max(2000).optional().allow("", null),
-}).min(1);
+export const updateCategoryValidate = z
+  .looseObject({
+    en_name: name.optional(),
+    ar_name: name.optional().nullable(),
+    fr_name: name.optional().nullable(),
+    imageURL: z.string().trim().max(2000).optional().nullable(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });

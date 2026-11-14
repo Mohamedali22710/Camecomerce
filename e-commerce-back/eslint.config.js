@@ -10,9 +10,8 @@ export default [
     files: ["src/**/*.ts"],
     languageOptions: {
       parser: tsparser,
+      // Linting is not type-aware; `npm run typecheck` owns type errors.
       parserOptions: {
-        project: "tsconfig.json",
-        tsconfigRootDir: import.meta.dirname,
         sourceType: "module",
       },
       globals: {

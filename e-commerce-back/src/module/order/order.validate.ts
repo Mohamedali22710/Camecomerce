@@ -1,59 +1,55 @@
-/** Joi validation schemas for order endpoints. */
-import Joi from "joi";
+/** Zod validation schemas for order endpoints. */
+import { z } from "zod";
 
+import { phoneSchema } from "../../common/validation/fields.js";
 import { objectIdSchema } from "../../common/validation/objectId.js";
-import { DEFAULT_VARIANT_VALUE } from "../../common/validation/variant.js";
+import { variantLabelSchema } from "../../common/validation/variant.js";
 import {
   ORDER_STATUSES,
   PAYMENT_STATUSES,
   SHIPPING_STATUSES,
 } from "../../database/model/order.model.js";
 
-const variantLabel = Joi.string()
-  .trim()
-  .max(50)
-  .default(DEFAULT_VARIANT_VALUE);
+const itemSchema = z.looseObject({
+  productId: objectIdSchema,
+  color: variantLabelSchema,
+  size: variantLabelSchema,
+  quantity: z.coerce.number().int().min(1).max(1000),
+});
 
-const itemSchema = Joi.object({
-  productId: objectIdSchema.required(),
-  color: variantLabel.optional(),
-  size: variantLabel.optional(),
-  quantity: Joi.number().integer().min(1).max(1000).required(),
+const shippingAddressSchema = z.looseObject({
+  fullName: z.string().trim().max(200),
+  phone: phoneSchema,
+  street: z.string().trim().max(500),
+  city: z.string().trim().max(100),
+  state: z.string().trim().max(100).optional(),
+  zipCode: z.string().trim().max(20).optional(),
+  country: z.string().trim().max(100),
 });
 
 /** Schema for creating an order. Presence of `installation` requests installation. */
-export const createOrderValidate = Joi.object({
-  items: Joi.array().items(itemSchema).min(1).required(),
-  paymentMethod: Joi.string().valid("cod", "card").required(),
-  shippingAddress: Joi.object({
-    fullName: Joi.string().trim().max(200).required(),
-    phone: Joi.string()
-      .pattern(/^\+?[1-9]\d{6,14}$/)
-      .required(),
-    street: Joi.string().trim().max(500).required(),
-    city: Joi.string().trim().max(100).required(),
-    state: Joi.string().trim().max(100).optional().allow(""),
-    zipCode: Joi.string().trim().max(20).optional().allow(""),
-    country: Joi.string().trim().max(100).required(),
-  }).required(),
-  installation: Joi.object({
-    preferredDate: Joi.date().iso().optional(),
-    notes: Joi.string().trim().max(1000).optional().allow(""),
-  }).optional(),
-  idempotencyKey: Joi.string().trim().max(100).optional().allow("", null),
+export const createOrderValidate = z.looseObject({
+  items: z.array(itemSchema).min(1),
+  paymentMethod: z.enum(["cod", "card"]),
+  shippingAddress: shippingAddressSchema,
+  installation: z
+    .looseObject({
+      preferredDate: z.coerce.date().optional(),
+      notes: z.string().trim().max(1000).optional(),
+    })
+    .optional(),
+  idempotencyKey: z.string().trim().max(100).nullable().optional(),
 });
 
 /** Schema for admin updates. At least one field must be supplied. */
-export const updateOrderStatusValidate = Joi.object({
-  orderStatus: Joi.string()
-    .valid(...ORDER_STATUSES)
-    .optional(),
-  paymentStatus: Joi.string()
-    .valid(...PAYMENT_STATUSES)
-    .optional(),
-  shippingStatus: Joi.string()
-    .valid(...SHIPPING_STATUSES)
-    .optional(),
-  shippingCarrier: Joi.string().trim().max(100).optional().allow("", null),
-  trackingNumber: Joi.string().trim().max(100).optional().allow("", null),
-}).min(1);
+export const updateOrderStatusValidate = z
+  .looseObject({
+    orderStatus: z.enum(ORDER_STATUSES).optional(),
+    paymentStatus: z.enum(PAYMENT_STATUSES).optional(),
+    shippingStatus: z.enum(SHIPPING_STATUSES).optional(),
+    shippingCarrier: z.string().trim().max(100).nullable().optional(),
+    trackingNumber: z.string().trim().max(100).nullable().optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one field is required",
+  });

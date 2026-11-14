@@ -1,12 +1,17 @@
-/** Joi validation middleware that validates `req.body` against a schema. */
+/** Zod validation middleware that validates `req.body` against a schema. */
 import { NextFunction, Request, Response } from "express";
-import Joi from "joi";
+import { z } from "zod";
+
+const formatIssue = (issue: z.ZodIssue): { path: string; message: string } => ({
+  path: issue.path.map(String).join("."),
+  message: issue.message,
+});
 
 /**
- * @desc Express middleware that validates req.body against the provided Joi schema.
+ * @desc Express middleware that validates req.body against the provided Zod schema.
  * @returns Middleware that returns 400 on validation failure.
  */
-export const validateInput = (schema: Joi.ObjectSchema) => {
+export const validateInput = <Schema extends z.ZodType>(schema: Schema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.body || typeof req.body !== "object" || Buffer.isBuffer(req.body)) {
       res.status(400).json({
@@ -15,22 +20,17 @@ export const validateInput = (schema: Joi.ObjectSchema) => {
       return;
     }
 
-    const { error, value } = schema.validate(req.body, {
-      abortEarly: false,
-      allowUnknown: true,
-      convert: true,
-    });
-
-    if (error) {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
       res.status(400).json({
         message: "validation error",
-        error: error.details,
+        error: result.error.issues.map(formatIssue),
       });
       return;
     }
 
     // Use coerced/defaulted values (for example variant defaults).
-    req.body = value;
+    req.body = result.data;
     next();
   };
 };

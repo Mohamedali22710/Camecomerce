@@ -38,6 +38,11 @@ interface ShippingAddress {
   country: string;
 }
 
+interface InstallationInput {
+  preferredDate?: string | Date;
+  notes?: string;
+}
+
 const shippingConfig = () => ({
   type: env.SHIPPING_COST_TYPE,
   value: Number(env.SHIPPING_COST_VALUE) || 0,
@@ -68,6 +73,22 @@ const formatAddress = (address: ShippingAddress): string =>
   [address.street, address.city, address.state, address.zipCode, address.country]
     .filter(Boolean)
     .join(", ");
+
+const createOrderInstallation = async (
+  order: IOrder,
+  userId: string,
+  shippingAddress: ShippingAddress,
+  installation: InstallationInput,
+) =>
+  installationRequestModel.create({
+    orderId: order._id,
+    userId,
+    contactName: shippingAddress.fullName,
+    phone: shippingAddress.phone,
+    address: formatAddress(shippingAddress),
+    preferredDate: installation.preferredDate ?? null,
+    notes: installation.notes ?? null,
+  });
 
 /** Puts reserved stock back on the product variants (used when an order is cancelled). */
 const restoreStock = async (items: OrderItemSnapshot[]): Promise<void> => {
@@ -194,6 +215,25 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
   const orderData = serializeOrder(order);
 
+  const attachInstallation = async (): Promise<void> => {
+    if (!installation) {return;}
+
+    const request = await createOrderInstallation(
+      order,
+      userId,
+      shippingAddress,
+      installation,
+    );
+
+    await orderModel.findByIdAndUpdate(order._id, {
+      installationRequested: true,
+      installationRequestId: request._id,
+    });
+
+    orderData.installationRequested = true;
+    orderData.installationRequestId = request._id;
+  };
+
   if (paymentMethod === "card") {
     const checkout = await createCheckoutSession(
       String(order._id),
@@ -208,6 +248,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       await orderModel.findByIdAndUpdate(order._id, {
         paymentStatus: "failed",
         orderStatus: "cancelled",
+        installationRequested: false,
+        installationRequestId: null,
       });
       await restoreStock(orderItems);
       throw new HttpError(502, "Failed to create payment session");
@@ -216,6 +258,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     await orderModel.findByIdAndUpdate(order._id, {
       paymentReference: checkout.id,
     });
+    await attachInstallation();
 
     res.status(201).json({
       message: "Redirect to payment",
@@ -224,26 +267,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     return;
   }
 
-  if (installation) {
-    const request = await installationRequestModel.create({
-      orderId: order._id,
-      userId,
-      contactName: shippingAddress.fullName,
-      phone: shippingAddress.phone,
-      address: formatAddress(shippingAddress),
-      preferredDate: installation.preferredDate ?? null,
-      notes: installation.notes ?? null,
-    });
-
-    await orderModel.findByIdAndUpdate(order._id, {
-      installationRequested: true,
-      installationRequestId: request._id,
-    });
-
-    orderData.installationRequested = true;
-    orderData.installationRequestId = request._id;
-  }
-
+  await attachInstallation();
   res.status(201).json({ message: "Order created", data: orderData });
 };
 

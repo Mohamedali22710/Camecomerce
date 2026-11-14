@@ -1,9 +1,11 @@
-/** Joi validation schemas for the public contact form. */
-import Joi from "joi";
+/** Zod validation schema for the public contact form. */
+import { z } from "zod";
 
-export const contactFormValidate = Joi.object({
-  name: Joi.string().trim().min(1).max(200).required(),
-  email: Joi.string().trim().lowercase().email().required(),
-  subject: Joi.string().trim().min(1).max(500).required(),
-  message: Joi.string().trim().min(1).max(5000).required(),
+import { emailSchema } from "../../common/validation/fields.js";
+
+export const contactFormValidate = z.looseObject({
+  name: z.string().trim().min(1).max(200),
+  email: emailSchema,
+  subject: z.string().trim().min(1).max(500),
+  message: z.string().trim().min(1).max(5000),
 });
