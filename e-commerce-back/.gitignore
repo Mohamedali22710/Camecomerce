@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Runtime configuration and secrets
+.env
+.env.*
+config/.env
+config/.env.*
+!config/.env.example
+
+# Runtime data
+uploads/
+security.log
+*.log
+
+# Test output
+coverage/
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# Editor / OS files
+.vscode/*
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
