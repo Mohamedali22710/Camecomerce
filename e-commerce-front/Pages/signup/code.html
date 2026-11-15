@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_blank" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;font-family:'IBM Plex Sans Arabic',sans-serif;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "outline-variant": "#c3c6d7",
+          "on-error-container": "#93000a",
+          "text-secondary": "#667085",
+          "on-background": "#121b2e",
+          "surface": "#f9f9ff",
+          "brand-navy": "#101D35",
+          "on-tertiary-container": "#ffeedd",
+          "primary-fixed": "#dbe1ff",
+          "tertiary-container": "#996100",
+          "surface-dim": "#d1daf4",
+          "on-tertiary": "#ffffff",
+          "secondary-fixed-dim": "#bac6e6",
+          "surface-card": "#FFFFFF",
+          "secondary": "#525e7a",
+          "on-surface": "#121b2e",
+          "outline": "#737686",
+          "error": "#ba1a1a",
+          "surface-page": "#F7F8FA",
+          "primary": "#004ac6",
+          "surface-container-highest": "#d9e2fc",
+          "on-secondary-container": "#56637e",
+          "state-success": "#16A34A",
+          "surface-container-lowest": "#ffffff",
+          "inverse-primary": "#b4c5ff",
+          "on-primary": "#ffffff",
+          "on-primary-container": "#eeefff",
+          "primary-container": "#2563eb",
+          "surface-bright": "#f9f9ff",
+          "on-primary-fixed": "#00174b",
+          "tertiary-fixed": "#ffddb8",
+          "brand-navy-soft": "#1B2B49",
+          "inverse-surface": "#273044",
+          "secondary-container": "#d3dfff",
+          "secondary-fixed": "#d8e2ff",
+          "background": "#f9f9ff",
+          "on-secondary": "#ffffff",
+          "primary-fixed-dim": "#b4c5ff",
+          "surface-container-high": "#e1e8ff",
+          "surface-variant": "#d9e2fc",
+          "inverse-on-surface": "#edf0ff",
+          "error-container": "#ffdad6",
+          "on-primary-fixed-variant": "#003ea8",
+          "on-secondary-fixed": "#0e1b33",
+          "tertiary": "#784b00",
+          "on-secondary-fixed-variant": "#3a4761",
+          "on-tertiary-fixed-variant": "#653e00",
+          "text-primary": "#172033",
+          "surface-container-low": "#f1f3ff",
+          "on-error": "#ffffff",
+          "tertiary-fixed-dim": "#ffb95f",
+          "on-surface-variant": "#434655",
+          "surface-tint": "#0053db",
+          "on-tertiary-fixed": "#2a1700",
+          "surface-container": "#e9edff",
+          "state-warning": "#D97706",
+          "border-default": "#E5E7EB",
+          "state-error": "#DC2626"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-sm": "0.5rem",
+          "space-md": "1rem",
+          "space-lg": "1.5rem",
+          "margin": "2rem",
+          "gutter": "1.5rem",
+          "gutter-mobile": "1rem",
+          "space-xs": "0.25rem",
+          "margin-mobile": "1rem",
+          "space-xl": "2rem"
+        },
+        "fontFamily": {
+          "display-hero-mobile": [
+            "IBM Plex Sans"
+          ],
+          "headline-md": [
+            "IBM Plex Sans"
+          ],
+          "display-hero": [
+            "IBM Plex Sans"
+          ],
+          "body-lg": [
+            "Inter"
+          ],
+          "price-lg": [
+            "Inter"
+          ],
+          "headline-lg-mobile": [
+            "IBM Plex Sans"
+          ],
+          "headline-sm": [
+            "IBM Plex Sans"
+          ],
+          "headline-lg": [
+            "IBM Plex Sans"
+          ],
+          "body-sm": [
+            "Inter"
+          ],
+          "body-md": [
+            "Inter"
+          ],
+          "price-md": [
+            "Inter"
+          ],
+          "label-md": [
+            "Inter"
+          ],
+          "label-sm": [
+            "Inter"
+          ],
+          "title-md": [
+            "IBM Plex Sans"
+          ]
+        },
+        "fontSize": {
+          "display-hero-mobile": [
+            "32px",
+            {
+              "lineHeight": "42px",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "600"
+            }
+          ],
+          "display-hero": [
+            "48px",
+            {
+              "lineHeight": "60px",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "18px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "400"
+            }
+          ],
+          "price-lg": [
+            "24px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-lg-mobile": [
+            "26px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-lg": [
+            "36px",
+            {
+              "lineHeight": "46px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-sm": [
+            "14px",
+            {
+              "lineHeight": "20px",
+              "fontWeight": "400"
+            }
+          ],
+          "body-md": [
+            "16px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "price-md": [
+            "18px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-md": [
+            "14px",
+            {
+              "lineHeight": "20px",
+              "fontWeight": "500"
+            }
+          ],
+          "label-sm": [
+            "12px",
+            {
+              "lineHeight": "16px",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "26px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  };</script></head><body class="bg-surface-page font-body-md text-text-primary min-h-screen"><main class="w-full flex items-center justify-center min-h-screen px-4 py-8"><div class="flex flex-col w-full items-center justify-center py-6 px-4">
+<!-- Subtle Ambient Glow -->
+<div class="relative w-full max-w-xl">
+<div class="absolute -top-16 -right-16 w-64 h-64 bg-primary-fixed/30 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute -bottom-16 -left-16 w-64 h-64 bg-secondary-container/40 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Main Registration Card -->
+<div class="relative bg-surface-card rounded-xl shadow-xl p-6 sm:p-10 text-right w-full overflow-hidden">
+<!-- Brand & Header -->
+<div class="flex flex-col items-center text-center mb-8">
+<!-- Logo Emblem -->
+<div class="w-14 h-14 bg-brand-navy rounded-xl flex items-center justify-center mb-4 shadow-md shadow-brand-navy/10 relative group">
+<span class="material-symbols-outlined text-primary-fixed text-3xl">videocam</span>
+<span class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-state-success rounded-full ring-2 ring-surface-card"></span>
+</div>
+<div class="flex items-center gap-1.5 justify-center mb-2">
+<span class="font-headline-md text-headline-md text-brand-navy tracking-tight">إس بلس</span>
+<span class="font-label-sm text-label-sm bg-primary-container text-on-primary px-2 py-0.5 rounded-full font-bold">S+</span>
+<span class="font-headline-md text-headline-md text-text-secondary font-light">| الأمان الذكي</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-text-primary tracking-tight mb-2">
+          إنشاء حساب جديد
+        </h1>
+<p class="font-body-md text-text-secondary max-w-md">
+          انضم إلى عملاء إس بلس واستمتع بتجربة تسوق متكاملة لمنتجات وحلول المراقبة
+        </p>
+</div>
+<!-- Trust Bar / Perks Mini Grid -->
+<div class="grid grid-cols-3 gap-2 p-3 bg-surface-container-low rounded-lg mb-8 text-center">
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-primary text-xl mb-1">verified_user</span>
+<span class="font-label-sm text-label-sm text-text-primary font-medium">ضمان سنتين معتمد</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-primary text-xl mb-1">local_shipping</span>
+<span class="font-label-sm text-label-sm text-text-primary font-medium">توصيل سريع بالمملكة</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="material-symbols-outlined text-primary text-xl mb-1">support_agent</span>
+<span class="font-label-sm text-label-sm text-text-primary font-medium">دعم فني واستشارات</span>
+</div>
+</div>
+<!-- 1-Click Google Registration -->
+<div class="mb-6">
+<button class="w-full h-12 bg-surface-card hover:bg-surface-container-low text-text-primary font-title-md text-title-md rounded-lg flex items-center justify-center gap-3 transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" type="button">
+<!-- Google SVG Icon -->
+<svg class="w-5 h-5 flex-shrink-0" viewbox="0 0 24 24">
+<path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
+<path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
+<path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"></path>
+<path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"></path>
+</svg>
+<span>التسجيل السريع باستخدام Google</span>
+</button>
+</div>
+<!-- Divider -->
+<div class="relative flex items-center justify-center mb-6">
+<div class="w-full h-px bg-surface-container-high"></div>
+<span class="absolute bg-surface-card px-4 font-body-sm text-body-sm text-text-secondary">
+          أو التسجيل بالبيانات الشخصية
+        </span>
+</div>
+<!-- Registration Form -->
+<form class="space-y-5" id="signup-form" onsubmit="event.preventDefault(); handleSubmit();">
+<!-- Full Name Field -->
+<div>
+<label class="block font-label-md text-label-md text-text-primary mb-1.5" for="name">
+            الاسم الكامل
+          </label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute right-3 text-text-secondary pointer-events-none text-xl">
+              person
+            </span>
+<input class="w-full h-12 pr-10 pl-10 rounded-lg bg-surface-card text-text-primary font-body-md text-body-md placeholder:text-outline shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 transition" id="name" name="name" oninput="validateName(this)" placeholder="الاسم الأول واسم العائلة" required="" type="text"/>
+<span class="material-symbols-outlined absolute left-3 text-state-success text-xl hidden" id="name-valid-icon">
+              check_circle
+            </span>
+</div>
+</div>
+<!-- Email Field -->
+<div>
+<label class="block font-label-md text-label-md text-text-primary mb-1.5" for="email">
+            البريد الإلكتروني
+          </label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute right-3 text-text-secondary pointer-events-none text-xl">
+              alternate_email
+            </span>
+<input class="w-full h-12 pr-10 pl-10 rounded-lg bg-surface-card text-text-primary font-body-md text-body-md placeholder:text-outline shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 transition" dir="ltr" id="email" name="email" oninput="validateEmail(this)" placeholder="name@example.com" required="" type="email"/>
+<span class="material-symbols-outlined absolute left-3 text-state-success text-xl hidden" id="email-valid-icon">
+              check_circle
+            </span>
+</div>
+<div class="flex items-center gap-1.5 mt-1.5 text-text-secondary">
+<span class="material-symbols-outlined text-sm">info</span>
+<span class="font-body-sm text-body-sm">سنرسل رابط التحقق إلى هذا البريد.</span>
+</div>
+<!-- Inline Email Error (Hidden by default) -->
+<div class="hidden items-center gap-1.5 mt-1.5 text-state-error" id="email-error">
+<span class="material-symbols-outlined text-sm">error</span>
+<span class="font-body-sm text-body-sm">البريد الإلكتروني مسجل مسبقاً، يرجى تسجيل الدخول.</span>
+</div>
+</div>
+<!-- Phone Field (Optional) -->
+<div>
+<div class="flex items-center justify-between mb-1.5">
+<label class="font-label-md text-label-md text-text-primary" for="phone">
+              رقم الجوال
+            </label>
+<span class="font-label-sm text-label-sm text-text-secondary bg-surface-container px-2 py-0.5 rounded">
+              اختياري
+            </span>
+</div>
+<div class="relative flex items-center rounded-lg bg-surface-card shadow-sm overflow-hidden" dir="ltr">
+<!-- Country Code Indicator -->
+<div class="flex items-center gap-1.5 px-3 bg-surface-container-low h-12 select-none">
+<!-- KSA Flag Minimal SVG -->
+<svg class="w-5 h-3.5 rounded-sm object-cover" viewbox="0 0 640 480">
+<path d="M0 0h640v480H0z" fill="#006c35"></path>
+<path d="M480 200h-320v20h320zM360 260h-160v15h160z" fill="#fff"></path>
+</svg>
+<span class="font-body-sm text-body-sm font-semibold text-text-primary">+966</span>
+</div>
+<!-- Input -->
+<input class="w-full h-12 px-3 text-text-primary font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary transition" id="phone" maxlength="9" name="phone" oninput="this.value = this.value.replace(/[^0-9]/g, '')" placeholder="5XXXXXXXX" type="tel"/>
+<span class="material-symbols-outlined text-text-secondary px-3 pointer-events-none text-xl">
+              phone_iphone
+            </span>
+</div>
+</div>
+<!-- Password Field -->
+<div>
+<label class="block font-label-md text-label-md text-text-primary mb-1.5" for="password">
+            كلمة المرور
+          </label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute right-3 text-text-secondary pointer-events-none text-xl">
+              lock
+            </span>
+<input class="w-full h-12 pr-10 pl-12 rounded-lg bg-surface-card text-text-primary font-body-md text-body-md placeholder:text-outline shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 transition" dir="ltr" id="password" name="password" oninput="checkPasswordStrength(this.value)" placeholder="••••••••" required="" type="password"/>
+<button class="absolute left-3 text-text-secondary hover:text-text-primary p-1 focus:outline-none" onclick="togglePasswordVisibility('password', 'password-eye-icon')" tabindex="-1" type="button">
+<span class="material-symbols-outlined text-xl" id="password-eye-icon">visibility</span>
+</button>
+</div>
+<!-- Password Strength Indicator -->
+<div class="mt-2.5">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-sm text-label-sm text-text-secondary">قوة كلمة المرور:</span>
+<span class="font-label-sm text-label-sm text-text-secondary font-medium" id="strength-text">غير محددة</span>
+</div>
+<div class="grid grid-cols-4 gap-1.5 h-1.5 w-full bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-surface-dim rounded-full transition-colors duration-300" id="bar-1"></div>
+<div class="h-full bg-surface-dim rounded-full transition-colors duration-300" id="bar-2"></div>
+<div class="h-full bg-surface-dim rounded-full transition-colors duration-300" id="bar-3"></div>
+<div class="h-full bg-surface-dim rounded-full transition-colors duration-300" id="bar-4"></div>
+</div>
+<div class="flex items-center gap-1.5 mt-1.5 text-text-secondary">
+<span class="material-symbols-outlined text-xs">check_small</span>
+<span class="font-body-sm text-body-sm text-outline">يجب أن تحتوي على 8 خانات على الأقل، حروف وأرقام.</span>
+</div>
+</div>
+</div>
+<!-- Confirm Password Field -->
+<div>
+<label class="block font-label-md text-label-md text-text-primary mb-1.5" for="confirm-password">
+            تأكيد كلمة المرور
+          </label>
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute right-3 text-text-secondary pointer-events-none text-xl">
+              lock_reset
+            </span>
+<input class="w-full h-12 pr-10 pl-12 rounded-lg bg-surface-card text-text-primary font-body-md text-body-md placeholder:text-outline shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 transition" dir="ltr" id="confirm-password" name="confirmPassword" oninput="checkPasswordMatch()" placeholder="••••••••" required="" type="password"/>
+<button class="absolute left-3 text-text-secondary hover:text-text-primary p-1 focus:outline-none" onclick="togglePasswordVisibility('confirm-password', 'confirm-eye-icon')" tabindex="-1" type="button">
+<span class="material-symbols-outlined text-xl" id="confirm-eye-icon">visibility</span>
+</button>
+</div>
+<!-- Validation Feedback Badge -->
+<div class="hidden items-center gap-1.5 mt-1.5" id="match-badge">
+<span class="material-symbols-outlined text-sm" id="match-icon"></span>
+<span class="font-body-sm text-body-sm" id="match-text"></span>
+</div>
+</div>
+<!-- Terms and Privacy Checkbox -->
+<div class="flex items-start gap-3 pt-1">
+<input class="mt-1 h-4 w-4 rounded text-primary-container focus:ring-primary cursor-pointer accent-primary-container" id="terms" name="terms" required="" type="checkbox"/>
+<label class="font-body-sm text-body-sm text-text-secondary cursor-pointer leading-relaxed" for="terms">
+            أوافق على 
+            <a class="text-primary hover:underline font-medium" href="#terms">الشروط والأحكام</a> 
+            و 
+            <a class="text-primary hover:underline font-medium" href="#privacy">سياسة الخصوصية</a> 
+            الخاصة بشركة إس بلس للأنظمة الأمنية.
+          </label>
+</div>
+<!-- Submit Button -->
+<div class="pt-2">
+<button class="w-full h-12 bg-primary-container hover:bg-primary text-on-primary font-headline-sm text-headline-sm rounded-lg shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" id="submit-btn" type="submit">
+<span>إنشاء حساب إس بلس</span>
+<span class="material-symbols-outlined text-xl transition-transform group-hover:-translate-x-1">
+              arrow_back
+            </span>
+</button>
+</div>
+</form>
+<!-- Post-Submission Info Callout (Dynamic feedback demo) -->
+<div class="hidden mt-6 p-4 bg-surface-container-high rounded-xl" id="success-banner">
+<div class="flex items-start gap-3">
+<div class="w-8 h-8 rounded-full bg-state-success/15 flex items-center justify-center flex-shrink-0 text-state-success mt-0.5">
+<span class="material-symbols-outlined text-lg">mark_email_read</span>
+</div>
+<div>
+<h4 class="font-title-md text-title-md text-text-primary">تم إرسال رابط التفعيل بنجاح!</h4>
+<p class="font-body-sm text-body-sm text-text-secondary mt-1">
+              لقد أرسلنا بريداً إلكترونياً يتضمن رابط تأكيد الهوية إلى عنوان بريدك. يرجى مراجعة صندوق الوارد لاستكمال تفعيل حسابك.
+            </p>
+</div>
+</div>
+</div>
+<!-- Footer Account Navigation -->
+<div class="mt-8 pt-6 bg-surface-page -mx-6 sm:-mx-10 -mb-6 sm:-mb-10 px-6 py-4 flex items-center justify-center text-center">
+<p class="font-body-md text-body-md text-text-secondary">
+          لديك حساب بالفعل؟
+          <a class="text-primary-container font-headline-sm text-headline-sm hover:underline mr-1 font-semibold" href="#login">
+            تسجيل الدخول الآن
+          </a>
+</p>
+</div>
+</div>
+<!-- Security & Compliance Micro Badges -->
+<div class="mt-6 flex flex-wrap items-center justify-center gap-6 text-text-secondary text-sm">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-state-success text-base">lock</span>
+<span class="font-label-sm text-label-sm">تشفير بيانات معتمد 256-bit SSL</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-base">gavel</span>
+<span class="font-label-sm text-label-sm">متوافق مع الهيئة الوطنية للأمن السيبراني</span>
+</div>
+</div>
+</div>
+</div>
+<script>
+  function togglePasswordVisibility(fieldId, iconId) {
+    const input = document.getElementById(fieldId);
+    const icon = document.getElementById(iconId);
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+      input.type = 'text';
+      icon.innerText = 'visibility_off';
+    } else {
+      input.type = 'password';
+      icon.innerText = 'visibility';
+    }
+  }
+
+  function validateName(input) {
+    const validIcon = document.getElementById('name-valid-icon');
+    if (input.value.trim().length >= 3) {
+      validIcon.classList.remove('hidden');
+    } else {
+      validIcon.classList.add('hidden');
+    }
+  }
+
+  function validateEmail(input) {
+    const validIcon = document.getElementById('email-valid-icon');
+    const emailError = document.getElementById('email-error');
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const value = input.value.trim();
+
+    // Check demo collision
+    if (value === 'test@splus.sa') {
+      emailError.classList.remove('hidden');
+      emailError.classList.add('flex');
+      validIcon.classList.add('hidden');
+      return;
+    } else {
+      emailError.classList.add('hidden');
+      emailError.classList.remove('flex');
+    }
+
+    if (regex.test(value)) {
+      validIcon.classList.remove('hidden');
+    } else {
+      validIcon.classList.add('hidden');
+    }
+  }
+
+  function checkPasswordStrength(password) {
+    const bar1 = document.getElementById('bar-1');
+    const bar2 = document.getElementById('bar-2');
+    const bar3 = document.getElementById('bar-3');
+    const bar4 = document.getElementById('bar-4');
+    const strengthText = document.getElementById('strength-text');
+
+    // Reset styles
+    const bars = [bar1, bar2, bar3, bar4];
+    bars.forEach(b => {
+      b.className = 'h-full bg-surface-dim rounded-full transition-colors duration-300';
+    });
+
+    if (!password) {
+      strengthText.textContent = 'غير محددة';
+      strengthText.className = 'font-label-sm text-label-sm text-text-secondary font-medium';
+      return;
+    }
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[a-zA-Z]/.test(password)) score++;
+    if (/[0-9]/.test(password)) score++;
+    if (/[^a-zA-Z0-9]/.test(password) || password.length >= 12) score++;
+
+    if (score === 1) {
+      bar1.className = 'h-full bg-state-error rounded-full transition-colors duration-300';
+      strengthText.textContent = 'ضعيفة جداً';
+      strengthText.className = 'font-label-sm text-label-sm text-state-error font-medium';
+    } else if (score === 2) {
+      bar1.className = 'h-full bg-state-warning rounded-full transition-colors duration-300';
+      bar2.className = 'h-full bg-state-warning rounded-full transition-colors duration-300';
+      strengthText.textContent = 'متوسطة';
+      strengthText.className = 'font-label-sm text-label-sm text-state-warning font-medium';
+    } else if (score === 3) {
+      bar1.className = 'h-full bg-primary-container rounded-full transition-colors duration-300';
+      bar2.className = 'h-full bg-primary-container rounded-full transition-colors duration-300';
+      bar3.className = 'h-full bg-primary-container rounded-full transition-colors duration-300';
+      strengthText.textContent = 'جيدة';
+      strengthText.className = 'font-label-sm text-label-sm text-primary-container font-medium';
+    } else if (score === 4) {
+      bars.forEach(b => b.className = 'h-full bg-state-success rounded-full transition-colors duration-300');
+      strengthText.textContent = 'ممتازة وقوية';
+      strengthText.className = 'font-label-sm text-label-sm text-state-success font-medium';
+    }
+
+    checkPasswordMatch();
+  }
+
+  function checkPasswordMatch() {
+    const pwd = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm-password').value;
+    const badge = document.getElementById('match-badge');
+    const icon = document.getElementById('match-icon');
+    const text = document.getElementById('match-text');
+
+    if (!confirm) {
+      badge.classList.add('hidden');
+      badge.classList.remove('flex');
+      return;
+    }
+
+    badge.classList.remove('hidden');
+    badge.classList.add('flex');
+
+    if (pwd === confirm) {
+      badge.className = 'flex items-center gap-1.5 mt-1.5 text-state-success';
+      icon.textContent = 'check_circle';
+      text.textContent = 'كلمات المرور متطابقة تماماً';
+    } else {
+      badge.className = 'flex items-center gap-1.5 mt-1.5 text-state-error';
+      icon.textContent = 'cancel';
+      text.textContent = 'كلمات المرور غير متطابقة';
+    }
+  }
+
+  function handleSubmit() {
+    const btn = document.getElementById('submit-btn');
+    const banner = document.getElementById('success-banner');
+    
+    // Simulate Loading State
+    btn.disabled = true;
+    btn.innerHTML = `
+      <span class="inline-block w-5 h-5 border-2 border-on-primary border-t-transparent rounded-full animate-spin"></span>
+      <span>جاري إنشاء الحساب...</span>
+    `;
+
+    setTimeout(() => {
+      btn.innerHTML = `
+        <span class="material-symbols-outlined text-xl">check</span>
+        <span>تم التسجيل بنجاح</span>
+      `;
+      btn.classList.remove('bg-primary-container', 'hover:bg-primary');
+      btn.classList.add('bg-state-success');
+
+      banner.classList.remove('hidden');
+      banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 1200);
+  }
+</script></main></body></html>
