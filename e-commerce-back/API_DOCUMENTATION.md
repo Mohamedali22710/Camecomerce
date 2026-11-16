@@ -12,9 +12,11 @@ All routes are prefixed with `/v1`.
 - [Categories](#categories)
 - [Subcategories](#subcategories)
 - [Products](#products)
+- [Bundles](#bundles)
 - [Cart](#cart)
 - [Wishlist](#wishlist)
 - [Orders and Payments](#orders-and-payments)
+- [Payment Provider Contract](#payment-provider-contract)
 - [Installation Requests](#installation-requests)
 - [Contact](#contact)
 - [Security Logs](#security-logs)
@@ -409,24 +411,33 @@ JSON create/update:
   "fr_description": "Caméra intérieure 1080p",
   "price": 199.99,
   "discount": 10,
+  "brand": "Hikvision",
   "subcategoryId": "507f1f77bcf86cd799439011",
   "variants": [{ "color": "White", "size": "2TB", "stock": 20 }],
+  "specifications": [
+    { "keyEn": "Resolution", "keyAr": "الدقة", "valueEn": "4", "valueAr": "4", "unit": "MP" }
+  ],
   "colorImages": [{ "color": "White", "imageURL": "data:image/png;base64,..." }]
 }
 ```
 
 `multipart/form-data` rules:
 
-- `variants` and `colorImages` must be JSON strings.
+- `variants`, `specifications`, and `colorImages` must be JSON strings.
 - `images` accepts up to 5 files, each up to the route limit.
 - `colorImages[].imageURL` may be a hosted URL or a data URI; data URIs are
   uploaded to storage.
 - `size` is a free-form label and is not a garment size.
 - Missing `color`/`size` labels normalize to `Default`.
 - At least one variant is required. `stock` is required and is an integer >= 0.
+- `brand` is optional, max 80 characters; blank input is stored as `null`.
+- `specifications` is optional, max 40 entries. Each entry requires `keyEn` and
+  `valueEn` (max 60 and 200 characters). `keyAr`, `valueAr`, and `unit` (max 30)
+  are optional. Invalid input returns `400` with the field path.
 
-Product responses expose `variants` as an array, `imageURLs` as an array,
-`colorImages` as an object keyed by color, and `currency`.
+Product responses expose `brand` (or `null`), `variants` as an array,
+`specifications` as an array (legacy/missing rows return `[]`), `imageURLs` as an
+array, `colorImages` as an object keyed by color, and `currency`.
 
 ### `GET /v1/products`
 
@@ -480,6 +491,162 @@ Admin/SuperAdmin. Returns a product regardless of `isActive`.
 ### `DELETE /v1/products/admin/:id`
 
 Admin/SuperAdmin. Soft-deletes the product (`isActive: false`).
+
+---
+
+## Bundles
+
+A bundle is a fixed CCTV kit (for example 4 or 8 cameras) with server-owned
+prices. Clients never send a price; they send option codes that the server
+validates against the bundle itself.
+
+**Inventory note (DEC-01, open).** The bundle model currently has **no stock
+field** and no component/HDD stock deduction. Whether a bundle keeps its own
+availability counter or derives it from component stock is a pending business
+decision. Public responses therefore omit `availability` rather than claiming
+stock that has not been defined.
+
+### Bundle payload
+
+Admin create/update (`application/json`):
+
+```json
+{
+  "code": "KIT-4CAM",
+  "en_name": "4-camera kit",
+  "ar_name": "طقم 4 كاميرات",
+  "description": "Four cameras with a recorder",
+  "imageURLs": ["https://cdn.example/bundle.jpg"],
+  "basePrice": 1000,
+  "discount": 10,
+  "cameras": [
+    {
+      "productId": "507f1f77bcf86cd799439011",
+      "color": "White",
+      "size": "Default",
+      "quantity": 4
+    }
+  ],
+  "hddOptions": [
+    { "code": "1TB", "labelEn": "1 TB", "labelAr": "1 تيرا", "priceDelta": 0 },
+    { "code": "2TB", "labelEn": "2 TB", "labelAr": "2 تيرا", "priceDelta": 200 }
+  ],
+  "installationOptions": [
+    { "code": "none", "labelEn": "Without installation", "priceDelta": 0 },
+    {
+      "code": "riyadh",
+      "labelEn": "Installation in Riyadh",
+      "priceDelta": 300,
+      "city": "Riyadh"
+    }
+  ],
+  "isActive": true
+}
+```
+
+Rules:
+
+- `code` is unique. A duplicate returns `409` through the existing error handler.
+- `basePrice` must be greater than zero; `discount` is a percentage from 0 to 100.
+- At least one camera component and at least one HDD and installation option are
+  required.
+- Option codes must be unique inside each list (case-insensitive).
+- `priceDelta` must be non-negative.
+- Every `productId` must exist. An unknown component returns `404` naming the
+  component index. Inactive products are accepted but returned in `warnings`.
+- `stock` and `availability` are rejected until DEC-01 is resolved.
+
+### Pricing rule
+
+```text
+discountedBasePrice = roundMoney(basePrice - basePrice * discount / 100)
+unitTotal           = discountedBasePrice + hdd.priceDelta + installation.priceDelta
+lineTotal           = roundMoney(unitTotal * quantity)
+```
+
+A negative or malformed option delta is treated as `0`. Unknown option codes
+return `400` naming the option.
+
+### `POST /v1/bundles/admin`
+
+Admin/SuperAdmin. Creates a bundle. Response `201`:
+
+```json
+{
+  "message": "Bundle created",
+  "data": { "code": "KIT-4CAM", "addedByEmail": "admin@example.com", "currency": "SAR" },
+  "warnings": []
+}
+```
+
+### `PUT /v1/bundles/admin/:id`
+
+Admin/SuperAdmin. Partial update; at least one field is required. Changing
+`cameras` re-validates the referenced products.
+
+### `GET /v1/bundles/admin`
+
+Admin/SuperAdmin. Paginated list including inactive bundles. Query: `page`,
+`limit`, `minPrice`/`maxPrice` (against `basePrice`), `search` (names and `code`),
+`sort` (`basePrice`, `en_name`, `ar_name`, `code`, `createdAt` with `_asc`/`_desc`).
+
+### `GET /v1/bundles/admin/:id`
+
+Admin/SuperAdmin. Returns a bundle regardless of `isActive`.
+
+### `DELETE /v1/bundles/admin/:id`
+
+Admin/SuperAdmin. Soft-deletes the bundle (`isActive: false`).
+
+### `GET /v1/bundles`
+
+Public. Active bundles only, paginated, newest first by default:
+
+```json
+{
+  "message": "Bundles",
+  "data": {
+    "bundles": [],
+    "total": 0,
+    "page": 1,
+    "limit": 10,
+    "currency": "SAR"
+  }
+}
+```
+
+### `GET /v1/bundles/:id`
+
+Public. Active bundle only; inactive returns `404`. Example:
+
+```json
+{
+  "message": "Bundle",
+  "data": {
+    "_id": "507f1f77bcf86cd799439012",
+    "code": "KIT-4CAM",
+    "en_name": "4-camera kit",
+    "basePrice": 1000,
+    "discount": 10,
+    "finalPrice": 900,
+    "currency": "SAR",
+    "cameras": [
+      {
+        "productId": "507f1f77bcf86cd799439011",
+        "color": "White",
+        "size": "Default",
+        "quantity": 4,
+        "en_name": "Indoor camera",
+        "isActive": true
+      }
+    ],
+    "hddOptions": [{ "code": "1TB", "labelEn": "1 TB", "priceDelta": 0 }],
+    "installationOptions": [{ "code": "none", "labelEn": "Without installation", "priceDelta": 0 }]
+  }
+}
+```
+
+Public responses never include `addedByEmail` or `__v`.
 
 ---
 
@@ -673,6 +840,67 @@ Public Stripe webhook. Must receive the raw request body and a valid
 
 ---
 
+## Payment Provider Contract
+
+**Status:** the provider-agnostic contract and the mock adapter exist, but no
+order or webhook route uses them yet. The Stripe endpoints documented above keep
+their current behaviour. Paymob is **not implemented** and no endpoint, payload,
+or HMAC field list is assumed.
+
+### Checkout envelope (frozen)
+
+Future card checkout responses use:
+
+```json
+{
+  "orderId": "507f1f77bcf86cd799439011",
+  "orderNumber": "CCTV-261116-0001",
+  "paymentStatus": "pending",
+  "redirectUrl": "https://provider.example/checkout/...",
+  "provider": "mock"
+}
+```
+
+`redirectUrl` is `null` when only a browser-side secret is returned.
+
+### Provider interface
+
+`src/module/payment/payment.types.ts` defines:
+
+- `createSession(input)` — amount in integer minor units, currency, order
+  number as the provider reference, line items, customer/billing data, callback
+  URLs, and enabled integration IDs.
+- `verifyAndParse(rawBody, headers)` — verifies the provider signature over the
+  raw body before parsing. Invalid or missing signatures throw `401`.
+- `fetchStatus(providerReference)` — authoritative inquiry.
+- `refund?(input)` — optional and post-launch.
+
+Provider statuses are `pending`, `paid`, `failed`, `expired`, and `cancelled`.
+`paid` is terminal. A redirect or return URL never changes payment state.
+
+### Mock provider (development only)
+
+- Selected with `PAYMENT_PROVIDER=mock`.
+- Returns a deterministic reference (`mock_<orderNumber>`) and a local redirect
+  URL.
+- `verifyAndParse` accepts only a body signed with the development mock secret;
+  the signature is sent in the `x-mock-signature` header.
+- `fetchStatus` answers from in-memory state.
+- `NODE_ENV=production` with `PAYMENT_PROVIDER=mock` fails at boot.
+- The mock proves the contract, not Paymob or any real payment method.
+
+### Registry
+
+`getPaymentProvider()` selects `mock`; `paymob` reports “not implemented yet” and
+`stripe` remains the legacy order-path provider. An unknown `PAYMENT_PROVIDER`
+fails at boot with the accepted values.
+
+Env variables are documented in `config/.env.example`. Paymob values are
+placeholders marked **UNCONFIRMED**; see
+`docs/implementation/EXTERNAL_INTEGRATION_BLOCKERS.md`.
+
+---
+
 ## Installation Requests
 
 Authenticated. Installation statuses:
@@ -782,14 +1010,26 @@ timestamps. Virtual `products`.
 ### Product
 
 `en_name`, `ar_name`, `fr_name`, `en_description`, `ar_description`,
-`fr_description`, `price`, `discount` (0-100), `subcategoryId`, `addedByEmail`,
-`isActive`, timestamps.
+`fr_description`, `price`, `discount` (0-100), `brand` (optional, max 80),
+`subcategoryId`, `addedByEmail`, `isActive`, timestamps.
 
 Stored as JSON strings:
 
 - `variants`: `[{ color, size, stock }]`
+- `specifications`: `[{ keyEn, keyAr, valueEn, valueAr, unit }]` (max 40)
 - `imageURLs`: `string[]`
 - `colorImages`: `{ [color]: imageURL }`
+
+### Bundle
+
+`code` (unique), `en_name`, `ar_name`, `description`, `imageURLs`, `basePrice`,
+`discount` (0-100), `cameras` (`[{ productId, color, size, quantity }]`),
+`hddOptions` (`[{ code, labelEn, labelAr, priceDelta }]`),
+`installationOptions` (`[{ code, labelEn, labelAr, priceDelta, city }]`),
+`addedByEmail`, `isActive`, timestamps.
+
+There is intentionally **no stock/availability field** yet: DEC-01 (bundle
+inventory model) is unresolved. No component or HDD stock is deducted.
 
 ### Cart
 
@@ -831,6 +1071,9 @@ user + idempotency key.
 - Uploads are held in memory, limited in size/count, and validated by magic
   bytes (JPEG, PNG, GIF, WebP).
 - Stripe webhooks are signature-verified. Card data is never accepted or stored.
+- The mock payment adapter is development-only and is refused when
+  `NODE_ENV=production`. Payment amounts cross the provider boundary as integer
+  minor units; no card number, CVV, or expiry is ever stored.
 - Password-reset tokens are single-use and require Redis.
 - Access tokens are not revoked on password change; refresh tokens are stateless.
   Rotate the signing secrets to invalidate all issued tokens.

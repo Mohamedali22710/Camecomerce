@@ -3,10 +3,12 @@ import { z } from "zod";
 
 import { booleanFromInput, jsonArrayFromInput } from "../../common/validation/coercion.js";
 import { objectIdSchema } from "../../common/validation/objectId.js";
+import { specificationsSchema } from "../../common/validation/specification.js";
 import { variantSchema } from "../../common/validation/variant.js";
 
 const name = z.string().trim().max(200);
 const description = z.string().trim().max(10000);
+const brand = z.string().trim().max(80);
 
 const colorImageSchema = z.looseObject({
   color: z.string().trim().max(50),
@@ -26,8 +28,10 @@ export const createProductValidate = z.looseObject({
   fr_description: description.nullable().optional(),
   price: z.coerce.number().min(1),
   discount: z.coerce.number().min(0).max(100).optional(),
+  brand: brand.nullable().optional(),
   subcategoryId: objectIdSchema,
   variants,
+  specifications: specificationsSchema.optional(),
   colorImages: colorImages.optional(),
 });
 
@@ -42,9 +46,11 @@ export const updateProductValidate = z
     fr_description: description.nullable().optional(),
     price: z.coerce.number().min(1).optional(),
     discount: z.coerce.number().min(0).max(100).optional(),
+    brand: brand.nullable().optional(),
     subcategoryId: objectIdSchema.optional(),
     imageURLs: z.string().nullable().optional(),
     variants: variants.optional(),
+    specifications: specificationsSchema.optional(),
     colorImages: colorImages.optional(),
     isActive: booleanFromInput.optional(),
   })

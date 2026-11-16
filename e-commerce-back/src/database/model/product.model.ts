@@ -10,8 +10,12 @@ export interface IProduct extends Document {
   fr_description?: string | null;
   price: number;
   discount: number;
+  /** Brand label shown on the storefront; optional for legacy rows. */
+  brand?: string | null;
   imageURLs?: string | null;
   colorImages?: string | null;
+  /** JSON string: [{ keyEn, keyAr?, valueEn, valueAr?, unit? }]. */
+  specifications?: string | null;
   /** JSON string: [{ color, size, stock }]. "size" is a free-form variant label. */
   variants?: string | null;
   subcategoryId: Types.ObjectId;
@@ -29,8 +33,10 @@ const productSchema = new Schema<IProduct>(
     fr_description: { type: String, default: null },
     price: { type: Number, required: true, min: 1 },
     discount: { type: Number, default: 0, min: 0, max: 100 },
+    brand: { type: String, default: null, trim: true, maxlength: 80 },
     imageURLs: { type: String, default: null },
     colorImages: { type: String, default: null },
+    specifications: { type: String, default: null },
     variants: { type: String, default: null },
     subcategoryId: {
       type: Schema.Types.ObjectId,

@@ -3,9 +3,11 @@ import { env, assertEnv } from "../config/env.service.js";
 
 import app from "./app.controller.js";
 import { dataBaseConnection } from "./database/connection.js";
+import { assertPaymentProviderConfig } from "./module/payment/payment.registry.js";
 
 // Fail fast on missing security-critical configuration.
 assertEnv();
+assertPaymentProviderConfig();
 
 const server = app.listen(env.port, () => {
   console.log(`Server running on port ${env.port} (${env.nodeEnv})`);

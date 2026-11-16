@@ -9,12 +9,18 @@ import mongoose from "mongoose";
 
 import { env } from "../../../config/env.service.js";
 import { buildQuery } from "../../common/utils/buildQuery.js";
+import { currentAdminEmail } from "../../common/utils/currentAdmin.js";
 import { HttpError } from "../../common/utils/httpError.js";
 import {
   deleteImagesByUrls,
   uploadBase64Image,
   uploadImages,
 } from "../../common/utils/uploadImage.js";
+import {
+  normalizeSpecificationsInput,
+  parseSpecifications,
+  serializeSpecifications,
+} from "../../common/validation/specification.js";
 import {
   ProductVariant,
   normalizeVariant,
@@ -25,7 +31,6 @@ import {
   productModel,
 } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
-import { userModel } from "../../database/model/user.model.js";
 
 interface ColorImageInput {
   color: string;
@@ -80,6 +85,13 @@ const normalizeColorImagesInput = (raw: unknown): ColorImageInput[] => {
   return Array.isArray(value) ? (value as ColorImageInput[]) : [];
 };
 
+/** Trims an optional brand and stores blank input as `null`. */
+const normalizeBrand = (raw: unknown): string | null => {
+  if (typeof raw !== "string") {return null;}
+  const trimmed = raw.trim();
+  return trimmed ? trimmed : null;
+};
+
 /** Uploads data-URI images and keeps already-hosted URLs unchanged. */
 const buildColorImages = async (
   raw: unknown,
@@ -108,17 +120,13 @@ const buildColorImages = async (
 /** Public API representation of a product. */
 const serializeProduct = (product: IProduct) => ({
   ...product.toJSON(),
+  brand: product.brand ?? null,
   variants: parseVariants(product.variants),
+  specifications: parseSpecifications(product.specifications),
   imageURLs: parseJsonArray(product.imageURLs),
   colorImages: parseJsonObject(product.colorImages),
   currency: env.CURRENCY,
 });
-
-const currentAdminEmail = async (req: Request): Promise<string> => {
-  const admin = await userModel.findById(req.user?._id);
-  if (!admin?.email) {throw new HttpError(404, "Admin not found");}
-  return admin.email;
-};
 
 /** Creates a product. */
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
@@ -132,6 +140,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     fr_description,
     price,
     discount,
+    brand,
     subcategoryId,
   } = req.body;
 
@@ -142,6 +151,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   if (variants.length === 0) {
     throw new HttpError(400, "At least one product variant is required");
   }
+
+  const specifications = normalizeSpecificationsInput(req.body.specifications);
 
   let imageURLs: string | null = null;
   const files = req.files as Express.Multer.File[] | undefined;
@@ -165,8 +176,10 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     fr_description: fr_description || null,
     price: Number(price),
     discount: discount !== undefined ? Number(discount) : 0,
+    brand: normalizeBrand(brand),
     imageURLs,
     colorImages: Object.keys(colorImages).length > 0 ? JSON.stringify(colorImages) : null,
+    specifications: serializeSpecifications(specifications),
     variants: JSON.stringify(variants),
     subcategoryId,
     addedByEmail: adminEmail,
@@ -190,6 +203,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     fr_description,
     price,
     discount,
+    brand,
     subcategoryId,
     imageURLs,
     isActive,
@@ -203,7 +217,14 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
   if (fr_description !== undefined) {product.fr_description = fr_description || null;}
   if (price !== undefined) {product.price = Number(price);}
   if (discount !== undefined) {product.discount = Number(discount);}
+  if (brand !== undefined) {product.brand = normalizeBrand(brand);}
   if (isActive !== undefined) {product.isActive = isActive;}
+
+  if (req.body.specifications !== undefined) {
+    product.specifications = serializeSpecifications(
+      normalizeSpecificationsInput(req.body.specifications),
+    );
+  }
 
   if (req.body.variants !== undefined) {
     const variants = normalizeVariantsInput(req.body.variants);
