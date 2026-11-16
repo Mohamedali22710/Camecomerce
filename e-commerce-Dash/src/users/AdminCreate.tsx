@@ -11,7 +11,8 @@ import {
   InputAdornment,
   IconButton,
 } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { fetchWithRefresh, getAuthHeaders } from "../auth";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3007/v1";

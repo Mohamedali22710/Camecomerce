@@ -54,7 +54,7 @@ export default defineConfig(async ({ mode }) => {
         },
         server: {
             port: 8000,
-            open: true,
+            open: false,
         },
         base: './',
         esbuild: {
@@ -90,14 +90,6 @@ export default defineConfig(async ({ mode }) => {
                         __dirname,
                         `node_modules/react-router/dist/${mode === 'production' ? 'production' : 'development'}/index.mjs`
                     ),
-                },
-                // The 2 next aliases are needed to avoid having multiple MUI instances
-                {
-                    find: /^@mui\/([a-zA-Z0-9-_]+)\/*(.*)$/,
-                    replacement: `${path.resolve(
-                        __dirname,
-                        'node_modules/@mui/$1/esm/$2'
-                    )}`,
                 },
                 // we need to manually follow the symlinks for local packages to allow deep HMR
                 ...Object.keys(aliases).map(packageName => ({
