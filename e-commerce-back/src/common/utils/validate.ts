@@ -34,3 +34,23 @@ export const validateInput = <Schema extends z.ZodType>(schema: Schema) => {
     next();
   };
 };
+
+/**
+ * @desc Express middleware that validates route params (for example ObjectIds).
+ * @returns Middleware that returns 400 on validation failure.
+ */
+export const validateParams = <Schema extends z.ZodType>(schema: Schema) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const result = schema.safeParse(req.params);
+    if (!result.success) {
+      res.status(400).json({
+        message: "validation error",
+        error: result.error.issues.map(formatIssue),
+      });
+      return;
+    }
+
+    req.params = result.data as Request["params"];
+    next();
+  };
+};

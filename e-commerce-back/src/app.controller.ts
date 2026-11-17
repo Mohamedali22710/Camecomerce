@@ -18,6 +18,7 @@ import categoryRouter from "./module/category/category.controller.js";
 import contactRouter from "./module/contact/contact.controller.js";
 import installationRouter from "./module/installation/installation.controller.js";
 import orderRouter, { webhookRouter } from "./module/order/order.controller.js";
+import paymentRouter from "./module/payment/payment.controller.js";
 import productRouter from "./module/product/product.controller.js";
 import securityRouter from "./module/security/security.controller.js";
 import subcategoryRouter from "./module/subcategory/subcategory.controller.js";
@@ -101,6 +102,7 @@ app.use("/v1/cart", cartRouter);
 app.use("/v1/products", productRouter);
 app.use("/v1/bundles", bundleRouter);
 app.use("/v1/order", orderRouter);
+app.use("/v1/payment", paymentRouter);
 app.use("/v1/installation", installationRouter);
 app.use("/v1/security", securityRouter);
 app.use("/v1/contact", contactRouter);
@@ -134,9 +136,7 @@ app.use((err: ErrorWithDetails, req: Request, res: Response, _next: NextFunction
   } else if (err.name === "ValidationError") {
     status = 400;
     message = "Validation failed";
-    errors = Object.fromEntries(
-      Object.entries(err.errors ?? {}).map(([field, detail]) => [field, detail?.message]),
-    );
+    errors = Object.fromEntries(Object.entries(err.errors ?? {}).map(([field, detail]) => [field, detail?.message]));
   } else if (err.name === "CastError") {
     status = 400;
     message = `Invalid value${err.path ? ` for ${err.path}` : ""}`;
@@ -158,12 +158,7 @@ app.use((err: ErrorWithDetails, req: Request, res: Response, _next: NextFunction
   }
 
   if (status >= 500) {
-    console.error(
-      `[${req.method} ${req.originalUrl}]`,
-      err.name,
-      err.message,
-      env.isProduction ? "" : err.stack,
-    );
+    console.error(`[${req.method} ${req.originalUrl}]`, err.name, err.message, env.isProduction ? "" : err.stack);
   }
 
   res.status(status).json({ message, ...(errors ? { errors } : {}) });

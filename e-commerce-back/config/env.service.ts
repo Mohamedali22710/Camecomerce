@@ -60,6 +60,21 @@ interface Env {
   paymentProvider: string;
   Secret_key_Stripe: string | undefined;
   STRIPE_WEBHOOK_SECRET: string | undefined;
+
+  /** Paymob KSA configuration (MVP-12). Optional so COD still boots. */
+  PAYMOB_ENV: "sandbox" | "live";
+  PAYMOB_API_KEY: string | undefined;
+  PAYMOB_SECRET_KEY: string | undefined;
+  PAYMOB_PUBLIC_KEY: string | undefined;
+  PAYMOB_HMAC_SECRET: string | undefined;
+  PAYMOB_BASE_URL: string | undefined;
+  PAYMOB_CHECKOUT_URL: string | undefined;
+  PAYMOB_INTEGRATION_ID_CARD: string | undefined;
+  PAYMOB_INTEGRATION_ID_APPLE_PAY: string | undefined;
+  PAYMOB_INTEGRATION_ID_TABBY: string | undefined;
+  PAYMOB_INTEGRATION_ID_TAMARA: string | undefined;
+  /** How long a card order may stay payable before expiry handling. */
+  PAYMENT_ORDER_TTL_MINUTES: number;
 }
 
 /** Aggregated, typed application configuration. */
@@ -108,12 +123,45 @@ export const env: Env = {
   paymentProvider: (process.env.PAYMENT_PROVIDER || "stripe").toLowerCase(),
   Secret_key_Stripe: process.env.Secret_key_Stripe,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+
+  PAYMOB_ENV: process.env.PAYMOB_ENV === "live" ? "live" : "sandbox",
+  PAYMOB_API_KEY: process.env.PAYMOB_API_KEY || undefined,
+  PAYMOB_SECRET_KEY: process.env.PAYMOB_SECRET_KEY || undefined,
+  PAYMOB_PUBLIC_KEY: process.env.PAYMOB_PUBLIC_KEY || undefined,
+  PAYMOB_HMAC_SECRET: process.env.PAYMOB_HMAC_SECRET || undefined,
+  PAYMOB_BASE_URL: process.env.PAYMOB_BASE_URL || undefined,
+  PAYMOB_CHECKOUT_URL: process.env.PAYMOB_CHECKOUT_URL || undefined,
+  PAYMOB_INTEGRATION_ID_CARD: process.env.PAYMOB_INTEGRATION_ID_CARD || undefined,
+  PAYMOB_INTEGRATION_ID_APPLE_PAY: process.env.PAYMOB_INTEGRATION_ID_APPLE_PAY || undefined,
+  PAYMOB_INTEGRATION_ID_TABBY: process.env.PAYMOB_INTEGRATION_ID_TABBY || undefined,
+  PAYMOB_INTEGRATION_ID_TAMARA: process.env.PAYMOB_INTEGRATION_ID_TAMARA || undefined,
+  PAYMENT_ORDER_TTL_MINUTES: Number(process.env.PAYMENT_ORDER_TTL_MINUTES) || 30,
 };
 
 /**
  * Fails fast when security-critical configuration is missing.
  * Optional integrations (Redis, Cloudinary, Google, Stripe, SMTP) degrade gracefully.
  */
+const MIN_SECRET_LENGTH = 32;
+const PLACEHOLDER_SECRET = /replace-with|change-?me|your-?secret|example|development-secret/i;
+
+/** Returns the names of JWT secrets that are too short or still placeholders. */
+const weakJwtSecrets = (): string[] => {
+  const secrets: [string, string | undefined][] = [
+    ["SIGNATURE_ADMIN", env.signatureAdmin],
+    ["SIGNATURE_USER", env.signatureUser],
+    ["SIGNATURE_SUPER_ADMIN", env.SIGNATURE_SUPER_ADMIN],
+    ["VERIFY_SIGNATURE_MY", env.verifySignature],
+  ];
+
+  return secrets
+    .filter(
+      ([, value]) =>
+        Boolean(value) && (String(value).length < MIN_SECRET_LENGTH || PLACEHOLDER_SECRET.test(String(value))),
+    )
+    .map(([name]) => name);
+};
+
 export const assertEnv = (): void => {
   const missing: string[] = [];
   if (!env.signatureAdmin) missing.push("SIGNATURE_ADMIN");
@@ -122,8 +170,14 @@ export const assertEnv = (): void => {
   if (!env.verifySignature) missing.push("VERIFY_SIGNATURE_MY");
 
   if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}. See config/.env.example.`);
+  }
+
+  const weak = weakJwtSecrets();
+  if (weak.length > 0) {
     throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}. See config/.env.example.`,
+      `Insecure JWT signing secrets: ${weak.join(", ")}. ` +
+        `Use at least ${MIN_SECRET_LENGTH} random characters; never commit real secrets.`,
     );
   }
 };

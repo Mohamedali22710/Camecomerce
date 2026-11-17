@@ -7,6 +7,7 @@
 import Stripe from "stripe";
 
 import { env } from "../../../config/env.service.js";
+import { toMinorUnits } from "../../common/utils/money.js";
 import { orderModel } from "../../database/model/order.model.js";
 
 interface PaymentItem {
@@ -17,10 +18,49 @@ interface PaymentItem {
 
 const isConfigured = (): boolean => Boolean(env.Secret_key_Stripe);
 
+/** Minimal fields used to decide whether a provider session really paid an order. */
+export interface StripeSettlementFields {
+  payment_status?: string | null;
+  amount_total?: number | null;
+  currency?: string | null;
+}
+
+export interface OrderSettlementFields {
+  paymentMethod: string;
+  totalAmount: number;
+}
+
+/**
+ * True only when the provider says the session is paid, the provider amount
+ * matches the stored order total in minor units, the currency matches, and the
+ * order is actually a card order. Used by the webhook so a stray or tampered
+ * event can never mark an order paid.
+ */
+export const isStripePaymentSettledForOrder = (
+  session: StripeSettlementFields,
+  order: OrderSettlementFields,
+): boolean => {
+  if (order.paymentMethod !== "card") {
+    return false;
+  }
+  if (session.payment_status !== "paid") {
+    return false;
+  }
+  if (session.amount_total !== toMinorUnits(order.totalAmount)) {
+    return false;
+  }
+  if (session.currency && session.currency.toLowerCase() !== env.CURRENCY.toLowerCase()) {
+    return false;
+  }
+  return true;
+};
+
 let client: Stripe | null = null;
 
 const getStripe = (): Stripe | null => {
-  if (!isConfigured()) {return null;}
+  if (!isConfigured()) {
+    return null;
+  }
   // Lazy initialization prevents a startup crash when Stripe is not configured.
   client ??= new Stripe(env.Secret_key_Stripe!);
   return client;
@@ -102,17 +142,46 @@ export const handleWebhook = async (
       case "checkout.session.async_payment_succeeded": {
         const session = event.data.object as Stripe.Checkout.Session;
         const orderId = session.metadata?.orderId;
-        if (orderId) {
-          const reference =
-            typeof session.payment_intent === "string"
-              ? session.payment_intent
-              : session.id;
 
-          await orderModel.findByIdAndUpdate(orderId, {
-            paymentStatus: "paid",
-            paymentProvider: "stripe",
-            paymentReference: reference,
-          });
+        if (orderId) {
+          const order = await orderModel.findById(orderId);
+
+          // Never mark an order paid from an event alone: the stored order must
+          // be a card order and the provider-reported state, amount, and
+          // currency must all match what was stored server-side.
+          const expectedAmountMinor = order ? toMinorUnits(order.totalAmount) : null;
+          const amountMatches = expectedAmountMinor !== null && session.amount_total === expectedAmountMinor;
+          const currencyMatches = !session.currency || session.currency.toLowerCase() === env.CURRENCY.toLowerCase();
+          const providerSaysPaid = session.payment_status === "paid";
+
+          if (!order || order.paymentMethod !== "card") {
+            console.warn("Stripe webhook ignored: order is missing or not a card order", {
+              orderId,
+            });
+            break;
+          }
+
+          if (!isStripePaymentSettledForOrder(session, order)) {
+            console.warn("Stripe webhook ignored: payment state/amount/currency mismatch", {
+              orderId,
+              providerSaysPaid,
+              amountMatches,
+              currencyMatches,
+            });
+            break;
+          }
+
+          const reference = typeof session.payment_intent === "string" ? session.payment_intent : session.id;
+
+          // Do not overwrite a payment that already succeeded.
+          await orderModel.findOneAndUpdate(
+            { _id: orderId, paymentStatus: { $ne: "paid" } },
+            {
+              paymentStatus: "paid",
+              paymentProvider: "stripe",
+              paymentReference: reference,
+            },
+          );
         }
         break;
       }

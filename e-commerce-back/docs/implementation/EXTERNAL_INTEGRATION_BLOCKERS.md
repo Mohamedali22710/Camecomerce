@@ -283,6 +283,12 @@ Fill in during implementation. No row may be marked VERIFIED without evidence.
 | 2026-11-16 | Baseline `typecheck` / `lint` / `test` | Local command | **VERIFIED**: typecheck pass; lint 0 errors (25 pre-existing warnings); Jest 7 suites / 54 tests pass | `npm run typecheck`, `npm run lint`, `npm test` | Dev |
 | 2026-11-16 | Paymob credential request sent (MVP-03) | Email / portal | **BLOCKED**: no Paymob KSA account-manager contact or merchant credentials were supplied; request not sent | Checklist B-01–B-12 is prepared in §2.2; no recipient available | Client / Dev |
 | 2026-11-16 | Mock payment adapter contract (MVP-02) | Jest | **VERIFIED** (contract only, not a provider) | 8 Jest tests across registry/mock suites | Dev |
+| 2026-11-17 | Bundle cart/order pricing, cart checkout, order lifecycle (MVP-09/10/11) | Jest unit suites | **VERIFIED** (unit only; no DB integration harness) | `cart.validate`, `order.validate`, `order.lifecycle`, `order.number`, pricing/money suites | Dev |
+| 2026-11-17 | Paymob config guard + minor-unit money (MVP-12) | Jest unit suites | **VERIFIED** (config/conversion only; no network) | `paymob.config`, `payment.registry`, `money` suites | Dev |
+| 2026-11-17 | Paymob session/intention creation (MVP-13) | Sandbox request | **BLOCKED**: required variables and confirmed endpoint/version are not available; adapter returns an explicit `503` | `config/.env.example` placeholders; `src/module/payment/paymob.provider.ts` | Client / Dev |
+| 2026-11-17 | Payment status endpoint (MVP-14) | Jest/validation + code review | **VERIFIED** for stored status and ownership (`404` for another user). Authoritative inquiry subset **NOT TESTED** (deferred to MVP-18) | `src/module/payment/payment.service.ts`; `payment.validate` suite | Dev |
+| 2026-11-17 | Paymob sandbox smoke run (MVP-15) | Sandbox request | **NOT TESTED**: no Paymob KSA credentials, integration IDs, or confirmed endpoints were supplied | Blocker B-01–B-12; no provider reference exists | Client / Dev |
+| 2026-11-17 | Post-implementation regression baseline | Local command | **VERIFIED**: typecheck pass; lint 0 errors; Jest 23 suites / 158 tests pass | `npm run typecheck`, `npm run lint`, `npm test` | Dev |
 | 2026-11-19 | Intention/session creation | Sandbox request | Pending | Provider reference | Dev |
 | 2026-11-20 | Webhook HMAC | Real callback or known vector | Pending | Accepted/rejected status | Dev |
 | 2026-11-20 | Replay protection | Duplicate callback | Pending | Ledger row count | Dev |

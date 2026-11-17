@@ -1,13 +1,16 @@
-/** Payment provider registry (MVP-02).
+/** Payment provider registry (MVP-02/MVP-12).
  *
- * Selects the active adapter from `PAYMENT_PROVIDER`. Only the mock adapter is
- * implemented in this ticket; Paymob arrives in MVP-12/MVP-13 and the legacy
- * Stripe path remains wired directly in `order.service.ts` until then.
+ * Selects the active adapter from `PAYMENT_PROVIDER`. Paymob configuration is
+ * validated at boot when selected; the adapter itself still returns an explicit
+ * `503` because session/HMAC endpoints are unconfirmed (MVP-13/MVP-15). The
+ * legacy Stripe order path stays wired directly in `order.service.ts`.
  */
 import { env } from "../../../config/env.service.js";
 
 import { mockPaymentProvider } from "./mock.provider.js";
 import { PaymentProvider, PaymentProviderName } from "./payment.types.js";
+import { getPaymobConfig } from "./paymob.config.js";
+import { paymobPaymentProvider } from "./paymob.provider.js";
 
 const KNOWN_PROVIDERS: readonly PaymentProviderName[] = ["paymob", "mock", "stripe"];
 
@@ -21,8 +24,9 @@ const assertMockNotInProduction = (providerName: PaymentProviderName): void => {
 };
 
 /**
- * Fails fast at boot when the configured provider is unknown or when the mock
- * adapter is requested in production. Called from `src/index.ts`.
+ * Fails fast at boot when the configured provider is unknown, when the mock
+ * adapter is requested in production, or when Paymob is selected without its
+ * required configuration. Called from `src/index.ts`.
  */
 export const assertPaymentProviderConfig = (): void => {
   if (!isPaymentProviderName(env.paymentProvider)) {
@@ -31,6 +35,11 @@ export const assertPaymentProviderConfig = (): void => {
     );
   }
   assertMockNotInProduction(env.paymentProvider);
+
+  if (env.paymentProvider === "paymob") {
+    // Throws PaymobConfigError with the full missing-variable list.
+    getPaymobConfig();
+  }
 };
 
 /** Resolves a payment adapter. Throws a configuration error when unavailable. */
@@ -44,10 +53,9 @@ export const getPaymentProvider = (providerName: string = env.paymentProvider): 
     case "mock":
       return mockPaymentProvider;
     case "paymob":
-      throw new Error(
-        "PAYMENT_PROVIDER=paymob is not implemented yet (MVP-12/MVP-13). " +
-          "Keep the mock adapter for development and see docs/implementation/EXTERNAL_INTEGRATION_BLOCKERS.md.",
-      );
+      // Validate now so an unconfigured adapter is never returned.
+      getPaymobConfig();
+      return paymobPaymentProvider;
     case "stripe":
       throw new Error(
         "PAYMENT_PROVIDER=stripe is the legacy order-path provider and is not exposed through the " +

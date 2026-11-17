@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 
 import { HttpError } from "../../common/utils/httpError.js";
+import { toPublicJson } from "../../common/utils/publicSerializer.js";
 import { categoryModel } from "../../database/model/category.model.js";
 import { productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
@@ -11,7 +12,9 @@ import { userModel } from "../../database/model/user.model.js";
 const SORTABLE_FIELDS = ["en_name", "ar_name", "fr_name", "isActive", "createdAt", "updatedAt"];
 
 const parseSort = (raw: unknown): Record<string, 1 | -1> => {
-  if (typeof raw !== "string" || !raw) {return { createdAt: -1 };}
+  if (typeof raw !== "string" || !raw) {
+    return { createdAt: -1 };
+  }
 
   const parts = raw.split("_");
   const direction = parts[parts.length - 1];
@@ -27,7 +30,9 @@ const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]
 
 const currentAdminEmail = async (req: Request): Promise<string> => {
   const admin = await userModel.findById(req.user?._id);
-  if (!admin?.email) {throw new HttpError(404, "Admin not found");}
+  if (!admin?.email) {
+    throw new HttpError(404, "Admin not found");
+  }
   return admin.email;
 };
 
@@ -36,7 +41,9 @@ export const createSubcategory = async (req: Request, res: Response): Promise<vo
   const { en_name, ar_name, fr_name, categoryId } = req.body;
 
   const category = await categoryModel.findById(categoryId);
-  if (!category) {throw new HttpError(404, "Category not found");}
+  if (!category) {
+    throw new HttpError(404, "Category not found");
+  }
 
   if (await subcategoryModel.exists({ en_name, categoryId })) {
     throw new HttpError(409, "Subcategory already exists");
@@ -65,19 +72,18 @@ export const getActiveSubcategories = async (_req: Request, res: Response): Prom
     path: "products",
     match: { isActive: true },
   });
-  res.status(200).json({ message: "Subcategories", data: subcategories });
+  res.status(200).json({ message: "Subcategories", data: toPublicJson(subcategories) });
 };
 
-export const getActiveSubcategoryById = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getActiveSubcategoryById = async (req: Request, res: Response): Promise<void> => {
   const subcategory = await subcategoryModel
     .findOne({ _id: req.params.id, isActive: true })
     .populate({ path: "products", match: { isActive: true } });
 
-  if (!subcategory) {throw new HttpError(404, "Subcategory not found");}
-  res.status(200).json({ message: "Subcategory", data: subcategory });
+  if (!subcategory) {
+    throw new HttpError(404, "Subcategory not found");
+  }
+  res.status(200).json({ message: "Subcategory", data: toPublicJson(subcategory) });
 };
 
 export const getAllSubcategories = async (req: Request, res: Response): Promise<void> => {
@@ -116,16 +122,18 @@ export const getAllSubcategories = async (req: Request, res: Response): Promise<
 };
 
 export const getSubcategoryById = async (req: Request, res: Response): Promise<void> => {
-  const subcategory = await subcategoryModel
-    .findById(req.params.id)
-    .populate({ path: "products" });
-  if (!subcategory) {throw new HttpError(404, "Subcategory not found");}
+  const subcategory = await subcategoryModel.findById(req.params.id).populate({ path: "products" });
+  if (!subcategory) {
+    throw new HttpError(404, "Subcategory not found");
+  }
   res.status(200).json({ message: "Subcategory", data: subcategory });
 };
 
 export const updateSubcategory = async (req: Request, res: Response): Promise<void> => {
   const subcategory = await subcategoryModel.findById(req.params.id);
-  if (!subcategory) {throw new HttpError(404, "Subcategory not found");}
+  if (!subcategory) {
+    throw new HttpError(404, "Subcategory not found");
+  }
 
   const { en_name, ar_name, fr_name, categoryId, isActive } = req.body;
   const targetCategoryId = categoryId ?? subcategory.categoryId;
@@ -173,7 +181,9 @@ export const updateSubcategory = async (req: Request, res: Response): Promise<vo
 
   if (categoryId !== undefined && String(categoryId) !== String(subcategory.categoryId)) {
     const category = await categoryModel.findById(categoryId);
-    if (!category) {throw new HttpError(404, "Category not found");}
+    if (!category) {
+      throw new HttpError(404, "Category not found");
+    }
     subcategory.categoryId = categoryId;
   }
 
@@ -188,7 +198,9 @@ export const updateSubcategory = async (req: Request, res: Response): Promise<vo
 
 export const softDeleteSubcategory = async (req: Request, res: Response): Promise<void> => {
   const subcategory = await subcategoryModel.findById(req.params.id);
-  if (!subcategory) {throw new HttpError(404, "Subcategory not found");}
+  if (!subcategory) {
+    throw new HttpError(404, "Subcategory not found");
+  }
 
   await productModel.updateMany({ subcategoryId: subcategory._id }, { isActive: false });
   subcategory.isActive = false;

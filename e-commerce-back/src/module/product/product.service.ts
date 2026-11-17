@@ -11,25 +11,14 @@ import { env } from "../../../config/env.service.js";
 import { buildQuery } from "../../common/utils/buildQuery.js";
 import { currentAdminEmail } from "../../common/utils/currentAdmin.js";
 import { HttpError } from "../../common/utils/httpError.js";
-import {
-  deleteImagesByUrls,
-  uploadBase64Image,
-  uploadImages,
-} from "../../common/utils/uploadImage.js";
+import { deleteImagesByUrls, uploadBase64Image, uploadImages } from "../../common/utils/uploadImage.js";
 import {
   normalizeSpecificationsInput,
   parseSpecifications,
   serializeSpecifications,
 } from "../../common/validation/specification.js";
-import {
-  ProductVariant,
-  normalizeVariant,
-  parseVariants,
-} from "../../common/validation/variant.js";
-import {
-  IProduct,
-  productModel,
-} from "../../database/model/product.model.js";
+import { ProductVariant, normalizeVariant, parseVariants } from "../../common/validation/variant.js";
+import { IProduct, productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
 
 interface ColorImageInput {
@@ -38,7 +27,9 @@ interface ColorImageInput {
 }
 
 const parseJsonArray = (raw: string | null | undefined): string[] => {
-  if (!raw) {return [];}
+  if (!raw) {
+    return [];
+  }
   try {
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string") : [];
@@ -48,7 +39,9 @@ const parseJsonArray = (raw: string | null | undefined): string[] => {
 };
 
 const parseJsonObject = (raw: string | null | undefined): Record<string, string> => {
-  if (!raw) {return {};}
+  if (!raw) {
+    return {};
+  }
   try {
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
@@ -67,7 +60,9 @@ const normalizeVariantsInput = (raw: unknown): ProductVariant[] => {
       return [];
     }
   }
-  if (!Array.isArray(value)) {return [];}
+  if (!Array.isArray(value)) {
+    return [];
+  }
   return value
     .filter((item): item is Partial<ProductVariant> => Boolean(item) && typeof item === "object")
     .map(normalizeVariant);
@@ -87,20 +82,24 @@ const normalizeColorImagesInput = (raw: unknown): ColorImageInput[] => {
 
 /** Trims an optional brand and stores blank input as `null`. */
 const normalizeBrand = (raw: unknown): string | null => {
-  if (typeof raw !== "string") {return null;}
+  if (typeof raw !== "string") {
+    return null;
+  }
   const trimmed = raw.trim();
   return trimmed ? trimmed : null;
 };
 
 /** Uploads data-URI images and keeps already-hosted URLs unchanged. */
-const buildColorImages = async (
-  raw: unknown,
-): Promise<Record<string, string>> => {
+const buildColorImages = async (raw: unknown): Promise<Record<string, string>> => {
   const result: Record<string, string> = {};
   for (const entry of normalizeColorImagesInput(raw)) {
-    if (!entry?.imageURL) {continue;}
+    if (!entry?.imageURL) {
+      continue;
+    }
     const color = String(entry.color ?? "").trim();
-    if (!color) {continue;}
+    if (!color) {
+      continue;
+    }
 
     if (!entry.imageURL.startsWith("data:image/")) {
       result[color] = entry.imageURL;
@@ -117,16 +116,25 @@ const buildColorImages = async (
   return result;
 };
 
-/** Public API representation of a product. */
-const serializeProduct = (product: IProduct) => ({
-  ...product.toJSON(),
-  brand: product.brand ?? null,
-  variants: parseVariants(product.variants),
-  specifications: parseSpecifications(product.specifications),
-  imageURLs: parseJsonArray(product.imageURLs),
-  colorImages: parseJsonObject(product.colorImages),
-  currency: env.CURRENCY,
-});
+/** Public API representation of a product. Admin audit fields are opt-out. */
+const serializeProduct = (product: IProduct, options: { publicView?: boolean } = {}) => {
+  const data = {
+    ...product.toJSON(),
+    brand: product.brand ?? null,
+    variants: parseVariants(product.variants),
+    specifications: parseSpecifications(product.specifications),
+    imageURLs: parseJsonArray(product.imageURLs),
+    colorImages: parseJsonObject(product.colorImages),
+    currency: env.CURRENCY,
+  } as Record<string, unknown>;
+
+  if (options.publicView) {
+    delete data.addedByEmail;
+    delete data.__v;
+  }
+
+  return data;
+};
 
 /** Creates a product. */
 export const createProduct = async (req: Request, res: Response): Promise<void> => {
@@ -145,7 +153,9 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   } = req.body;
 
   const subcategory = await subcategoryModel.findById(subcategoryId);
-  if (!subcategory) {throw new HttpError(404, "Subcategory not found");}
+  if (!subcategory) {
+    throw new HttpError(404, "Subcategory not found");
+  }
 
   const variants = normalizeVariantsInput(req.body.variants);
   if (variants.length === 0) {
@@ -192,7 +202,9 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
 /** Updates a product. */
 export const updateProduct = async (req: Request, res: Response): Promise<void> => {
   const product = await productModel.findById(req.params.id);
-  if (!product) {throw new HttpError(404, "Product not found");}
+  if (!product) {
+    throw new HttpError(404, "Product not found");
+  }
 
   const {
     en_name,
@@ -209,21 +221,39 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     isActive,
   } = req.body;
 
-  if (en_name !== undefined) {product.en_name = en_name;}
-  if (ar_name !== undefined) {product.ar_name = ar_name || null;}
-  if (fr_name !== undefined) {product.fr_name = fr_name || null;}
-  if (en_description !== undefined) {product.en_description = en_description;}
-  if (ar_description !== undefined) {product.ar_description = ar_description || null;}
-  if (fr_description !== undefined) {product.fr_description = fr_description || null;}
-  if (price !== undefined) {product.price = Number(price);}
-  if (discount !== undefined) {product.discount = Number(discount);}
-  if (brand !== undefined) {product.brand = normalizeBrand(brand);}
-  if (isActive !== undefined) {product.isActive = isActive;}
+  if (en_name !== undefined) {
+    product.en_name = en_name;
+  }
+  if (ar_name !== undefined) {
+    product.ar_name = ar_name || null;
+  }
+  if (fr_name !== undefined) {
+    product.fr_name = fr_name || null;
+  }
+  if (en_description !== undefined) {
+    product.en_description = en_description;
+  }
+  if (ar_description !== undefined) {
+    product.ar_description = ar_description || null;
+  }
+  if (fr_description !== undefined) {
+    product.fr_description = fr_description || null;
+  }
+  if (price !== undefined) {
+    product.price = Number(price);
+  }
+  if (discount !== undefined) {
+    product.discount = Number(discount);
+  }
+  if (brand !== undefined) {
+    product.brand = normalizeBrand(brand);
+  }
+  if (isActive !== undefined) {
+    product.isActive = isActive;
+  }
 
   if (req.body.specifications !== undefined) {
-    product.specifications = serializeSpecifications(
-      normalizeSpecificationsInput(req.body.specifications),
-    );
+    product.specifications = serializeSpecifications(normalizeSpecificationsInput(req.body.specifications));
   }
 
   if (req.body.variants !== undefined) {
@@ -236,13 +266,14 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
 
   if (req.body.colorImages !== undefined) {
     const colorImages = await buildColorImages(req.body.colorImages);
-    product.colorImages =
-      Object.keys(colorImages).length > 0 ? JSON.stringify(colorImages) : null;
+    product.colorImages = Object.keys(colorImages).length > 0 ? JSON.stringify(colorImages) : null;
   }
 
   if (subcategoryId !== undefined) {
     const subcategory = await subcategoryModel.findById(subcategoryId);
-    if (!subcategory) {throw new HttpError(404, "Subcategory not found");}
+    if (!subcategory) {
+      throw new HttpError(404, "Subcategory not found");
+    }
     product.subcategoryId = subcategoryId;
   }
 
@@ -265,7 +296,7 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
   res.status(200).json({ message: "Product updated", data: serializeProduct(product) });
 };
 
-const paginated = async (baseWhere: Record<string, unknown>, req: Request) => {
+const paginated = async (baseWhere: Record<string, unknown>, req: Request, publicView = false) => {
   const { where, order, offset, limit, page } = buildQuery({
     reqQuery: req.query,
     extraWhere: baseWhere,
@@ -275,7 +306,7 @@ const paginated = async (baseWhere: Record<string, unknown>, req: Request) => {
     productModel.countDocuments(where),
   ]);
   return {
-    products: products.map(serializeProduct),
+    products: products.map((product) => serializeProduct(product, { publicView })),
     total,
     page,
     limit,
@@ -290,23 +321,25 @@ export const getAllProducts = async (req: Request, res: Response): Promise<void>
 
 /** Public listing (active products only). */
 export const getActiveProducts = async (req: Request, res: Response): Promise<void> => {
-  res
-    .status(200)
-    .json({ message: "Products", data: await paginated({ isActive: true }, req) });
+  res.status(200).json({ message: "Products", data: await paginated({ isActive: true }, req, true) });
 };
 
 /** Admin lookup by id. */
 export const getProductById = async (req: Request, res: Response): Promise<void> => {
   const product = await productModel.findById(req.params.id);
-  if (!product) {throw new HttpError(404, "Product not found");}
+  if (!product) {
+    throw new HttpError(404, "Product not found");
+  }
   res.status(200).json({ message: "Product", data: serializeProduct(product) });
 };
 
 /** Public lookup by id (active only). */
 export const getActiveProductById = async (req: Request, res: Response): Promise<void> => {
   const product = await productModel.findOne({ _id: req.params.id, isActive: true });
-  if (!product) {throw new HttpError(404, "Product not found");}
-  res.status(200).json({ message: "Product", data: serializeProduct(product) });
+  if (!product) {
+    throw new HttpError(404, "Product not found");
+  }
+  res.status(200).json({ message: "Product", data: serializeProduct(product, { publicView: true }) });
 };
 
 /** Public listing filtered by category (through its active subcategories). */
@@ -321,7 +354,7 @@ export const getProductsByCategory = async (req: Request, res: Response): Promis
 
   res.status(200).json({
     message: "Products",
-    data: await paginated({ isActive: true, subcategoryId: { $in: subcategoryIds } }, req),
+    data: await paginated({ isActive: true, subcategoryId: { $in: subcategoryIds } }, req, true),
   });
 };
 
@@ -334,14 +367,16 @@ export const getProductsBySubcategory = async (req: Request, res: Response): Pro
 
   res.status(200).json({
     message: "Products",
-    data: await paginated({ isActive: true, subcategoryId }, req),
+    data: await paginated({ isActive: true, subcategoryId }, req, true),
   });
 };
 
 /** Soft deletes a product. */
 export const softDeleteProduct = async (req: Request, res: Response): Promise<void> => {
   const product = await productModel.findById(req.params.id);
-  if (!product) {throw new HttpError(404, "Product not found");}
+  if (!product) {
+    throw new HttpError(404, "Product not found");
+  }
 
   product.isActive = false;
   await product.save();
