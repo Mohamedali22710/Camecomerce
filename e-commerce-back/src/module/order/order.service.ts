@@ -1,10 +1,11 @@
 /** Order business logic: creation from explicit lines or the stored cart,
  * server-side pricing, guarded status transitions, and one-time stock release. */
 import { Request, Response } from "express";
-import mongoose, { ClientSession } from "mongoose";
+import mongoose, { ClientSession, UpdateQuery } from "mongoose";
 
 import { env } from "../../../config/env.service.js";
 import { HttpError } from "../../common/utils/httpError.js";
+import { toMinorUnits } from "../../common/utils/money.js";
 import { calculateShipping, roundMoney } from "../../common/utils/pricing.js";
 import { findVariant, parseVariants } from "../../common/validation/variant.js";
 import { bundleModel } from "../../database/model/bundle.model.js";
@@ -20,10 +21,11 @@ import {
   toBundleSnapshot,
   toProductSnapshot,
 } from "../cart/cart.lines.js";
+import { getPaymentProvider } from "../payment/payment.registry.js";
+import type { CreateSessionResult, PaymentProvider } from "../payment/payment.types.js";
 
 import { initialOrderHistory, planOrderStatusUpdate } from "./order.lifecycle.js";
 import { generateOrderNumber, legacyOrderNumber } from "./order.number.js";
-import { createCheckoutSession } from "./stripe.service.js";
 
 interface ProductItemInput {
   itemType?: "product";
@@ -69,6 +71,20 @@ const requireUserId = (req: Request): string => {
     throw new HttpError(401, "Unauthorized");
   }
   return userId;
+};
+
+/**
+ * Resolves the configured card adapter. In development the provider may be
+ * unset, and a selected adapter may still be unconfigured; either way the caller
+ * must get a safe 503 instead of a stack trace, and no order may be created.
+ */
+const resolveCardProvider = (): PaymentProvider => {
+  try {
+    return getPaymentProvider();
+  } catch (error) {
+    console.error("payment provider unavailable:", (error as Error)?.message);
+    throw new HttpError(503, "The configured payment provider is unavailable.");
+  }
 };
 
 const parseJson = <T>(raw: string, fallback: T): T => {
@@ -184,7 +200,13 @@ const resolveOrderLines = async (items: OrderItemInput[], session: ClientSession
   return snapshots;
 };
 
-/** Adds reserved product stock back. Bundle lines are skipped (DEC-01). */
+/**
+ * Adds reserved product stock back inside the caller's transaction. Bundle lines
+ * are skipped because bundle component inventory is still design-only (DEC-01).
+ *
+ * A missing product or variant is a data-integrity failure, not a no-op: silently
+ * skipping it would permanently lose inventory with no audit trail.
+ */
 const restoreProductStock = async (lines: OrderLineSnapshot[], session: ClientSession): Promise<void> => {
   for (const line of lines) {
     if (line.itemType === "bundle") {
@@ -193,13 +215,19 @@ const restoreProductStock = async (lines: OrderLineSnapshot[], session: ClientSe
 
     const product = await productModel.findById(line.productId).session(session);
     if (!product) {
-      continue;
+      throw new HttpError(
+        409,
+        `Cannot release stock: product ${line.productId} referenced by this order no longer exists`,
+      );
     }
 
     const variants = parseVariants(product.variants);
     const variant = findVariant(variants, line.color, line.size);
     if (!variant) {
-      continue;
+      throw new HttpError(
+        409,
+        `Cannot release stock: variant ${line.color}/${line.size} of ${product.en_name} no longer exists`,
+      );
     }
 
     variant.stock += line.quantity;
@@ -230,7 +258,9 @@ const cancelOrderAndReleaseStock = async (order: IOrder, reason: string): Promis
     session.startTransaction();
     const now = new Date();
     const claimed = await orderModel.findOneAndUpdate(
-      { _id: order._id, stockReleasedAt: null },
+      // Never restock an order the provider has already settled, and never
+      // release twice. Both conditions are re-checked inside the write.
+      { _id: order._id, stockReleasedAt: null, paymentStatus: { $ne: "paid" } },
       {
         $set: {
           stockReleasedAt: now,
@@ -283,33 +313,6 @@ const cancelOrderAndReleaseStock = async (order: IOrder, reason: string): Promis
   }
 };
 
-/** Releases stock once for a cancelled order, guarded by `stockReleasedAt`. */
-const releaseOrderStockOnce = async (orderId: string): Promise<boolean> => {
-  const session = await mongoose.startSession();
-  try {
-    session.startTransaction();
-    const claimed = await orderModel.findOneAndUpdate(
-      { _id: orderId, stockReleasedAt: null },
-      { $set: { stockReleasedAt: new Date() } },
-      { new: true, session },
-    );
-
-    if (!claimed) {
-      await session.abortTransaction();
-      return false;
-    }
-
-    await restoreProductStock(parseJson<OrderLineSnapshot[]>(claimed.items, []), session);
-    await session.commitTransaction();
-    return true;
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    await session.endSession();
-  }
-};
-
 /** Creates an order, reserves product stock, and (for card) starts checkout. */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   const userId = requireUserId(req);
@@ -339,6 +342,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   const useCart = Boolean(body.useCart) || !body.items?.length;
   const requestedItems = useCart ? await readCartItems(userId) : body.items!;
 
+  // Resolve the card provider before any write: a misconfigured provider must
+  // never leave a persisted order holding reserved stock.
+  const cardProvider = paymentMethod === "card" ? resolveCardProvider() : null;
+
   const dbSession = await mongoose.startSession();
   let order: IOrder | null = null;
 
@@ -362,8 +369,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           totalAmount,
           paymentMethod,
           paymentStatus: "pending",
-          // Card checkout still uses the legacy Stripe adapter.
-          paymentProvider: paymentMethod === "card" ? "stripe" : null,
+          // The concrete provider is recorded only after a session is created.
+          paymentProvider: null,
           orderStatus: "pending",
           shippingStatus: "pending",
           shippingAddress: JSON.stringify(shippingAddress),
@@ -417,26 +424,52 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   };
 
   if (paymentMethod === "card") {
-    const checkout = await createCheckoutSession(
-      String(order._id),
-      order.totalAmount,
-      orderItems.map((line) => ({
-        en_name: line.en_name,
-        quantity: line.quantity,
-        price: line.itemType === "bundle" ? line.unitPrice : line.price,
-      })),
-      order.shippingCost,
-    );
+    if (!cardProvider) {
+      throw new HttpError(503, "The configured payment provider is unavailable.");
+    }
+    const provider = cardProvider;
+    // PAYMENT_PROVIDER is authoritative. The order flow never imports a provider
+    // SDK, so selecting Paymob cannot silently create a Stripe session. A
+    // configured-but-unavailable adapter (Paymob today) throws HttpError(503).
+    let checkout: CreateSessionResult;
 
-    if (!checkout) {
+    try {
+      checkout = await provider.createSession({
+        orderId: String(order._id),
+        orderNumber: orderData.orderNumber,
+        amountMinor: toMinorUnits(order.totalAmount),
+        currency: env.CURRENCY,
+        items: orderItems.map((line) => ({
+          name: line.en_name,
+          quantity: line.quantity,
+          unitAmountMinor: toMinorUnits(line.itemType === "bundle" ? line.unitPrice : line.price),
+          sku: line.itemType === "bundle" ? `bundle:${line.bundleId}` : `product:${line.productId}`,
+        })),
+        customer: {
+          fullName: shippingAddress.fullName,
+          phone: shippingAddress.phone,
+          street: shippingAddress.street,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zipCode: shippingAddress.zipCode,
+          country: shippingAddress.country,
+        },
+        notificationUrl: `${env.base_url}/v1/order/webhook`,
+        redirectionUrl: `${env.frontendUrl}/checkout/success?orderId=${encodeURIComponent(String(order._id))}`,
+      });
+    } catch (error) {
       // Payment could not be started: release the reservation once and close the
       // order so it never lingers in a payable state.
       await cancelOrderAndReleaseStock(order, "Payment session could not be created");
+      if (error instanceof HttpError) {
+        throw error;
+      }
       throw new HttpError(502, "Failed to create payment session");
     }
 
     await orderModel.findByIdAndUpdate(order._id, {
-      paymentReference: checkout.id,
+      paymentProvider: provider.name,
+      paymentReference: checkout.providerReference,
     });
     await attachInstallation();
     await clearUsedCart();
@@ -444,10 +477,13 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     res.status(201).json({
       message: "Redirect to payment",
       data: {
-        url: checkout.url,
+        url: checkout.redirectUrl,
+        redirectUrl: checkout.redirectUrl,
+        provider: checkout.provider,
         orderId: order._id,
         orderNumber: orderData.orderNumber,
         currency: env.CURRENCY,
+        paymentStatus: checkout.paymentStatus,
       },
     });
     return;
@@ -507,58 +543,113 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
 
 /**
  * Admin update of the independent order, payment, and shipping statuses.
- * Payment and shipping are never inferred from the order status. Illegal
- * transitions are rejected before any write, and every change is audited.
+ *
+ * The status write, the one-time `stockReleasedAt` claim, the stock restoration,
+ * and the audit entries all run in ONE transaction. MongoDB evaluates the
+ * concurrency guards inside the claiming write, so two concurrent cancellations
+ * cannot both restore stock, a paid order is never restocked, and
+ * a cancelled order whose marker is still `null` can be repaired by repeating
+ * the request.
  */
 export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
-  const order = await orderModel.findById(req.params.id);
-  if (!order) {
-    throw new HttpError(404, "Order not found");
-  }
-
   const { orderStatus, paymentStatus, shippingStatus, shippingCarrier, trackingNumber, reason } = req.body;
+  const actor = { role: req.bearer || req.user?.role || "admin", userId: req.user?._id ?? null };
 
-  const plan = planOrderStatusUpdate(
-    order,
-    { orderStatus, paymentStatus, shippingStatus, reason },
-    { role: req.bearer || req.user?.role || "admin", userId: req.user?._id ?? null },
-  );
+  const session = await mongoose.startSession();
+  let updatedOrder: IOrder | null = null;
 
-  if (orderStatus !== undefined) {
-    order.orderStatus = orderStatus;
-  }
-  if (paymentStatus !== undefined) {
-    order.paymentStatus = paymentStatus;
-  }
-  if (shippingStatus !== undefined) {
-    order.shippingStatus = shippingStatus;
-  }
-  if (shippingCarrier !== undefined) {
-    order.shippingCarrier = shippingCarrier || null;
-  }
-  if (trackingNumber !== undefined) {
-    order.trackingNumber = trackingNumber || null;
-  }
-  if (plan.changes.length > 0) {
-    order.statusHistory.push(...plan.changes);
-  }
+  try {
+    session.startTransaction();
 
-  await order.save();
+    const order = await orderModel.findById(req.params.id).session(session);
+    if (!order) {
+      throw new HttpError(404, "Order not found");
+    }
 
-  // Returning stock is a decision, not a payment action: only on the transition
-  // into "cancelled", and only once thanks to the `stockReleasedAt` marker.
-  if (plan.releaseStock) {
-    const released = await releaseOrderStockOnce(String(order._id));
-    if (released) {
-      const refreshed = await orderModel.findById(order._id);
-      if (refreshed) {
-        res.status(200).json({ message: "Order updated", data: serializeOrder(refreshed) });
-        return;
+    // Re-validated inside the transaction so the decision is based on the current
+    // document, not on a value read before the session opened.
+    const plan = planOrderStatusUpdate(order, { orderStatus, paymentStatus, shippingStatus, reason }, actor);
+
+    const setFields: Partial<IOrder> = {};
+    if (orderStatus !== undefined) {
+      setFields.orderStatus = orderStatus;
+    }
+    if (paymentStatus !== undefined) {
+      setFields.paymentStatus = paymentStatus;
+    }
+    if (shippingStatus !== undefined) {
+      setFields.shippingStatus = shippingStatus;
+    }
+    if (shippingCarrier !== undefined) {
+      setFields.shippingCarrier = shippingCarrier || null;
+    }
+    if (trackingNumber !== undefined) {
+      setFields.trackingNumber = trackingNumber || null;
+    }
+    if (plan.releaseStock) {
+      setFields.stockReleasedAt = new Date();
+    }
+
+    // Concurrency guards. Every field this request changes must still hold the
+    // value that was validated, and the release must still be unclaimed for an
+    // unpaid order. MongoDB evaluates all of them inside the same write.
+    const guards: Record<string, unknown> = { _id: order._id };
+    if (orderStatus !== undefined) {
+      guards.orderStatus = order.orderStatus;
+    }
+    if (paymentStatus !== undefined) {
+      guards.paymentStatus = order.paymentStatus;
+    }
+    if (shippingStatus !== undefined) {
+      guards.shippingStatus = order.shippingStatus;
+    }
+    if (plan.releaseStock) {
+      guards.stockReleasedAt = null;
+      // When the request also submits a payment status, the equality guard above
+      // already proves the current value is not "paid".
+      if (paymentStatus === undefined) {
+        guards.paymentStatus = { $ne: "paid" };
       }
     }
+
+    const update: UpdateQuery<IOrder> = {};
+    if (Object.keys(setFields).length > 0) {
+      update.$set = setFields;
+    }
+    if (plan.changes.length > 0) {
+      update.$push = { statusHistory: { $each: plan.changes } };
+    }
+
+    if (Object.keys(update).length === 0) {
+      // Nothing to change and nothing to release: idempotent request.
+      updatedOrder = order;
+      await session.commitTransaction();
+    } else {
+      updatedOrder = await orderModel.findOneAndUpdate(guards, update, {
+        new: true,
+        session,
+      });
+
+      if (!updatedOrder) {
+        throw new HttpError(409, "Order changed while it was being updated. Reload and retry.");
+      }
+
+      if (plan.releaseStock) {
+        // Throws on a missing product/variant, aborting the claim and the status
+        // change together instead of silently losing inventory.
+        await restoreProductStock(parseJson<OrderLineSnapshot[]>(updatedOrder.items, []), session);
+      }
+
+      await session.commitTransaction();
+    }
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
   }
 
-  res.status(200).json({ message: "Order updated", data: serializeOrder(order) });
+  res.status(200).json({ message: "Order updated", data: serializeOrder(updatedOrder) });
 };
 
 /** Total paid revenue helper used by reports (kept small and explicit). */

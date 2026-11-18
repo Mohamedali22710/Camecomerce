@@ -71,13 +71,60 @@ describe("payment provider registry", () => {
     expect(() => assertPaymentProviderConfig()).toThrow(/development-only/);
   });
 
-  it("fails fast when Paymob is selected without configuration", () => {
-    env.paymentProvider = "paymob";
+  it("allows a development boot without PAYMENT_PROVIDER but disables card checkout", () => {
+    env.paymentProvider = undefined;
     env.isProduction = false;
+
+    expect(() => assertPaymentProviderConfig()).not.toThrow();
+    // No implicit default and no fallback to mock.
+    expect(() => getPaymentProvider()).toThrow(/PAYMENT_PROVIDER is not set/);
+  });
+
+  it("requires an explicit PAYMENT_PROVIDER in production", () => {
+    env.paymentProvider = undefined;
+    env.isProduction = true;
+
+    expect(() => assertPaymentProviderConfig()).toThrow(/required in production/);
+    expect(() => getPaymentProvider()).toThrow(/PAYMENT_PROVIDER is not set/);
+  });
+
+  it("boots with Paymob selected and no credentials (COD-only deployment)", async () => {
+    env.paymentProvider = "paymob";
+    env.isProduction = true;
     clearPaymob();
 
-    expect(() => assertPaymentProviderConfig()).toThrow(/PAYMOB_API_KEY/);
-    expect(() => getPaymentProvider()).toThrow(/PAYMOB_API_KEY/);
+    // Boot must not depend on Paymob credentials; only a card operation does.
+    expect(() => assertPaymentProviderConfig()).not.toThrow();
+
+    const provider = getPaymentProvider();
+    expect(provider.name).toBe("paymob");
+
+    await expect(
+      provider.createSession({
+        orderId: "507f1f77bcf86cd799439011",
+        orderNumber: "CCTV-261117-ABCD",
+        amountMinor: 12345,
+        currency: "SAR",
+        items: [],
+        notificationUrl: "https://example.test/webhook",
+        redirectionUrl: "https://example.test/return",
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+    await expect(provider.fetchStatus("ref")).rejects.toMatchObject({
+      status: 503,
+      message: expect.stringMatching(/PAYMOB_API_KEY/),
+    });
+  });
+
+  it("returns the legacy Stripe adapter instead of throwing", async () => {
+    env.paymentProvider = "stripe";
+    env.isProduction = false;
+
+    const provider = getPaymentProvider();
+    expect(provider.name).toBe("stripe");
+
+    await expect(provider.verifyAndParse(Buffer.from(""), {})).rejects.toMatchObject({ status: 501 });
+    await expect(provider.fetchStatus("cs_test_123")).rejects.toMatchObject({ status: 501 });
   });
 
   it("returns a configured Paymob adapter that refuses unimplemented calls with 503", async () => {

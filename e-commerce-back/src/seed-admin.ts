@@ -15,8 +15,10 @@ import { userModel } from "./database/model/user.model.js";
 
 async function seedAdmin() {
   const { email, password, resetPassword } = readSeedCredentials();
-  const uri = env.MONGODB_URI || "mongodb://localhost:27017/e-commerce";
-  await mongoose.connect(uri);
+  if (!env.MONGODB_URI) {
+    throw new Error("MONGODB_URI is required to seed an admin account. See config/.env.example.");
+  }
+  await mongoose.connect(env.MONGODB_URI);
 
   try {
     const existing = await userModel.findOne({ email });

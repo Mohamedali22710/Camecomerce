@@ -15,10 +15,10 @@ import { legacyOrderNumber } from "../order/order.number.js";
 export type PaymentNextAction = "none" | "complete_payment" | "await_confirmation" | "contact_support";
 
 const nextActionFor = (paymentStatus: string, paymentMethod: string): PaymentNextAction => {
-  if (paymentStatus === "paid") {
+  if (paymentStatus === "paid" || paymentStatus === "cancelled") {
     return "none";
   }
-  if (paymentStatus === "failed") {
+  if (paymentStatus === "failed" || paymentStatus === "expired") {
     return "contact_support";
   }
   return paymentMethod === "card" ? "complete_payment" : "await_confirmation";

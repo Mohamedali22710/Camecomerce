@@ -5,8 +5,9 @@
  * cross this boundary as integer minor units (halalas for SAR); conversion from
  * major units is the caller's responsibility.
  *
- * This module is intentionally imported by nothing yet. Wiring it into the order
- * flow happens in later tickets once credentials and endpoints are confirmed.
+ * This module is the one contract every adapter implements: mock, Paymob, and
+ * the legacy Stripe rollback adapter. The order flow resolves an adapter through
+ * `payment.registry.ts` and never imports a provider SDK directly.
  */
 
 /** Provider identifiers accepted by the registry. */

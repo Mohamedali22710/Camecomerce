@@ -1,7 +1,23 @@
 /** Loads and validates environment variables from `config/.env` (or the process environment). */
+import path from "node:path";
+
 import dotenv from "dotenv";
 
-dotenv.config({ path: "./config/.env" });
+import { resolveEnvFilePath } from "../src/common/utils/envPath.js";
+
+// Resolve the file from the code location instead of the process CWD, so
+// `npm start`, `npm run dev`, tests, and tooling all read the same file.
+// ts-jest/CommonJS provides `__dirname`; ESM runs fall back to the entry point.
+const moduleDir =
+  typeof __dirname === "string"
+    ? __dirname
+    : process.argv[1]
+      ? path.dirname(path.resolve(process.argv[1]))
+      : process.cwd();
+const envFilePath = resolveEnvFilePath(moduleDir);
+if (envFilePath) {
+  dotenv.config({ path: envFilePath });
+}
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
@@ -41,7 +57,7 @@ interface Env {
   accessToken: string;
   refreshToken: string;
 
-  MONGODB_URI: string;
+  MONGODB_URI: string | undefined;
   REDIS_URL: string | undefined;
 
   GOOGLE_CLIENT_ID: string | undefined;
@@ -57,7 +73,8 @@ interface Env {
   SHIPPING_COST_TYPE: string;
   SHIPPING_COST_VALUE: string;
 
-  paymentProvider: string;
+  /** Undefined when PAYMENT_PROVIDER is absent; never defaulted implicitly. */
+  paymentProvider: string | undefined;
   Secret_key_Stripe: string | undefined;
   STRIPE_WEBHOOK_SECRET: string | undefined;
 
@@ -104,7 +121,7 @@ export const env: Env = {
   accessToken: process.env.ACCESS_TOKEN || "30m",
   refreshToken: process.env.REFRESH_TOKEN || "30d",
 
-  MONGODB_URI: process.env.MONGODB_URI || "mongodb://localhost:27017/cctv-ecommerce",
+  MONGODB_URI: process.env.MONGODB_URI,
   REDIS_URL: process.env.REDIS_URL,
 
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
@@ -120,7 +137,9 @@ export const env: Env = {
   SHIPPING_COST_TYPE: process.env.SHIPPING_COST_TYPE || "fixed",
   SHIPPING_COST_VALUE: process.env.SHIPPING_COST_VALUE || "0",
 
-  paymentProvider: (process.env.PAYMENT_PROVIDER || "stripe").toLowerCase(),
+  // Provider selection is explicit. No implicit default: a missing value keeps
+  // card checkout disabled (COD still works) and fails boot in production.
+  paymentProvider: process.env.PAYMENT_PROVIDER?.trim().toLowerCase() || undefined,
   Secret_key_Stripe: process.env.Secret_key_Stripe,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 
@@ -164,6 +183,7 @@ const weakJwtSecrets = (): string[] => {
 
 export const assertEnv = (): void => {
   const missing: string[] = [];
+  if (!env.MONGODB_URI) missing.push("MONGODB_URI");
   if (!env.signatureAdmin) missing.push("SIGNATURE_ADMIN");
   if (!env.signatureUser) missing.push("SIGNATURE_USER");
   if (!env.SIGNATURE_SUPER_ADMIN) missing.push("SIGNATURE_SUPER_ADMIN");

@@ -17,11 +17,19 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   cancelled: [],
 };
 
-/** `paid` is terminal and is never downgraded. */
+/**
+ * Payment transitions.
+ *
+ * `paid` is terminal and is never downgraded. `failed` and `expired` may still
+ * become `paid` because only the provider is authoritative for money, and may be
+ * closed as `cancelled` when the order is voided. `cancelled` is terminal.
+ */
 export const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
-  pending: ["paid", "failed"],
+  pending: ["paid", "failed", "expired", "cancelled"],
   paid: [],
-  failed: ["paid"],
+  failed: ["paid", "cancelled"],
+  expired: ["paid", "cancelled"],
+  cancelled: [],
 };
 
 /** Shipping is independent from payment and fulfilment. */
@@ -53,7 +61,16 @@ export interface StatusHistoryEntry {
 
 export interface PlannedOrderUpdate {
   changes: StatusHistoryEntry[];
-  /** True only for the first transition into `cancelled`. */
+  /**
+   * True when this request must attempt the one-time stock release:
+   * - the target status is `cancelled`,
+   * - the order has not released stock yet,
+   * - the payment is not `paid`.
+   *
+   * This also covers recovery: an order that is already `cancelled` but whose
+   * `stockReleasedAt` marker is still `null` (for example after a crash between
+   * the status write and the release) can be repaired by repeating the request.
+   */
   releaseStock: boolean;
 }
 
@@ -129,7 +146,12 @@ export const planOrderStatusUpdate = (
     }
   }
 
-  const releaseStock = order.orderStatus !== "cancelled" && input.orderStatus === "cancelled" && !order.stockReleasedAt;
+  const releaseStock =
+    input.orderStatus === "cancelled" &&
+    !order.stockReleasedAt &&
+    order.paymentStatus !== "paid" &&
+    // A request that itself settles the payment must never restock in the same write.
+    input.paymentStatus !== "paid";
 
   return { changes, releaseStock };
 };

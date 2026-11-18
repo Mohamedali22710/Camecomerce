@@ -803,8 +803,10 @@ Authenticated. Rate-limited.
   the existing order with `200` instead of creating a duplicate or clearing the
   cart again.
 - Stock is reserved in a MongoDB transaction, so MongoDB must run as a replica
-  set for checkout to work. Product stock is decremented once per order; bundle
-  stock is intentionally untouched (DEC-01).
+  set or a sharded cluster (mongos). The server verifies the topology at boot and
+  refuses to start against a standalone `mongod`. Product stock is decremented
+  once per order; bundle component stock is not deducted yet (design:
+  `docs/implementation/BUNDLE_COMPONENT_INVENTORY_DESIGN.md`).
 - Every new order receives a unique `orderNumber` in the form
   `CCTV-YYMMDD-XXXX`. Legacy rows without one are serialized with a
   display-only `CCTV-LEGACY-XXXXXXXX` fallback.
@@ -817,21 +819,29 @@ Authenticated. Rate-limited.
 
 `card` response: `201`
 
+The redirect target depends on `PAYMENT_PROVIDER`. `url` is kept for existing
+storefront clients; `redirectUrl` and `provider` are the canonical fields.
+
 ```json
 {
   "message": "Redirect to payment",
   "data": {
-    "url": "https://checkout.stripe.com/...",
+    "url": "https://accept.paymob.com/unifiedcheckout/?publicKey=...",
+    "redirectUrl": "https://accept.paymob.com/unifiedcheckout/?publicKey=...",
+    "provider": "paymob",
     "orderId": "507f1f77bcf86cd799439011",
     "orderNumber": "CCTV-261117-AB12",
-    "currency": "SAR"
+    "currency": "SAR",
+    "paymentStatus": "pending"
   }
 }
 ```
 
-If Stripe is not configured or session creation fails, the order is cancelled,
-reserved product stock is restored exactly once, no installation request is
-created, and the response is `502`.
+If the selected provider is unavailable, the order is cancelled, reserved product
+stock is restored exactly once, no installation request is created, and the
+response is the provider's safe error: `503` for a configured-but-not-ready
+Paymob adapter, `503`/`502` for an unconfigured or failing Stripe session. The
+order flow never calls a provider that is not selected by `PAYMENT_PROVIDER`.
 
 ### `GET /v1/order/mine`
 
@@ -922,13 +932,14 @@ payloads.
 
 ## Payment Provider Contract
 
-**Status:** the provider-agnostic contract, the mock adapter, and Paymob
-configuration validation exist. The legacy Stripe order path is still the only
-card checkout route. `PAYMENT_PROVIDER=paymob` now fails fast at boot when the
-required variables are missing, but the Paymob adapter deliberately returns
-`503` because session creation, status inquiry, and the HMAC field list are
-blocked on confirmed Paymob endpoints/credentials (MVP-13/MVP-15). No endpoint,
-payload, or signature field list is assumed.
+**Status:** `PAYMENT_PROVIDER` is authoritative for card checkout. The order flow
+resolves one adapter through `getPaymentProvider()` and never imports a provider
+SDK. Paymob configuration is validated at boot when selected, but the adapter
+deliberately returns `503` because session creation, status inquiry, and the HMAC
+field list are blocked on confirmed Paymob endpoints/credentials
+(MVP-13/MVP-15). No endpoint, payload, or signature field list is assumed.
+Stripe remains available only as the legacy rollback adapter
+(`PAYMENT_PROVIDER=stripe`); its webhooks stay on `/v1/order/webhook`.
 
 ### Checkout envelope (frozen)
 
@@ -974,9 +985,11 @@ Provider statuses are `pending`, `paid`, `failed`, `expired`, and `cancelled`.
 
 ### Registry
 
-`getPaymentProvider()` selects `mock`; `paymob` reports “not implemented yet” and
-`stripe` remains the legacy order-path provider. An unknown `PAYMENT_PROVIDER`
-fails at boot with the accepted values.
+`getPaymentProvider()` selects `mock`, `paymob`, or the legacy `stripe` adapter.
+Paymob reports “not implemented yet” with `503` until its endpoints are confirmed;
+Stripe creates the existing hosted session and keeps its webhook on
+`/v1/order/webhook`. An unknown `PAYMENT_PROVIDER` fails at boot with the accepted
+values.
 
 Env variables are documented in `config/.env.example`. Paymob values are
 placeholders marked **UNCONFIRMED**; see

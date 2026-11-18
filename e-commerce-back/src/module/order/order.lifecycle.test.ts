@@ -99,7 +99,7 @@ describe("planOrderStatusUpdate", () => {
     expect(plan.changes.map((change) => change.field)).toEqual(["orderStatus", "shippingStatus"]);
   });
 
-  it("requests stock release only on the first transition into cancelled", () => {
+  it("requests stock release for an unpaid cancellation and for recovery, but never for paid orders", () => {
     const first = planOrderStatusUpdate(baseOrder, { orderStatus: "cancelled" }, actor, now);
     expect(first.releaseStock).toBe(true);
 
@@ -111,14 +111,69 @@ describe("planOrderStatusUpdate", () => {
     );
     expect(alreadyReleased.releaseStock).toBe(false);
 
-    const alreadyCancelled = planOrderStatusUpdate(
+    // Recovery: the order is already cancelled but the marker is still null
+    // (for example after a crash between the status write and the release).
+    const recovery = planOrderStatusUpdate(
       { ...baseOrder, orderStatus: "cancelled" },
       { orderStatus: "cancelled" },
       actor,
       now,
     );
-    expect(alreadyCancelled.changes).toEqual([]);
-    expect(alreadyCancelled.releaseStock).toBe(false);
+    expect(recovery.changes).toEqual([]);
+    expect(recovery.releaseStock).toBe(true);
+
+    // A paid order is never restocked, even when cancelled.
+    const paid = planOrderStatusUpdate(
+      { ...baseOrder, paymentStatus: "paid" },
+      { orderStatus: "cancelled" },
+      actor,
+      now,
+    );
+    expect(paid.releaseStock).toBe(false);
+
+    const paidAndCancelled = planOrderStatusUpdate(
+      { ...baseOrder, orderStatus: "cancelled", paymentStatus: "paid" },
+      { orderStatus: "cancelled" },
+      actor,
+      now,
+    );
+    expect(paidAndCancelled.releaseStock).toBe(false);
+
+    // Settling the payment in the same request must also skip the release.
+    const cancellingAndPaying = planOrderStatusUpdate(
+      baseOrder,
+      { orderStatus: "cancelled", paymentStatus: "paid", reason: "Bank transfer received" },
+      actor,
+      now,
+    );
+    expect(cancellingAndPaying.releaseStock).toBe(false);
+  });
+
+  it("supports expired and cancelled payment states", () => {
+    const expired = planOrderStatusUpdate(
+      baseOrder,
+      { paymentStatus: "expired", reason: "Provider timed out" },
+      actor,
+      now,
+    );
+    expect(changeFor(expired.changes, "paymentStatus")?.to).toBe("expired");
+
+    const cancelled = planOrderStatusUpdate(
+      { ...baseOrder, paymentStatus: "expired" },
+      { paymentStatus: "cancelled", reason: "Order voided" },
+      actor,
+      now,
+    );
+    expect(changeFor(cancelled.changes, "paymentStatus")?.to).toBe("cancelled");
+
+    expect(() =>
+      planOrderStatusUpdate(
+        { ...baseOrder, paymentStatus: "cancelled" },
+        { paymentStatus: "paid", reason: "Late callback" },
+        actor,
+        now,
+      ),
+    ).toThrow(/Illegal paymentStatus transition/);
   });
 
   it("returns no changes when the submitted statuses already match", () => {

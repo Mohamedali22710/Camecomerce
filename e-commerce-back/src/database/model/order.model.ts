@@ -14,7 +14,15 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export const ORDER_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"] as const;
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const PAYMENT_STATUSES = ["pending", "paid", "failed"] as const;
+/**
+ * Payment states persisted on the order.
+ *
+ * Kept in sync with the provider-agnostic contract in
+ * `src/module/payment/payment.types.ts`. `paid` is terminal and is never
+ * downgraded; `expired` and `cancelled` exist so abandoned or voided attempts can
+ * be reconciled without inventing a new collection.
+ */
+export const PAYMENT_STATUSES = ["pending", "paid", "failed", "expired", "cancelled"] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const SHIPPING_STATUSES = ["pending", "prepared", "shipped", "delivered", "returned", "cancelled"] as const;
