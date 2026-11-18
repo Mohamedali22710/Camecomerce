@@ -1,13 +1,19 @@
-/** Payment provider registry (MVP-02).
+/** Payment provider registry (MVP-02/MVP-12).
  *
- * Selects the active adapter from `PAYMENT_PROVIDER`. Only the mock adapter is
- * implemented in this ticket; Paymob arrives in MVP-12/MVP-13 and the legacy
- * Stripe path remains wired directly in `order.service.ts` until then.
+ * Selects the active adapter from `PAYMENT_PROVIDER`. This is the only place the
+ * order flow resolves a provider: `createOrder` calls `getPaymentProvider()` and
+ * never imports a provider SDK. Selection is explicit and has no implicit
+ * fallback. Paymob configuration is checked when a Paymob operation runs, so
+ * COD-only deployments boot without Paymob credentials and a card attempt gets
+ * an explicit `503` while the integration is unconfirmed (MVP-13/MVP-15).
+ * Stripe is available only as the legacy rollback adapter.
  */
 import { env } from "../../../config/env.service.js";
 
 import { mockPaymentProvider } from "./mock.provider.js";
 import { PaymentProvider, PaymentProviderName } from "./payment.types.js";
+import { paymobPaymentProvider } from "./paymob.provider.js";
+import { stripePaymentProvider } from "./stripe.provider.js";
 
 const KNOWN_PROVIDERS: readonly PaymentProviderName[] = ["paymob", "mock", "stripe"];
 
@@ -21,10 +27,32 @@ const assertMockNotInProduction = (providerName: PaymentProviderName): void => {
 };
 
 /**
- * Fails fast at boot when the configured provider is unknown or when the mock
- * adapter is requested in production. Called from `src/index.ts`.
+ * Fails fast when provider selection is unsafe or invalid, but never requires
+ * credentials that the current deployment does not use:
+ *
+ * - `PAYMENT_PROVIDER` unset: production must choose explicitly; development and
+ *   test boot with card checkout disabled (COD still works).
+ * - `mock`: refused in production.
+ * - unknown value: refused everywhere.
+ * - Paymob credentials are validated when a Paymob operation runs, not at boot,
+ *   so a COD-only deployment never needs them. A misconfigured Paymob card
+ *   attempt returns the adapter's explicit `503`.
  */
 export const assertPaymentProviderConfig = (): void => {
+  if (!env.paymentProvider) {
+    if (env.isProduction) {
+      throw new Error(
+        'PAYMENT_PROVIDER is required in production. Set it explicitly to "paymob" or "stripe".',
+      );
+    }
+
+    console.warn(
+      "PAYMENT_PROVIDER is not set: card checkout returns 503 until it is configured. " +
+        "COD orders still work. Use PAYMENT_PROVIDER=mock for local card development.",
+    );
+    return;
+  }
+
   if (!isPaymentProviderName(env.paymentProvider)) {
     throw new Error(
       `Unknown PAYMENT_PROVIDER "${env.paymentProvider}". Expected one of: ${KNOWN_PROVIDERS.join(", ")}.`,
@@ -33,25 +61,30 @@ export const assertPaymentProviderConfig = (): void => {
   assertMockNotInProduction(env.paymentProvider);
 };
 
-/** Resolves a payment adapter. Throws a configuration error when unavailable. */
-export const getPaymentProvider = (providerName: string = env.paymentProvider): PaymentProvider => {
-  if (!isPaymentProviderName(providerName)) {
-    throw new Error(`Unknown PAYMENT_PROVIDER "${providerName}". Expected one of: ${KNOWN_PROVIDERS.join(", ")}.`);
-  }
-  assertMockNotInProduction(providerName);
+/** Resolves a payment adapter. Never falls back to another provider. */
+export const getPaymentProvider = (providerName?: string): PaymentProvider => {
+  const name = (providerName ?? env.paymentProvider)?.trim().toLowerCase();
 
-  switch (providerName) {
+  if (!name) {
+    throw new Error(
+      "PAYMENT_PROVIDER is not set. Card checkout requires an explicit provider " +
+        "(paymob or stripe; mock only outside production).",
+    );
+  }
+  if (!isPaymentProviderName(name)) {
+    throw new Error(`Unknown PAYMENT_PROVIDER "${name}". Expected one of: ${KNOWN_PROVIDERS.join(", ")}.`);
+  }
+  assertMockNotInProduction(name);
+
+  switch (name) {
     case "mock":
       return mockPaymentProvider;
     case "paymob":
-      throw new Error(
-        "PAYMENT_PROVIDER=paymob is not implemented yet (MVP-12/MVP-13). " +
-          "Keep the mock adapter for development and see docs/implementation/EXTERNAL_INTEGRATION_BLOCKERS.md.",
-      );
+      // Credentials are validated per operation in the adapter. Returning the
+      // stub here keeps boot independent of Paymob, without ever falling back.
+      return paymobPaymentProvider;
     case "stripe":
-      throw new Error(
-        "PAYMENT_PROVIDER=stripe is the legacy order-path provider and is not exposed through the " +
-          "payment registry. Existing Stripe checkout remains unchanged until the provider migration.",
-      );
+      // Legacy rollback adapter. Webhooks stay on /v1/order/webhook.
+      return stripePaymentProvider;
   }
 };

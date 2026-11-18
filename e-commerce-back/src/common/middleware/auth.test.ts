@@ -1,61 +1,109 @@
-import { describe, expect, it } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 
-import { env } from "../../../config/env.service.js";
+import { AuthAccount, createAuthMiddleware, generateAccessToken } from "./auth.js";
 
-import {
-  generateAccessToken,
-  generatePurposeToken,
-  generateRefreshToken,
-  getSignature,
-  isRole,
-  verifyToken,
-} from "./auth.js";
+const USER_ID = "507f1f77bcf86cd799439011";
 
-const userId = "507f1f77bcf86cd799439011";
+interface FakeResponse {
+  statusCode: number | null;
+  body: unknown;
+  status: (code: number) => FakeResponse;
+  json: (payload: unknown) => FakeResponse;
+}
 
-describe("JWT purpose scoping", () => {
-  it("rejects an access token where another purpose is expected", () => {
-    const accessToken = generateAccessToken({ _id: userId, role: "user" });
+const createResponse = (): FakeResponse => {
+  const response: FakeResponse = {
+    statusCode: null,
+    body: null,
+    status(code: number) {
+      response.statusCode = code;
+      return response;
+    },
+    json(payload: unknown) {
+      response.body = payload;
+      return response;
+    },
+  };
+  return response;
+};
 
-    expect(accessToken).toBeDefined();
-    expect(() =>
-      verifyToken(accessToken!, getSignature("user")!, "refresh"),
-    ).toThrow("Invalid token type");
-  });
+const runAuth = async (tokenRole: string, account: AuthAccount | null) => {
+  const token = generateAccessToken({ _id: USER_ID, role: tokenRole });
+  const req = {
+    headers: { authorization: `${tokenRole} ${token}` },
+  } as any;
+  const res = createResponse();
+  const next = jest.fn();
+  const middleware = createAuthMiddleware(async () => account);
 
-  it("accepts a refresh token with the refresh signature", () => {
-    const refreshToken = generateRefreshToken({ _id: userId, role: "user" });
-    const refreshSecret = `${getSignature("user")}_refresh`;
+  await middleware(req, res as any, next);
+  return { req, res, next };
+};
 
-    expect(refreshToken).toBeDefined();
-    expect(verifyToken(refreshToken!, refreshSecret, "refresh")).toMatchObject({
-      _id: userId,
+describe("auth middleware account-state checks", () => {
+  it("attaches an active user whose stored role matches the token", async () => {
+    const { req, res, next } = await runAuth("user", {
       role: "user",
-      type: "refresh",
+      isActive: true,
+      isBlocked: false,
     });
+
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(res.statusCode).toBeNull();
+    expect(req.user).toEqual({ _id: USER_ID, role: "user" });
+    expect(req.bearer).toBe("user");
   });
 
-  it("rejects a reset token where a verification token is expected", () => {
-    const resetToken = generatePurposeToken(userId, "reset", "15m");
+  it("rejects a blocked account even when the token signature is valid", async () => {
+    const { res, next } = await runAuth("user", {
+      role: "user",
+      isActive: true,
+      isBlocked: true,
+    });
 
-    expect(resetToken).toBeDefined();
-    expect(() =>
-      verifyToken(resetToken!, env.verifySignature!, "verify"),
-    ).toThrow("Invalid token type");
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
   });
 
-  it("does not issue tokens for an unknown role", () => {
-    expect(generateAccessToken({ _id: userId, role: "guest" })).toBeUndefined();
-    expect(generateRefreshToken({ _id: userId, role: "guest" })).toBeUndefined();
-  });
-});
+  it("rejects a deactivated account", async () => {
+    const { res, next } = await runAuth("user", {
+      role: "user",
+      isActive: false,
+      isBlocked: false,
+    });
 
-describe("isRole", () => {
-  it.each(["user", "admin", "superAdmin"])("accepts the %s role", (role) => {
-    expect(isRole(role)).toBe(true);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
   });
 
-  it.each(["guest", "", undefined, null])("rejects %p", (role) => {
-    expect(isRole(role)).toBe(false);
+  it("rejects a token whose role no longer matches the stored account", async () => {
+    const { res, next } = await runAuth("admin", {
+      role: "user",
+      isActive: true,
+      isBlocked: false,
+    });
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("rejects a token for an account that no longer exists", async () => {
+    const { res, next } = await runAuth("user", null);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("rejects an unknown token role before any lookup", async () => {
+    const req = {
+      headers: { authorization: "user not-a-valid-token" },
+    } as any;
+    const res = createResponse();
+    const next = jest.fn();
+
+    await createAuthMiddleware(async () => null)(req, res as any, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
   });
 });

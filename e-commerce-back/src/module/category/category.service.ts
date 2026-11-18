@@ -2,10 +2,8 @@
 import { Request, Response } from "express";
 
 import { HttpError } from "../../common/utils/httpError.js";
-import {
-  deleteImageByUrl,
-  uploadImage,
-} from "../../common/utils/uploadImage.js";
+import { toPublicJson } from "../../common/utils/publicSerializer.js";
+import { deleteImageByUrl, uploadImage } from "../../common/utils/uploadImage.js";
 import { categoryModel } from "../../database/model/category.model.js";
 import { productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
@@ -15,7 +13,9 @@ const SORTABLE_FIELDS = ["en_name", "ar_name", "fr_name", "isActive", "createdAt
 
 /** Parses `field_asc|desc` while restricting the field to a known allow-list. */
 const parseSort = (raw: unknown): Record<string, 1 | -1> => {
-  if (typeof raw !== "string" || !raw) {return { createdAt: -1 };}
+  if (typeof raw !== "string" || !raw) {
+    return { createdAt: -1 };
+  }
 
   const parts = raw.split("_");
   const direction = parts[parts.length - 1];
@@ -35,7 +35,9 @@ const parsePagination = (query: Request["query"]): { page: number; limit: number
 
 const currentAdminEmail = async (req: Request): Promise<string> => {
   const admin = await userModel.findById(req.user?._id);
-  if (!admin?.email) {throw new HttpError(404, "Admin not found");}
+  if (!admin?.email) {
+    throw new HttpError(404, "Admin not found");
+  }
   return admin.email;
 };
 
@@ -98,21 +100,20 @@ export const getActiveCategories = async (_req: Request, res: Response): Promise
     match: { isActive: true },
     populate: { path: "products", match: { isActive: true } },
   });
-  res.status(200).json({ message: "Categories", data: categories });
+  res.status(200).json({ message: "Categories", data: toPublicJson(categories) });
 };
 
-export const getSubcategoriesByCategory = async (
-  req: Request,
-  res: Response,
-): Promise<void> => {
+export const getSubcategoriesByCategory = async (req: Request, res: Response): Promise<void> => {
   const category = await categoryModel.findById(req.params.id);
-  if (!category || !category.isActive) {throw new HttpError(404, "Category not found");}
+  if (!category || !category.isActive) {
+    throw new HttpError(404, "Category not found");
+  }
 
   const subcategories = await subcategoryModel
     .find({ categoryId: category._id, isActive: true })
     .populate({ path: "products", match: { isActive: true } });
 
-  res.status(200).json({ message: "Subcategories", data: subcategories });
+  res.status(200).json({ message: "Subcategories", data: toPublicJson(subcategories) });
 };
 
 export const getCategoryById = async (req: Request, res: Response): Promise<void> => {
@@ -120,13 +121,17 @@ export const getCategoryById = async (req: Request, res: Response): Promise<void
     path: "subcategories",
     populate: { path: "products" },
   });
-  if (!category) {throw new HttpError(404, "Category not found");}
+  if (!category) {
+    throw new HttpError(404, "Category not found");
+  }
   res.status(200).json({ message: "Category", data: category });
 };
 
 export const updateCategory = async (req: Request, res: Response): Promise<void> => {
   const category = await categoryModel.findById(req.params.id);
-  if (!category) {throw new HttpError(404, "Category not found");}
+  if (!category) {
+    throw new HttpError(404, "Category not found");
+  }
 
   const { en_name, ar_name, fr_name, imageURL } = req.body;
 
@@ -153,7 +158,9 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
 
   if (req.file) {
     try {
-      if (category.imageURL) {await deleteImageByUrl(category.imageURL, "categories");}
+      if (category.imageURL) {
+        await deleteImageByUrl(category.imageURL, "categories");
+      }
       const result = await uploadImage(req.file, "categories");
       category.imageURL = result.url;
     } catch (error: any) {
@@ -169,20 +176,16 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
 
 export const softDeleteCategory = async (req: Request, res: Response): Promise<void> => {
   const category = await categoryModel.findById(req.params.id);
-  if (!category) {throw new HttpError(404, "Category not found");}
+  if (!category) {
+    throw new HttpError(404, "Category not found");
+  }
 
   const subcategories = await subcategoryModel.find({ categoryId: category._id });
   const subcategoryIds = subcategories.map((subcategory) => subcategory._id);
 
   if (subcategoryIds.length > 0) {
-    await productModel.updateMany(
-      { subcategoryId: { $in: subcategoryIds } },
-      { isActive: false },
-    );
-    await subcategoryModel.updateMany(
-      { _id: { $in: subcategoryIds } },
-      { isActive: false },
-    );
+    await productModel.updateMany({ subcategoryId: { $in: subcategoryIds } }, { isActive: false });
+    await subcategoryModel.updateMany({ _id: { $in: subcategoryIds } }, { isActive: false });
   }
 
   category.isActive = false;

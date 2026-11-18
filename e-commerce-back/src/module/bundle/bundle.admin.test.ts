@@ -1,11 +1,12 @@
-import { jest } from "@jest/globals";
+import { describe, expect, it, jest } from "@jest/globals";
 import type { NextFunction, Request, Response } from "express";
 
 import { bundleAdminOnly } from "./bundle.controller.js";
 
 const makeResponse = () => {
   const json = jest.fn();
-  const status = jest.fn(() => ({ json }));
+  // Typed with the status-code parameter so `toHaveBeenCalledWith(403)` is valid.
+  const status = jest.fn((_code: number) => ({ json }));
   return { res: { status } as unknown as Response, status, json };
 };
 
@@ -21,7 +22,7 @@ describe("bundle admin guard", () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it.each(["admin", "superAdmin"])("allows %s", (role) => {
+  it.each(["admin", "superAdmin"])("allows %s", (role: string) => {
     const { res, status } = makeResponse();
     const next = jest.fn();
 

@@ -2,11 +2,17 @@
  *
  * Every token carries a `type` claim ("access", "refresh", "verify", "reset")
  * so a token issued for one purpose can never be replayed for another.
+ *
+ * Security: a valid signature is not enough. The account is reloaded on every
+ * authenticated request so blocked/deactivated users and tokens carrying a stale
+ * role stop working immediately instead of at token expiry. The lookup is
+ * injectable so the rule can be unit-tested without a database.
  */
 import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
 
 import { env } from "../../../config/env.service.js";
+import { userModel } from "../../database/model/user.model.js";
 
 export type Role = "admin" | "user" | "superAdmin";
 export type TokenType = "access" | "refresh" | "verify" | "reset";
@@ -22,6 +28,16 @@ interface TokenPayload extends JwtPayload {
   role?: string;
   type?: string;
 }
+
+/** The account fields that gate an otherwise valid token. */
+export interface AuthAccount {
+  role?: string;
+  isActive?: boolean;
+  isBlocked?: boolean;
+}
+
+/** Loads the current account state; `null` means the account no longer exists. */
+export type UserLoader = (userId: string) => Promise<AuthAccount | null>;
 
 declare global {
   namespace Express {
@@ -54,19 +70,58 @@ export const getSignature = (bearer: string): string | undefined => {
 export const isRole = (value: unknown): value is Role =>
   value === "admin" || value === "user" || value === "superAdmin";
 
-const attachUser = (req: Request, payload: TokenPayload, bearer: string): boolean => {
-  if (payload.role && payload.role !== bearer) {return false;}
-  req.user = { _id: payload._id, role: payload.role || bearer };
-  req.bearer = bearer;
+/** Reloads the account state that must gate an otherwise valid token. */
+const loadActiveUser: UserLoader = async (userId) => {
+  const user = await userModel.findById(userId).select("role isActive isBlocked").lean();
+  if (!user) {
+    return null;
+  }
+  return { role: user.role, isActive: user.isActive, isBlocked: user.isBlocked };
+};
+
+/**
+ * True only when the account still exists, is active, is not blocked, still has
+ * the role the token was signed for, and that role matches the auth scheme.
+ */
+export const isAccountAllowed = (
+  user: AuthAccount | null,
+  bearer: string,
+  tokenRole?: string,
+): user is AuthAccount & { role: Role } => {
+  if (!user || user.isBlocked || !user.isActive) {
+    return false;
+  }
+  if (!isRole(user.role) || user.role !== bearer) {
+    return false;
+  }
+  if (tokenRole && tokenRole !== user.role) {
+    return false;
+  }
+  return true;
+};
+
+const attachVerifiedUser = async (
+  req: Request,
+  payload: TokenPayload,
+  bearer: string,
+  loadUser: UserLoader,
+): Promise<boolean> => {
+  if (!payload._id) {
+    return false;
+  }
+
+  const user = await loadUser(String(payload._id));
+  if (!isAccountAllowed(user, bearer, payload.role)) {
+    return false;
+  }
+
+  req.user = { _id: String(payload._id), role: user.role };
+  req.bearer = user.role;
   return true;
 };
 
 /** Verifies a JWT and asserts that its purpose matches the expected type. */
-export const verifyToken = (
-  token: string,
-  secret: string,
-  expectedType: TokenType,
-): TokenPayload => {
+export const verifyToken = (token: string, secret: string, expectedType: TokenType): TokenPayload => {
   const payload = jwt.verify(token, secret) as TokenPayload;
   if (payload.type !== expectedType) {
     throw new jwt.JsonWebTokenError("Invalid token type");
@@ -74,66 +129,100 @@ export const verifyToken = (
   return payload;
 };
 
-/** Optional auth — attaches the user when a valid access token is present but never rejects. */
-export const softAuth = (req: Request, _res: Response, next: NextFunction): void => {
-  const { authorization } = req.headers;
-  if (!authorization) {return next();}
-
-  const [bearer, token] = authorization.split(" ");
-  if (!bearer || !token) {return next();}
-
-  const signature = getSignature(bearer);
-  if (!signature) {return next();}
-
-  try {
-    const payload = verifyToken(token, signature, "access");
-    attachUser(req, payload, bearer);
-  } catch {
-    // Ignore invalid tokens for optional authentication.
-  }
-
-  next();
-};
-
-/** Verifies the JWT from the Authorization header and attaches the user. */
-export const auth = (req: Request, res: Response, next: NextFunction): void => {
-  const { authorization } = req.headers;
+const readBearerToken = (authorization: string | undefined): [string, string] | null => {
   if (!authorization) {
-    res.status(401).json({ message: "Login required" });
-    return;
+    return null;
   }
-
   const [bearer, token] = authorization.split(" ");
   if (!bearer || !token) {
-    res.status(401).json({ message: "Invalid token format" });
-    return;
+    return null;
   }
+  return [bearer, token];
+};
 
-  const signature = getSignature(bearer);
-  if (!signature) {
-    res.status(401).json({ message: "Invalid token" });
-    return;
-  }
+/** Builds the optional-auth middleware around an injectable account lookup. */
+export const createSoftAuthMiddleware =
+  (loadUser: UserLoader) =>
+  async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
+    const credentials = readBearerToken(req.headers.authorization);
+    if (!credentials) {
+      return next();
+    }
 
-  try {
-    const payload = verifyToken(token, signature, "access");
-    if (!payload._id || !attachUser(req, payload, bearer)) {
+    const [bearer, token] = credentials;
+    const signature = getSignature(bearer);
+    if (!signature) {
+      return next();
+    }
+
+    try {
+      const payload = verifyToken(token, signature, "access");
+      await attachVerifiedUser(req, payload, bearer, loadUser);
+    } catch {
+      // Ignore invalid, expired, blocked, or stale tokens for optional auth.
+    }
+
+    next();
+  };
+
+/** Builds the required-auth middleware around an injectable account lookup. */
+export const createAuthMiddleware =
+  (loadUser: UserLoader) =>
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { authorization } = req.headers;
+    if (!authorization) {
+      res.status(401).json({ message: "Login required" });
+      return;
+    }
+
+    const credentials = readBearerToken(authorization);
+    if (!credentials) {
+      res.status(401).json({ message: "Invalid token format" });
+      return;
+    }
+
+    const [bearer, token] = credentials;
+    const signature = getSignature(bearer);
+    if (!signature) {
       res.status(401).json({ message: "Invalid token" });
       return;
     }
-  } catch {
-    res.status(401).json({ message: "Invalid or expired token" });
-    return;
-  }
 
-  next();
-};
+    let payload: TokenPayload;
+    try {
+      payload = verifyToken(token, signature, "access");
+    } catch {
+      res.status(401).json({ message: "Invalid or expired token" });
+      return;
+    }
+
+    try {
+      const attached = await attachVerifiedUser(req, payload, bearer, loadUser);
+      if (!attached) {
+        res.status(401).json({ message: "Invalid or expired token" });
+        return;
+      }
+    } catch (error) {
+      next(error);
+      return;
+    }
+
+    next();
+  };
+
+/** Optional auth — attaches the user when a valid access token is present but never rejects. */
+export const softAuth = createSoftAuthMiddleware(loadActiveUser);
+
+/** Verifies the JWT from the Authorization header and attaches the user. */
+export const auth = createAuthMiddleware(loadActiveUser);
 
 /** Creates a short-lived JWT access token. */
 export const generateAccessToken = (userSearch: UserSearch): string | undefined => {
   const role = userSearch.role || "user";
   const signature = getSignature(role);
-  if (!signature) {return undefined;}
+  if (!signature) {
+    return undefined;
+  }
   return jwt.sign({ _id: userSearch._id, role, type: "access" }, signature, {
     expiresIn: env.accessToken as jwt.SignOptions["expiresIn"],
   });
@@ -143,7 +232,9 @@ export const generateAccessToken = (userSearch: UserSearch): string | undefined 
 export const generateRefreshToken = (userSearch: UserSearch): string | undefined => {
   const role = userSearch.role || "user";
   const signature = getSignature(role);
-  if (!signature) {return undefined;}
+  if (!signature) {
+    return undefined;
+  }
   return jwt.sign({ _id: userSearch._id, role, type: "refresh" }, `${signature}_refresh`, {
     expiresIn: env.refreshToken as jwt.SignOptions["expiresIn"],
   });
@@ -155,7 +246,9 @@ export const generatePurposeToken = (
   type: Extract<TokenType, "verify" | "reset">,
   expiresIn: string,
 ): string | undefined => {
-  if (!env.verifySignature) {return undefined;}
+  if (!env.verifySignature) {
+    return undefined;
+  }
   return jwt.sign({ _id: userId, type }, env.verifySignature, {
     expiresIn: expiresIn as jwt.SignOptions["expiresIn"],
   });

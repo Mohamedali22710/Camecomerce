@@ -2,11 +2,19 @@
 
 Companion to `7_DAY_MVP_PLAN.md`.
 
-**Execution status (2026-11-16):** Day 1 tickets MVP-01, MVP-02, and MVP-04 are
+**Execution status (2026-11-17):** Day 1 tickets MVP-01, MVP-02, and MVP-04 are
 complete. MVP-03 is **BLOCKED** (no Paymob KSA account-manager contact or
 merchant credentials were supplied). Day 2 tickets MVP-05, MVP-06, MVP-07, and
 MVP-08 are implemented except the bundle inventory/availability subset, which is
-**BLOCKED** on business decision DEC-01. No Day 3+ ticket has been executed.
+**BLOCKED** on business decision DEC-01. Day 3 tickets MVP-09, MVP-10, and MVP-11
+are implemented except the bundle-inventory subset (DEC-01). Day 4: MVP-12 is
+implemented for configuration and minor-unit money; its authenticated Paymob HTTP
+client is **BLOCKED** on confirmed endpoints. MVP-13 and MVP-15 are **BLOCKED** on
+Paymob credentials/endpoints. MVP-14 is implemented for stored status; the
+authoritative inquiry subset is deferred to MVP-18.
+
+Detailed Day 3/4 evidence, security findings, and verification limitations:
+[`DAY_3_4_IMPLEMENTATION_AND_SECURITY_REPORT.md`](./DAY_3_4_IMPLEMENTATION_AND_SECURITY_REPORT.md).
 
 | Ticket | Day | Status | Notes |
 | --- | --- | --- | --- |
@@ -18,6 +26,13 @@ MVP-08 are implemented except the bundle inventory/availability subset, which is
 | MVP-06 | 2 | DONE except stock admin | CRUD; stock input rejected |
 | MVP-07 | 2 | DONE except availability | Public reads omit availability |
 | MVP-08 | 2 | DONE | Pure server-side pricing + tests |
+| MVP-09 | 3 | DONE except inventory | Bundle cart/order lines, server pricing, snapshots; no bundle stock (DEC-01) |
+| MVP-10 | 3 | DONE | `useCart` checkout, revalidation, success-only cart clear, idempotent replay |
+| MVP-11 | 3 | DONE | `orderNumber`, `statusHistory`, guarded transitions, audited manual paid, one-time stock release |
+| MVP-12 | 4 | PARTIAL / BLOCKED | Config guard + minor-unit money done; cached auth client blocked on confirmed endpoints |
+| MVP-13 | 4 | BLOCKED | No confirmed Paymob session endpoint/version or credentials |
+| MVP-14 | 4 | PARTIAL | Stored status endpoint + ownership done; authoritative inquiry deferred to MVP-18 |
+| MVP-15 | 4 | BLOCKED | No sandbox credentials; recorded NOT TESTED in the blockers log |
 
 ## How to read a ticket
 

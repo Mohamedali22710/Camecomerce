@@ -4,16 +4,10 @@ import express, { Request, Response, Router } from "express";
 import { auth } from "../../common/middleware/auth.js";
 import { allowRoles } from "../../common/utils/allowRoles.js";
 import { rateLimiter } from "../../common/utils/rateLimit.js";
-import { validateInput } from "../../common/utils/validate.js";
+import { validateInput, validateParams } from "../../common/utils/validate.js";
 
-import {
-  createOrder,
-  getAllOrders,
-  getMyOrders,
-  getOrderById,
-  updateOrderStatus,
-} from "./order.service.js";
-import { createOrderValidate, updateOrderStatusValidate } from "./order.validate.js";
+import { createOrder, getAllOrders, getMyOrders, getOrderById, updateOrderStatus } from "./order.service.js";
+import { createOrderValidate, orderIdParamsValidate, updateOrderStatusValidate } from "./order.validate.js";
 import { handleWebhook } from "./stripe.service.js";
 
 const router = Router();
@@ -28,12 +22,13 @@ router.patch(
   "/admin/:id",
   auth,
   allowRoles("admin", "superAdmin"),
+  validateParams(orderIdParamsValidate),
   validateInput(updateOrderStatusValidate),
   updateOrderStatus,
 );
 
 /** Owner/admin route — must be after /admin routes. */
-router.get("/:id", auth, getOrderById);
+router.get("/:id", auth, validateParams(orderIdParamsValidate), getOrderById);
 
 /**
  * @desc Payment provider webhook. The raw body parser is required so the

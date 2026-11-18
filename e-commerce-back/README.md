@@ -35,9 +35,19 @@ cp config/.env.example config/.env
 ```
 
 Fill in `config/.env`. The four JWT secrets are required (`SIGNATURE_ADMIN`,
-`SIGNATURE_USER`, `SIGNATURE_SUPER_ADMIN`, `VERIFY_SIGNATURE_MY`); the process
-fails at startup when any of them is missing. MongoDB defaults to
-`mongodb://127.0.0.1:27017/cctv-ecommerce`.
+`SIGNATURE_USER`, `SIGNATURE_SUPER_ADMIN`, `VERIFY_SIGNATURE_MY`) and so is
+`MONGODB_URI`; the process fails at startup when any of them is missing.
+Checkout and stock release use multi-document transactions, so `MONGODB_URI` must
+point at a replica set or a sharded cluster (Atlas `mongodb+srv://`, or a local
+single-node replica set). A standalone `mongod` now stops the process at boot
+with an explicit topology error.
+
+`PAYMENT_PROVIDER` is explicit: production must set `paymob` or `stripe`.
+Development may use `mock`; in development, leaving the variable unset still
+boots (COD works) and card checkout returns `503` until a provider is configured.
+Paymob credentials are checked when a Paymob operation runs, not at boot, so
+COD-only deployments need no Paymob values. The `.env` file is located relative
+to the application code, so the process working directory does not matter.
 
 ## Scripts
 

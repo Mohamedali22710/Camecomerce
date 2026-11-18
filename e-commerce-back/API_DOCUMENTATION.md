@@ -669,25 +669,52 @@ All cart routes require a `user` role access token.
 active and the variant must exist with enough stock. Adding an existing
 variant/color/size combination increases its quantity.
 
+Bundle line (server-priced; a client `price` field is ignored):
+
+```json
+{
+  "itemType": "bundle",
+  "bundleId": "507f1f77bcf86cd799439012",
+  "hddOption": "HDD-2TB",
+  "installationOption": "INSTALL-BASIC",
+  "quantity": 1
+}
+```
+
+The bundle must be active and both option codes must exist in its stored
+configuration. Bundle inventory stays unknown until DEC-01 is resolved, so bundle
+lines report `availabilityUnknown: true` and never claim stock.
+
 `201` when a new line is created; `200` when an existing line is updated.
 
 ### `GET /v1/cart`
 
-Returns lines with populated product summary, availability, stock, unit price,
-line subtotal, cart subtotal, shipping cost, total, and currency.
+Returns lines with per-line `itemType`, product/bundle summary, resolved
+bundle option labels, availability, stock, unit price, line subtotal, and the
+cart `subtotal`, `shippingCost`, `total`, and `currency`. Mixed product/bundle
+carts are summed from the same server-side line totals used at checkout.
 
-### `PUT /v1/cart/:productId/:color/:size`
+### `PUT /v1/cart/:lineId`
 
 ```json
 { "quantity": 3 }
 ```
 
-Use the exact stored labels (URL-encoded); use `Default` for the default
-variant. Rejects quantity above available stock.
+Updates any line (product or bundle) by its cart line `_id`. Rejects quantity
+above available product stock; bundle option availability is re-validated.
 
-### `DELETE /v1/cart/:productId/:color/:size`
+### `DELETE /v1/cart/:lineId`
 
-Removes one line.
+Removes any line (product or bundle) by its cart line `_id`.
+
+### `PUT /v1/cart/:productId/:color/:size` (legacy)
+
+Product-only route kept for existing clients. Use the exact stored labels
+(URL-encoded) and `Default` for the default variant.
+
+### `DELETE /v1/cart/:productId/:color/:size` (legacy)
+
+Removes one product line.
 
 ### `DELETE /v1/cart`
 
@@ -758,39 +785,63 @@ Authenticated. Rate-limited.
 }
 ```
 
-- `items` must contain at least one active product with an existing variant and
-  enough stock.
+- `items` must contain at least one active product or bundle line. Product
+  variants must exist with enough stock; bundle option codes must exist in the
+  stored bundle configuration.
+- `useCart: true` (or an omitted/empty `items` array) builds the order from the
+  caller's stored cart. The cart is revalidated and re-priced at order time and is
+  cleared only after a successful checkout response. A validation or stock failure
+  leaves the cart untouched.
+- Bundle items use `{ "itemType": "bundle", "bundleId", "hddOption",
+  "installationOption", "quantity" }`. Explicit items and cart checkout may be
+  mixed across lines but each request uses one mode.
 - Prices and totals are calculated server-side; client prices are ignored.
 - `installation` is optional. When present, an installation request is created
   for `cod` orders immediately, and for `card` orders after the payment session
   is created successfully.
 - `idempotencyKey` is optional. Repeating the same key for the same user returns
-  the existing order with `200` instead of creating a duplicate.
+  the existing order with `200` instead of creating a duplicate or clearing the
+  cart again.
 - Stock is reserved in a MongoDB transaction, so MongoDB must run as a replica
-  set for checkout to work.
+  set or a sharded cluster (mongos). The server verifies the topology at boot and
+  refuses to start against a standalone `mongod`. Product stock is decremented
+  once per order; bundle component stock is not deducted yet (design:
+  `docs/implementation/BUNDLE_COMPONENT_INVENTORY_DESIGN.md`).
+- Every new order receives a unique `orderNumber` in the form
+  `CCTV-YYMMDD-XXXX`. Legacy rows without one are serialized with a
+  display-only `CCTV-LEGACY-XXXXXXXX` fallback.
 
 `cod` response: `201`
 
 ```json
-{ "message": "Order created", "data": {/* order */} }
+{ "message": "Order created", "data": {/* order, including orderNumber */} }
 ```
 
 `card` response: `201`
+
+The redirect target depends on `PAYMENT_PROVIDER`. `url` is kept for existing
+storefront clients; `redirectUrl` and `provider` are the canonical fields.
 
 ```json
 {
   "message": "Redirect to payment",
   "data": {
-    "url": "https://checkout.stripe.com/...",
+    "url": "https://accept.paymob.com/unifiedcheckout/?publicKey=...",
+    "redirectUrl": "https://accept.paymob.com/unifiedcheckout/?publicKey=...",
+    "provider": "paymob",
     "orderId": "507f1f77bcf86cd799439011",
-    "currency": "SAR"
+    "orderNumber": "CCTV-261117-AB12",
+    "currency": "SAR",
+    "paymentStatus": "pending"
   }
 }
 ```
 
-If Stripe is not configured or session creation fails, the order is cancelled,
-reserved stock is restored, no installation request is created, and the response
-is `502`.
+If the selected provider is unavailable, the order is cancelled, reserved product
+stock is restored exactly once, no installation request is created, and the
+response is the provider's safe error: `503` for a configured-but-not-ready
+Paymob adapter, `503`/`502` for an unconfigured or failing Stripe session. The
+order flow never calls a provider that is not selected by `PAYMENT_PROVIDER`.
 
 ### `GET /v1/order/mine`
 
@@ -815,13 +866,26 @@ Admin/SuperAdmin. At least one field:
   "paymentStatus": "failed",
   "shippingStatus": "returned",
   "shippingCarrier": "Carrier name",
-  "trackingNumber": "TRACK-123"
+  "trackingNumber": "TRACK-123",
+  "reason": "Customer request"
 }
 ```
 
-Moving `orderStatus` into `cancelled` restores reserved stock. Concurrent status
-updates are not serialized, so pair this with the atomic-transition improvement
-listed in the audit.
+Transitions are enforced before any write:
+
+| Status | Allowed next values | Terminal |
+|---|---|---|
+| `orderStatus` | `pending → processing/shipped/cancelled`, `processing → shipped/cancelled`, `shipped → delivered/cancelled` | `delivered`, `cancelled` |
+| `paymentStatus` | `pending → paid/failed`, `failed → paid` | `paid` |
+| `shippingStatus` | `pending → prepared/shipped/delivered/cancelled/returned`, `prepared → shipped/delivered/cancelled/returned`, `shipped → delivered/cancelled/returned` | `delivered`, `returned`, `cancelled` |
+
+An illegal transition returns `400` and changes nothing. Marking an order `paid`
+manually requires a non-empty `reason`. Every accepted change appends
+`{ at, actor, actorId, field, from, to, reason }` to `statusHistory`.
+
+Moving `orderStatus` into `cancelled` restores reserved product stock exactly
+once, guarded by `stockReleasedAt`. Bundle stock is not restored because bundle
+inventory is still undecided (DEC-01).
 
 ### `GET /v1/order/:id`
 
@@ -833,19 +897,49 @@ Public Stripe webhook. Must receive the raw request body and a valid
 `stripe-signature` header. The route is mounted before the JSON body parser.
 
 - `checkout.session.completed` and `checkout.session.async_payment_succeeded`
-  set `paymentStatus: "paid"` and store the provider reference.
+  set `paymentStatus: "paid"` and store the provider reference **only when** the
+  session reports `payment_status: "paid"` and its `amount_total` and `currency`
+  match the stored order. A mismatch is logged and ignored.
 - `checkout.session.async_payment_failed` and `checkout.session.expired` set
   `paymentStatus: "failed"` unless the order is already paid.
 - Response: `200 { "received": true }`, or `400` for an invalid signature/event.
+
+### `GET /v1/payment/status/:orderNumber`
+
+Owner or admin. Returns only the stored payment state; query-string parameters
+such as `?success=true` are ignored and can never mark an order paid. Another
+user's order returns `404`.
+
+```json
+{
+  "message": "Payment status",
+  "data": {
+    "orderNumber": "CCTV-261117-AB12",
+    "paymentStatus": "pending",
+    "paymentMethod": "card",
+    "currency": "SAR",
+    "nextAction": "complete_payment"
+  }
+}
+```
+
+`nextAction` is `none` (paid), `complete_payment` (pending card),
+`await_confirmation` (pending cash on delivery), or `contact_support` (failed).
+The response never includes `paymentReference`, provider secrets, or raw provider
+payloads.
 
 ---
 
 ## Payment Provider Contract
 
-**Status:** the provider-agnostic contract and the mock adapter exist, but no
-order or webhook route uses them yet. The Stripe endpoints documented above keep
-their current behaviour. Paymob is **not implemented** and no endpoint, payload,
-or HMAC field list is assumed.
+**Status:** `PAYMENT_PROVIDER` is authoritative for card checkout. The order flow
+resolves one adapter through `getPaymentProvider()` and never imports a provider
+SDK. Paymob configuration is validated at boot when selected, but the adapter
+deliberately returns `503` because session creation, status inquiry, and the HMAC
+field list are blocked on confirmed Paymob endpoints/credentials
+(MVP-13/MVP-15). No endpoint, payload, or signature field list is assumed.
+Stripe remains available only as the legacy rollback adapter
+(`PAYMENT_PROVIDER=stripe`); its webhooks stay on `/v1/order/webhook`.
 
 ### Checkout envelope (frozen)
 
@@ -891,9 +985,11 @@ Provider statuses are `pending`, `paid`, `failed`, `expired`, and `cancelled`.
 
 ### Registry
 
-`getPaymentProvider()` selects `mock`; `paymob` reports “not implemented yet” and
-`stripe` remains the legacy order-path provider. An unknown `PAYMENT_PROVIDER`
-fails at boot with the accepted values.
+`getPaymentProvider()` selects `mock`, `paymob`, or the legacy `stripe` adapter.
+Paymob reports “not implemented yet” with `503` until its endpoints are confirmed;
+Stripe creates the existing hosted session and keeps its webhook on
+`/v1/order/webhook`. An unknown `PAYMENT_PROVIDER` fails at boot with the accepted
+values.
 
 Env variables are documented in `config/.env.example`. Paymob values are
 placeholders marked **UNCONFIRMED**; see
