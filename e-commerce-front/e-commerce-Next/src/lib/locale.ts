@@ -51,8 +51,8 @@ export const dir = (locale: string): "ltr" | "rtl" =>
   locale === "ar" ? "rtl" : "ltr";
 
 export function useFormatPrice(locale: string): (price: number) => string {
-  const intlLocale = locale === "ar" ? "ar-AR" : locale === "fr" ? "fr-FR" : "en-US";
-  const currency = locale === "ar" ? "SAR" : "USD";
+  const intlLocale = locale === "ar" ? "ar-SA" : locale === "fr" ? "fr-FR" : "en-US";
+  const currency = "SAR";
   return (price: number) =>
     new Intl.NumberFormat(intlLocale, {
       style: "currency",

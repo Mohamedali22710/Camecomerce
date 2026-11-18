@@ -33,7 +33,27 @@
     "exploreSubtitle": "inspired by the season's latest trends.",
     "urbanEase": "Urban Ease",
     "softElegance": "Soft Elegance",
-    "littleExplorer": "Little Explorer"
+    "littleExplorer": "Little Explorer",
+    "heroBadge": "Next-Gen AI Security Surveillance",
+    "heroTitle": "Smart Security Begins with the Right Choice",
+    "heroSubtitle": "Discover premium CCTV and security solutions engineered for your home or enterprise — 4K solar, indoor & outdoor cameras with advanced NVR recording systems.",
+    "heroCta": "Shop All Products",
+    "heroCtaSecondary": "Explore Solutions",
+    "warranty2Years": "2-Year Warranty",
+    "solarAnd4G": "Solar & 4G",
+    "cloudLive": "Cloud & App Live",
+    "featuredTitle": "Featured Surveillance Cameras",
+    "featuredBadge": "Featured Security Systems",
+    "categoriesBadge": "Security Categories",
+    "categoriesTitle": "Browse by System Category",
+    "trustShipping": "Express Secure Delivery",
+    "trustShippingDesc": "Fast & insured delivery across all KSA regions",
+    "trustWarranty": "2-Year Official Warranty",
+    "trustWarrantyDesc": "Full replacement & maintenance coverage on all systems",
+    "trustSupport": "Expert Tech Support",
+    "trustSupportDesc": "Certified specialists to guide your security setup",
+    "trustInstall": "Installation Service",
+    "trustInstallDesc": "Professional onsite installation & mobile app pairing"
   },
   "products": {
     "title": "Products",
@@ -194,7 +214,10 @@
     "newsletter": "Newsletter",
     "newsletterDesc": "Subscribe to get special offers and updates.",
     "subscribe": "Subscribe",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "brandName": "Al-Harith Al-Dhaki",
+    "slogan": "CCTV & Security Solutions",
+    "copyrightText": "Copyright © 2026 Al-Harith Al-Dhaki CCTV. All rights reserved."
   },
   "common": {
     "loading": "Loading...",
@@ -259,5 +282,11 @@
     "max": "Max",
     "rating": "Rating",
     "andUp": "& up"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "toggleTheme": "Toggle theme"
   }
 }

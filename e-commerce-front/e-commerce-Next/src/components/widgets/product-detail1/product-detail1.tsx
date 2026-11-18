@@ -36,7 +36,7 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
   const inStock = true;
   const priceRegular = typeof price === "number" ? price : price.regular;
   const priceSale = typeof price === "number" ? (product?.salePrice ?? undefined) : price.sale;
-  const priceCurrency = typeof price === "number" ? "EGP" : price.currency;
+  const priceCurrency = typeof price === "number" ? "SAR" : (price.currency || "SAR");
 
   const handleBuyNow = () => {
     if (product) {

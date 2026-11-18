@@ -1,8 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
+import { Cctv } from "lucide-react";
 import { Separator } from "@/components/base/separator";
 import { cn } from "@/lib/utils";
 
@@ -22,11 +23,14 @@ const EcommerceFooter1 = ({
   className,
 }: EcommerceFooter1Props) => {
   const t = useTranslations("footer");
+  const locale = useLocale();
+  const isAr = locale === "ar";
 
   return (
-    <section className={cn("pt-8 pb-8 xl:pt-12", className)}>
+    <footer className={cn("pt-12 pb-8 border-t border-border bg-card/50", className)}>
       <div className="container mx-auto space-y-10 px-4">
-        <div className="grid grid-cols-1 gap-x-16 gap-y-8 md:grid-cols-2 xl:grid-cols-5">
+        {/* Top 5-col Grid: Newsletter + 3 link columns + Contact */}
+        <div className="grid grid-cols-1 gap-x-12 gap-y-8 md:grid-cols-2 xl:grid-cols-5">
           <div>
             <NewsletterSection
               title={t("newsletter")}
@@ -36,39 +40,64 @@ const EcommerceFooter1 = ({
           <FooterLinksSection sections={footerLinks} />
           <ContactSection links={contactLinks} />
         </div>
+
+        {/* Center Divider with Brand Mark */}
         <div>
-          <div className="flex items-center justify-between gap-4 md:gap-12.5">
+          <div className="flex items-center justify-between gap-4 md:gap-8">
             <Separator className="flex-1" />
             <div>
-              <Link href="/">
-                <Image
-                  width={150}
-                  height={150}
-                  src="/logo.jpg"
-                  alt="Logo"
-                  className="object-contain"
-                />
+              <Link href="/" className="inline-flex items-center gap-2.5 group shrink-0">
+                <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#101D35] to-[#2563EB] text-white shadow-xs transition-transform group-hover:scale-105">
+                  <Cctv className="size-4.5 text-white" />
+                </div>
+                <div className="flex flex-col text-start">
+                  <span className="font-bold text-sm text-foreground tracking-tight leading-tight">
+                    {t("brandName") || "الحارث الذكي"}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground leading-none">
+                    {t("slogan") || (isAr ? "لكاميرات المراقبة والأنظمة الأمنية" : "CCTV & Security Solutions")}
+                  </span>
+                </div>
               </Link>
             </div>
             <Separator className="flex-1" />
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-muted-foreground max-md:text-xs">
-            Copyright © 2026 Store. {t("rights")}
+
+        {/* Bottom Bar: Copyright & Payment Badges */}
+        <div className="flex flex-wrap items-center justify-between gap-4 text-xs">
+          <p className="text-muted-foreground">
+            {t("copyrightText") || (isAr
+              ? `جميع الحقوق محفوظة © 2026 الحارث الذكي لكاميرات المراقبة.`
+              : `Copyright © 2026 Al-Harith Al-Dhaki CCTV. All rights reserved.`)}
           </p>
+
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <Image src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/ecommerce/payment-methods/visa.svg" alt="Visa" width={48} height={24} />
-              <Image src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/ecommerce/payment-methods/mastercard.svg" alt="Mastercard" width={48} height={24} />
-              <Image src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/ecommerce/payment-methods/amex.svg" alt="American Express" width={48} height={24} />
-              <Image src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/ecommerce/payment-methods/paypal.svg" alt="PayPal" width={48} height={24} />
+              {/* Mada Payment Badge */}
+              <div className="flex h-6 items-center rounded border border-border bg-background px-2 py-0.5 text-[10px] font-bold tracking-tight text-foreground shadow-xs">
+                مدى | mada
+              </div>
+              <Image
+                src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/ecommerce/payment-methods/visa.svg"
+                alt="Visa"
+                width={44}
+                height={22}
+                className="opacity-90 hover:opacity-100 transition-opacity"
+              />
+              <Image
+                src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/ecommerce/payment-methods/mastercard.svg"
+                alt="Mastercard"
+                width={44}
+                height={22}
+                className="opacity-90 hover:opacity-100 transition-opacity"
+              />
             </div>
             <LocaleSwitcher />
           </div>
         </div>
       </div>
-    </section>
+    </footer>
   );
 };
 

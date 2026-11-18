@@ -2,12 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Cctv, Eye, EyeOff, Loader2, Lock, Mail, Phone } from "lucide-react";
 import { useContext, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { motion } from "motion/react";
 import { z } from "zod";
 
@@ -29,6 +29,7 @@ const signupSchema = z
       .min(1, "Email is required")
       .email("Invalid email address")
       .max(255, "Email is too long"),
+    phone: z.string().optional().or(z.literal("")),
     password: z
       .string()
       .min(1, "Password is required")
@@ -52,6 +53,8 @@ interface Signup1Props {
 
 const Signup1 = ({ className }: Signup1Props) => {
   const t = useTranslations("auth");
+  const locale = useLocale();
+  const isAr = locale === "ar";
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +67,7 @@ const Signup1 = ({ className }: Signup1Props) => {
 
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { email: "", password: "", confirmPassword: "" },
+    defaultValues: { email: "", phone: "", password: "", confirmPassword: "" },
   });
 
   const handleResend = async () => {
@@ -74,9 +77,9 @@ const Signup1 = ({ className }: Signup1Props) => {
       await axios.post("http://localhost:3007/v1/auth/resend-verify-email", {
         email: form.getValues("email"),
       });
-      setResendMsg("Verification email resent!");
+      setResendMsg(isAr ? "تم إعادة إرسال بريد التفعيل بنجاح!" : "Verification email resent!");
     } catch {
-      setResendMsg("Failed to resend. Please try again later.");
+      setResendMsg(isAr ? "فشل إعادة الإرسال، يرجى المحاولة لاحقاً." : "Failed to resend. Please try again later.");
     } finally {
       setResending(false);
     }
@@ -95,16 +98,16 @@ const Signup1 = ({ className }: Signup1Props) => {
         email: data.email,
         password: data.password,
         confirmPassword: data.confirmPassword,
+        phone: data.phone || undefined,
       });
-      console.log("signup res", res.data);
 
       setIsSuccess(true);
-      setTimeout(() => router.push("/login"), 3000);
+      setTimeout(() => router.push("/login"), 3500);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setServerError(err.response.data.message);
       } else {
-        setServerError("Network error. Please try again.");
+        setServerError(isAr ? "حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى." : "Network error. Please try again.");
       }
     } finally {
       setIsSubmitting(false);
@@ -113,168 +116,258 @@ const Signup1 = ({ className }: Signup1Props) => {
 
   return (
     <motion.section
-      className={cn("flex min-h-[calc(100vh-4rem)] items-center justify-center bg-muted px-4", className)}
+      className={cn(
+        "flex min-h-[calc(100vh-4rem)] items-center justify-center bg-[#F7F8FA] dark:bg-[#0B1120] px-4 py-12 relative overflow-hidden",
+        className
+      )}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
     >
+      {/* Ambient background decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none [contain:paint]">
+        <div className="absolute top-1/4 -start-24 size-80 rounded-full bg-blue-500/5 blur-3xl" />
+        <div className="absolute bottom-1/4 -end-24 size-80 rounded-full bg-blue-500/5 blur-3xl" />
+      </div>
+
       <motion.div
-        className="w-full max-w-sm"
-        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        className="w-full max-w-md relative z-10"
+        initial={{ opacity: 0, y: 24, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.5, type: "spring", stiffness: 200 }}
+        transition={{ duration: 0.4, type: "spring", stiffness: 220 }}
       >
-        <div className="rounded-md border border-muted bg-background px-6 py-8 shadow-md">
+        {/* Brand identity header */}
+        <div className="flex flex-col items-center text-center mb-6">
+          <Link href="/" className="inline-flex items-center gap-2.5 group mb-3">
+            <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#101D35] to-[#2563EB] text-white shadow-md shadow-blue-900/10 transition-transform group-hover:scale-105">
+              <Cctv className="size-6 text-white" />
+            </div>
+            <div className="flex flex-col text-start">
+              <span className="font-bold text-lg text-foreground tracking-tight leading-tight">
+                الحارث الذكي
+              </span>
+              <span className="text-xs text-muted-foreground leading-none">
+                {isAr ? "لكاميرات المراقبة والأنظمة الأمنية" : "Smart CCTV & Security Solutions"}
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Auth Card */}
+        <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
           {isSuccess ? (
-            <div className="text-center">
-              <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-primary/10">
-                <svg className="size-6 text-primary" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-                </svg>
+            <div className="text-center py-4">
+              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/50 text-[#2563EB] border border-blue-100 dark:border-blue-900/50">
+                <Mail className="size-7" />
               </div>
-              <h2 className="mb-2 text-lg font-semibold">{t("checkEmail")}</h2>
-              <p className="text-sm text-muted-foreground">
-                {t.rich("verificationSent", { email: () => <strong>{form.getValues("email")}</strong> })}
+              <h2 className="mb-2 text-xl font-bold text-foreground">{t("checkEmail")}</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                {t.rich("verificationSent", {
+                  email: () => <strong className="text-foreground">{form.getValues("email")}</strong>,
+                })}
               </p>
               {resendMsg && (
-                <p className={`mt-3 text-xs ${resendMsg.includes("Failed") ? "text-destructive" : "text-emerald-600"}`}>
+                <p className={`mt-3 text-xs font-medium ${resendMsg.includes("فشل") || resendMsg.includes("Failed") ? "text-rose-600" : "text-emerald-600"}`}>
                   {resendMsg}
                 </p>
               )}
               <Button
                 variant="link"
                 size="sm"
-                className="mt-2 h-auto p-0 text-xs text-muted-foreground hover:text-foreground"
+                className="mt-3 text-xs text-[#2563EB] hover:underline"
                 disabled={resending}
                 onClick={handleResend}
               >
-                {resending ? "Sending..." : "Resend verification email"}
+                {resending ? (isAr ? "جاري الإرسال..." : "Sending...") : (isAr ? "إعادة إرسال بريد التفعيل" : "Resend verification email")}
               </Button>
               <p className="mt-4 text-xs text-muted-foreground">{t("redirecting")}</p>
             </div>
           ) : (
-          <>
-          <h1 className="mb-6 text-center text-xl font-semibold">{t("signupTitle")}</h1>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <FieldGroup className="gap-4">
-              <Controller
-                name="email"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="text-sm font-normal" htmlFor="signup-email">
-                      {t("email")}
-                    </FieldLabel>
-                    <Input
-                      {...field}
-                      id="signup-email"
-                      type="email"
-                      placeholder="your@email.com"
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="password"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="text-sm font-normal" htmlFor="signup-password">
-                      {t("password")}
-                    </FieldLabel>
-                    <div className="relative">
-                      <Input
-                        {...field}
-                        id="signup-password"
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Min 6 chars, upper + lower + number"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        tabIndex={-1}
-                      >
-                        {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
+            <>
+              <div className="text-center mb-6">
+                <h1 className="text-xl font-bold text-foreground tracking-tight">
+                  {t("signupTitle")}
+                </h1>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {isAr ? "أنشئ حسابك للوصول إلى كافة المنتجات والخدمات الأمنية" : "Create an account to access our CCTV store & services"}
+                </p>
+              </div>
+
+              <form onSubmit={form.handleSubmit(onSubmit)}>
+                <FieldGroup className="gap-3.5">
+                  <Controller
+                    name="email"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel className="text-xs font-semibold text-foreground" htmlFor="signup-email">
+                          {t("email")}
+                        </FieldLabel>
+                        <div className="relative">
+                          <Mail className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            id="signup-email"
+                            type="email"
+                            placeholder="your@email.com"
+                            className="ps-9 h-11 rounded-xl"
+                            aria-invalid={fieldState.invalid}
+                          />
+                        </div>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+
+                  <Controller
+                    name="phone"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <div className="flex items-center justify-between">
+                          <FieldLabel className="text-xs font-semibold text-foreground" htmlFor="signup-phone">
+                            {isAr ? "رقم الهاتف" : "Phone Number"}
+                          </FieldLabel>
+                          <span className="text-[11px] text-muted-foreground">
+                            {isAr ? "(اختياري)" : "(Optional)"}
+                          </span>
+                        </div>
+                        <div className="relative">
+                          <Phone className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            id="signup-phone"
+                            type="tel"
+                            placeholder="05XXXXXXXX"
+                            dir="ltr"
+                            className="ps-9 h-11 rounded-xl text-start"
+                            aria-invalid={fieldState.invalid}
+                          />
+                        </div>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+
+                  <Controller
+                    name="password"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel className="text-xs font-semibold text-foreground" htmlFor="signup-password">
+                          {t("password")}
+                        </FieldLabel>
+                        <div className="relative">
+                          <Lock className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            id="signup-password"
+                            type={showPassword ? "text" : "password"}
+                            placeholder="Min 6 chars, A-Z, 0-9"
+                            className="ps-9 pe-9 h-11 rounded-xl"
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            tabIndex={-1}
+                          >
+                            {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
+                        </div>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+
+                  <Controller
+                    name="confirmPassword"
+                    control={form.control}
+                    render={({ field, fieldState }) => (
+                      <Field data-invalid={fieldState.invalid}>
+                        <FieldLabel className="text-xs font-semibold text-foreground" htmlFor="signup-confirm">
+                          {t("confirmPassword")}
+                        </FieldLabel>
+                        <div className="relative">
+                          <Lock className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            {...field}
+                            id="signup-confirm"
+                            type={showConfirmPassword ? "text" : "password"}
+                            placeholder="Repeat password"
+                            className="ps-9 pe-9 h-11 rounded-xl"
+                            aria-invalid={fieldState.invalid}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            tabIndex={-1}
+                          >
+                            {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                          </button>
+                        </div>
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
+                    )}
+                  />
+
+                  {serverError && (
+                    <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-300 font-medium text-center">
+                      {serverError}
                     </div>
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
-              <Controller
-                name="confirmPassword"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel className="text-sm font-normal" htmlFor="signup-confirm">
-                      {t("confirmPassword")}
-                    </FieldLabel>
-                    <div className="relative">
-                      <Input
-                        {...field}
-                        id="signup-confirm"
-                        type={showConfirmPassword ? "text" : "password"}
-                        placeholder="Repeat your password"
-                        aria-invalid={fieldState.invalid}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                        tabIndex={-1}
-                      >
-                        {showConfirmPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                      </button>
-                    </div>
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                  </Field>
-                )}
-              />
-              {serverError && (
-                <p className="text-sm text-destructive">{serverError}</p>
-              )}
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : null}
-                {isSubmitting ? t("creatingAccount") : t("signupTitle")}
+                  )}
+
+                  <Button
+                    type="submit"
+                    className="w-full h-11 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-medium text-sm shadow-xs transition-colors mt-1"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? <Loader2 className="size-4 animate-spin me-2" /> : null}
+                    {isSubmitting ? t("creatingAccount") : t("signupTitle")}
+                  </Button>
+                </FieldGroup>
+              </form>
+
+              {/* Divider */}
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-card px-3 text-muted-foreground font-medium">{t("or")}</span>
+                </div>
+              </div>
+
+              {/* Google OAuth Button */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11 rounded-xl gap-2.5 font-medium border-border hover:bg-muted text-foreground transition-colors"
+                onClick={onGoogleSignup}
+              >
+                <svg viewBox="0 0 24 24" className="size-4.5" aria-hidden="true">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                </svg>
+                <span>{t("google")}</span>
               </Button>
-            </FieldGroup>
-          </form>
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-muted" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">{t("or")}</span>
-            </div>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={onGoogleSignup}
-          >
-            <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-            </svg>
-            {t("google")}
-          </Button>
-        </>
-      )}
+            </>
+          )}
         </div>
+
+        {/* Footer switch */}
         <motion.p
-          className="mt-4 text-center text-sm text-muted-foreground"
+          className="mt-6 text-center text-xs sm:text-sm text-muted-foreground"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
           {t("hasAccount")}{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link href="/login" className="font-semibold text-[#2563EB] hover:underline">
             {t("loginLink")}
           </Link>
         </motion.p>

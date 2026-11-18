@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import api from "@/lib/api";
-import { getLocalizedField } from "@/lib/locale";
+import { getLocalizedField, useFormatPrice } from "@/lib/locale";
 
 import { AspectRatio } from "@/components/base/aspect-ratio";
 import { Button } from "@/components/base/button";
@@ -50,12 +50,7 @@ const ShoppingCart1 = () => {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-    }).format(price);
-  };
+  const formatPrice = useFormatPrice(locale);
 
   if (items.length === 0) {
     return (

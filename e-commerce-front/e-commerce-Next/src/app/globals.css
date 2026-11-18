@@ -2,20 +2,16 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@font-face {
-  font-family: "GFS Didot";
-  src: url("/fonts/GFSDidot-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-montserrat);
-  --font-mono: var(--font-montserrat);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-ibm-plex-arabic), var(--font-inter), sans-serif;
+  --font-mono: var(--font-inter), monospace;
+  --font-heading: var(--font-ibm-plex-arabic), var(--font-inter), sans-serif;
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-soft: var(--brand-navy-soft);
+  --color-brand-blue: var(--brand-blue);
+  --color-brand-orange: var(--brand-orange);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -55,49 +51,102 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.18 0.06 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: #FF7483;
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: #FF7483;
+  --background: #F7F8FA;
+  --foreground: #172033;
+  --card: #FFFFFF;
+  --card-foreground: #172033;
+  --popover: #FFFFFF;
+  --popover-foreground: #172033;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F1F3F7;
+  --secondary-foreground: #172033;
+  --muted: #F1F3F7;
+  --muted-foreground: #667085;
+  --accent: #F1F3F7;
+  --accent-foreground: #172033;
+  --destructive: #DC2626;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #2563EB;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #FF7483;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.18 0.06 265);
+
+  /* Brand Tokens */
+  --brand-navy: #101D35;
+  --brand-navy-soft: #1B2B49;
+  --brand-blue: #2563EB;
+  --brand-orange: #F59E0B;
+
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #172033;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F3F7;
+  --sidebar-accent-foreground: #172033;
+  --sidebar-border: #E5E7EB;
+  --sidebar-ring: #2563EB;
+}
+
+.dark {
+  --background: #0B1120;
+  --foreground: #F1F5F9;
+  --card: #101D35;
+  --card-foreground: #F1F5F9;
+  --popover: #101D35;
+  --popover-foreground: #F1F5F9;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1B2B49;
+  --secondary-foreground: #F1F5F9;
+  --muted: #1B2B49;
+  --muted-foreground: #94A3B8;
+  --accent: #1B2B49;
+  --accent-foreground: #F1F5F9;
+  --destructive: #EF4444;
+  --border: #1E293B;
+  --input: #1E293B;
+  --ring: #3B82F6;
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+
+  /* Brand Tokens */
+  --brand-navy: #101D35;
+  --brand-navy-soft: #1B2B49;
+  --brand-blue: #2563EB;
+  --brand-orange: #F59E0B;
+
+  --sidebar: #101D35;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1B2B49;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: #1E293B;
+  --sidebar-ring: #3B82F6;
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+  body {
+    @apply bg-background text-foreground;
+    max-width: 100vw;
+    overflow-x: hidden;
+    position: relative;
   }
 }
 

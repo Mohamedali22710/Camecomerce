@@ -2,7 +2,7 @@ import type { PriceProps } from "./types";
 
 const Price = ({ regular, sale, currency }: PriceProps) => {
   if (!regular || !currency) return;
-  const formatCurrency = (value: number, currency: string = "USD", locale: string = "en-US") => {
+  const formatCurrency = (value: number, currency: string = "SAR", locale: string = "en-US") => {
     return new Intl.NumberFormat(locale, { style: "currency", currency }).format(value);
   };
   return (

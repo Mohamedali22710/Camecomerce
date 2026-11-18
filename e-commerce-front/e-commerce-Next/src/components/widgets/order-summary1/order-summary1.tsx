@@ -18,7 +18,7 @@ const OrderSummary1 = ({
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
-      currency: "USD",
+      currency: "SAR",
     }).format(price);
   };
 

@@ -23,11 +23,11 @@ export function LocaleTransition({ children }: { children: ReactNode }) {
     <AnimatePresence mode="wait">
       <motion.div
         key={locale}
-        initial={{ opacity: 0, rotateX: 6, scale: 0.96 }}
-        animate={{ opacity: 1, rotateX: 0, scale: 1 }}
-        exit={{ opacity: 0, rotateX: -6, scale: 0.96 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
-        style={{ transformStyle: "preserve-3d", perspective: 1200 }}
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -4 }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
+        className="flex min-h-full flex-col flex-1 w-full max-w-full overflow-x-clip"
       >
         {children}
       </motion.div>

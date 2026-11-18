@@ -29,7 +29,7 @@ export function EcommerceSidebar() {
   const pathname = usePathname();
   const [checkboxState, setCheckboxState] = useState<Record<string, string[]>>(() => {
     const sub = searchParams.get("subcategory");
-    return sub ? { brand: [sub] } : {};
+    return sub ? { brand: [sub] } : {} as Record<string, string[]>;
   });
   const [colorState, setColorState] = useState<string[]>([]);
   const [priceState, setPriceState] = useState<[number, number]>([0, 500]);

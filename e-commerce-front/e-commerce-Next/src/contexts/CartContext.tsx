@@ -61,7 +61,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   })
 
   const [shippingCost, setShippingCost] = useState<number | null>(null)
-  const [currency, setCurrency] = useState<string>("EGP")
+  const [currency, setCurrency] = useState<string>("SAR")
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))

@@ -60,7 +60,7 @@ const Checkout1 = ({ cartItems: propCartItems, className }: Checkout1Props) => {
       price: {
         regular: item.originalPrice ?? item.price,
         sale: item.originalPrice ? item.price : undefined,
-        currency: "USD",
+        currency: "SAR",
       },
       quantity: item.quantity,
       details: item.details || [],

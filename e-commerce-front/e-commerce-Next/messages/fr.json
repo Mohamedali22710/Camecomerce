@@ -33,7 +33,27 @@
     "exploreSubtitle": "inspiré des dernières tendances de la saison.",
     "urbanEase": "Urban Ease",
     "softElegance": "Élégance Douce",
-    "littleExplorer": "Petit Explorateur"
+    "littleExplorer": "Petit Explorateur",
+    "heroBadge": "Surveillance de sécurité IA nouvelle génération",
+    "heroTitle": "La sécurité intelligente commence par le bon choix",
+    "heroSubtitle": "Découvrez des solutions de vidéosurveillance haut de gamme pour votre maison ou entreprise — caméras 4K solaires, intérieures et extérieures avec NVR.",
+    "heroCta": "Acheter des produits",
+    "heroCtaSecondary": "Découvrir les solutions",
+    "warranty2Years": "Garantie 2 ans",
+    "solarAnd4G": "Solaire & 4G",
+    "cloudLive": "Application & Cloud direct",
+    "featuredTitle": "Caméras et solutions de surveillance",
+    "featuredBadge": "Systèmes les plus demandés",
+    "categoriesBadge": "Catégories de sécurité",
+    "categoriesTitle": "Parcourir par catégorie",
+    "trustShipping": "Livraison rapide et sécurisée",
+    "trustShippingDesc": "Livraison fiable dans toutes les régions d'Arabie Saoudite",
+    "trustWarranty": "Garantie officielle 2 ans",
+    "trustWarrantyDesc": "Garantie complète sur toutes les caméras et enregistreurs",
+    "trustSupport": "Support technique expert",
+    "trustSupportDesc": "Spécialistes certifiés pour guider votre configuration",
+    "trustInstall": "Service d'installation",
+    "trustInstallDesc": "Techniciens professionnels pour installation et couplage"
   },
   "products": {
     "title": "Produits",
@@ -194,7 +214,10 @@
     "newsletter": "Newsletter",
     "newsletterDesc": "Abonnez-vous pour recevoir des offres spéciales.",
     "subscribe": "S'abonner",
-    "rights": "Tous droits réservés."
+    "rights": "Tous droits réservés.",
+    "brandName": "Al-Harith Al-Dhaki",
+    "slogan": "Solutions de vidéosurveillance et sécurité",
+    "copyrightText": "Copyright © 2026 Al-Harith Al-Dhaki CCTV. Tous droits réservés."
   },
   "common": {
     "loading": "Chargement...",
@@ -259,5 +282,11 @@
     "max": "Max",
     "rating": "Avis",
     "andUp": "& plus"
+  },
+  "theme": {
+    "light": "Clair",
+    "dark": "Sombre",
+    "system": "Système",
+    "toggleTheme": "Changer le thème"
   }
 }

@@ -67,7 +67,7 @@ type LinkTypes = keyof typeof LINK_TYPES;
 const NEWSLETTER_DATA = {
   title: "Newsletter",
   description:
-    "Join our newsletter to receive exclusive deals, tech tips, product launches, and early access to the latest electronics.",
+    "Join our newsletter to receive exclusive deals, CCTV security tips, product launches, and warranty offers.",
 };
 
 const FOOTER_LINKS: FooterLinksSectionData[] = [
@@ -91,8 +91,8 @@ const FOOTER_LINKS: FooterLinksSectionData[] = [
   {
     title: "Support",
     items: [
-      { text: "Help Center", link: "#" },
       { text: "Contact Us", link: "/contact" },
+      { text: "Help Center", link: "/contact" },
       { text: "Privacy Policy", link: "/privacy" },
       { text: "Terms of Service", link: "/terms" },
     ],
@@ -118,25 +118,25 @@ const SOCIAL_ICONS = {
 const CONTACT_LINKS: ContactLinks = {
   contactDetails: [
     {
-      icon: Mail,
-      text: "support@store.com",
-      link: "support@store.com",
-      type: LINK_TYPES.EMAIL_LINK as LinkTypes,
-    },
-    {
       icon: Phone,
-      text: "+1 (234) 567-8910",
-      link: "+12345678910",
+      text: "+966 50 000 0000",
+      link: "+966500000000",
       type: LINK_TYPES.PHONE_LINK as LinkTypes,
     },
     {
+      icon: Mail,
+      text: "support@alharith-cctv.sa",
+      link: "support@alharith-cctv.sa",
+      type: LINK_TYPES.EMAIL_LINK as LinkTypes,
+    },
+    {
       icon: MapPin,
-      text: "123 Commerce St, New York, NY",
+      text: "المملكة العربية السعودية — الرياض",
       type: LINK_TYPES.NO_LINK as LinkTypes,
     },
     {
       icon: Clock,
-      text: "Mon - Fri, 9 am - 9 pm",
+      text: "السبت - الخميس: 9:00 ص - 10:00 م",
       type: LINK_TYPES.NO_LINK as LinkTypes,
     },
   ],
