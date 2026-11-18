@@ -159,7 +159,7 @@ const Dashboard = () => {
                 <NbNewOrders value={nbNewOrders} />
             </motion.div>
             <motion.div variants={itemVariants} style={styles.singleCol}>
-                <Card>
+                <Card sx={{ borderRadius: '14px', border: '1px solid', borderColor: 'divider', boxShadow: '0 1px 3px 0 rgba(16, 29, 53, 0.04)' }}>
                     <CardHeader
                         title={
                             <Translate i18nKey="pos.dashboard.month_history" />
@@ -189,7 +189,7 @@ const Dashboard = () => {
                         <NbNewOrders value={nbNewOrders} />
                     </div>
                     <div style={styles.singleCol}>
-                        <Card>
+                        <Card sx={{ borderRadius: '14px', border: '1px solid', borderColor: 'divider', boxShadow: '0 1px 3px 0 rgba(16, 29, 53, 0.04)' }}>
                             <CardHeader
                                 title={
                                     <Translate i18nKey="pos.dashboard.month_history" />
@@ -202,12 +202,10 @@ const Dashboard = () => {
                             </CardContent>
                         </Card>
                     </div>
-                    <div style={styles.singleCol}>
-                        <PendingOrders orders={pendingOrders} />
-                    </div>
                 </div>
                 <div style={styles.rightCol}>
-                    <div style={styles.singleCol}>
+                    <div style={{ marginTop: 0 }}>
+                        <PendingOrders orders={pendingOrders} />
                     </div>
                 </div>
             </motion.div>

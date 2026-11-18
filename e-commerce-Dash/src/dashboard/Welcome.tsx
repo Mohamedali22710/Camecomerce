@@ -1,9 +1,10 @@
 import * as React from 'react';
 import { Box, Card, CardActions, Button, Typography } from '@mui/material';
-import HomeIcon from '@mui/icons-material/Home';
-import CodeIcon from '@mui/icons-material/Code';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import VideocamIcon from '@mui/icons-material/Videocam';
 import { motion } from 'motion/react';
 import { useTranslate } from 'react-admin';
+import { Link } from 'react-router-dom';
 
 import publishArticleImage from './welcome_illustration.svg';
 
@@ -17,17 +18,22 @@ const Welcome = () => {
         >
             <Card
                 sx={{
-                    background: theme =>
-                        `linear-gradient(45deg, ${theme.palette.secondary.dark} 0%, ${theme.palette.secondary.light} 50%, ${theme.palette.primary.dark} 100%)`,
-                    color: theme => theme.palette.primary.contrastText,
-                    padding: '20px',
+                    background: 'linear-gradient(135deg, #101D35 0%, #1B2B49 55%, #2563EB 100%)',
+                    color: '#FFFFFF',
+                    padding: '24px',
                     marginTop: 2,
-                    marginBottom: '1em',
+                    marginBottom: '1.25em',
+                    borderRadius: '16px',
+                    boxShadow: '0 10px 25px -5px rgba(16, 29, 53, 0.2)',
+                    position: 'relative',
+                    overflow: 'hidden',
                 }}
             >
                 <Box
                     sx={{
                         display: 'flex',
+                        position: 'relative',
+                        zIndex: 1,
                     }}
                 >
                     <Box
@@ -35,15 +41,32 @@ const Welcome = () => {
                             flex: '1',
                         }}
                     >
-                        <Typography variant="h5" component="h2" gutterBottom>
+                        <Typography
+                            variant="h5"
+                            component="h2"
+                            gutterBottom
+                            sx={{
+                                fontWeight: 700,
+                                color: '#FFFFFF',
+                                letterSpacing: '-0.01em',
+                            }}
+                        >
                             {translate('pos.dashboard.welcome.title')}
                         </Typography>
                         <Box
                             sx={{
-                                maxWidth: '40em',
+                                maxWidth: '42em',
                             }}
                         >
-                            <Typography variant="body1" component="p" gutterBottom>
+                            <Typography
+                                variant="body1"
+                                component="p"
+                                gutterBottom
+                                sx={{
+                                    color: 'rgba(255, 255, 255, 0.85)',
+                                    lineHeight: 1.6,
+                                }}
+                            >
                                 {translate('pos.dashboard.welcome.subtitle')}
                             </Typography>
                         </Box>
@@ -51,24 +74,52 @@ const Welcome = () => {
                             sx={{
                                 padding: { xs: 0, xl: null },
                                 flexWrap: { xs: 'wrap', xl: null },
+                                gap: 1.5,
+                                mt: 2,
                                 '& a': {
-                                    marginTop: { xs: '1em', xl: null },
-                                    marginInlineStart: { xs: '0!important', xl: null },
-                                    marginInlineEnd: { xs: '1em', xl: null },
+                                    textDecoration: 'none',
                                 },
                             }}
                         >
                             <Button
+                                component={Link}
+                                to="/orders"
                                 variant="contained"
-                                href="https://marmelab.com/react-admin"
-                                startIcon={<HomeIcon />}
+                                startIcon={<ShoppingCartIcon />}
+                                sx={{
+                                    backgroundColor: '#2563EB',
+                                    color: '#FFFFFF',
+                                    fontWeight: 600,
+                                    borderRadius: '10px',
+                                    px: 2.5,
+                                    py: 1,
+                                    boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
+                                    '&:hover': {
+                                        backgroundColor: '#1D4ED8',
+                                    },
+                                }}
                             >
                                 {translate('pos.dashboard.welcome.ra_button')}
                             </Button>
                             <Button
-                                variant="contained"
-                                href="https://github.com/marmelab/react-admin/tree/master/examples/demo"
-                                startIcon={<CodeIcon />}
+                                component={Link}
+                                to="/products"
+                                variant="outlined"
+                                startIcon={<VideocamIcon />}
+                                sx={{
+                                    borderColor: 'rgba(255, 255, 255, 0.4)',
+                                    color: '#FFFFFF',
+                                    fontWeight: 600,
+                                    borderRadius: '10px',
+                                    px: 2.5,
+                                    py: 1,
+                                    backdropFilter: 'blur(4px)',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                                    '&:hover': {
+                                        borderColor: '#FFFFFF',
+                                        backgroundColor: 'rgba(255, 255, 255, 0.16)',
+                                    },
+                                }}
                             >
                                 {translate('pos.dashboard.welcome.demo_button')}
                             </Button>
@@ -82,6 +133,7 @@ const Welcome = () => {
                             overflow: 'hidden',
                             background: `url(${publishArticleImage}) top right / cover`,
                             marginInlineStart: 'auto',
+                            opacity: 0.9,
                         }}
                     />
                 </Box>

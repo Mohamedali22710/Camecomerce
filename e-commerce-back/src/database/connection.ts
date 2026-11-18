@@ -61,8 +61,8 @@ export const dataBaseConnection = async (): Promise<void> => {
 
   try {
     await mongoose.connect(env.MONGODB_URI!, {
-      serverSelectionTimeoutMS: 5000,
-      connectTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000,
+      connectTimeoutMS: 30000,
     });
     const topology = await assertTransactionCapableTopology();
     console.log(`database connected (${topology})`);

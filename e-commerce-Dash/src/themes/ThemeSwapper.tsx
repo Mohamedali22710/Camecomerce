@@ -15,7 +15,7 @@ export const ThemeSwapper = () => {
         setAnchorEl(null);
     };
 
-    const [themeName, setThemeName] = useStore<ThemeName>('themeName', 'soft');
+    const [themeName, setThemeName] = useStore<ThemeName>('themeName', 'brand');
     const handleChange = (_: React.MouseEvent<HTMLElement>, index: number) => {
         const newTheme = themes[index];
         setThemeName(newTheme.name);
@@ -33,13 +33,26 @@ export const ThemeSwapper = () => {
             <Tooltip title={toggleThemeTitle} enterDelay={300}>
                 <IconButton
                     onClick={handleClick}
-                    color="inherit"
+                    size="small"
                     aria-label={toggleThemeTitle}
+                    sx={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: '8px',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        backgroundColor: 'background.paper',
+                        color: 'text.primary',
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                            backgroundColor: 'action.hover',
+                            borderColor: 'primary.main',
+                        },
+                    }}
                 >
-                    <ColorLensIcon />
+                    <ColorLensIcon sx={{ fontSize: 18 }} />
                 </IconButton>
             </Tooltip>
-            {currentTheme?.dark ? <ToggleThemeButton /> : null}
             <Menu open={open} onClose={handleClose} anchorEl={anchorEl}>
                 {themes.map((theme, index: number) => (
                     <MenuItem

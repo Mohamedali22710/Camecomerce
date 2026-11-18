@@ -53,10 +53,16 @@ const GroupDeleteButton = ({ ids, allActive, someActive }: Props) => {
         {loading ? <CircularProgress size={14} /> : label}
       </Button>
       <Dialog open={open} onClose={() => setOpen(false)}>
-        <DialogTitle>{label} {ids.length} subcategories</DialogTitle>
+        <DialogTitle>
+          {shouldRestore
+            ? translate("pos.subcategories.restore_title", { _: "استعادة الفئات الفرعية" })
+            : translate("pos.subcategories.delete_title", { _: "حذف الفئات الفرعية" })}
+        </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {label} {ids.length} subcategories
+            {shouldRestore
+              ? translate("pos.subcategories.restore_confirm", { count: ids.length, _: `هل أنت متأكد من استعادة (${ids.length}) من عناصر الفئة الفرعية؟` })
+              : translate("pos.subcategories.delete_confirm", { count: ids.length, _: `هل أنت متأكد من حذف (${ids.length}) من عناصر الفئة الفرعية؟` })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

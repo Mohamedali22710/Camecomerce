@@ -14,6 +14,7 @@ import {
   useRecordContext,
   useGetMany,
   useTranslate,
+  useLocale,
 } from "react-admin";
 import {
   Grid,
@@ -38,12 +39,12 @@ import GroupDeleteButton from "./GroupDeleteButton";
 const RESOURCE = "subcategories";
 
 const SubcategoriesTitle = () => {
-  const title = useDefaultTitle();
-  const { defaultTitle } = useListContext();
+  const translate = useTranslate();
+  const title = translate("pos.menu.subcategories", { _: "الفئات الفرعية" });
   return (
     <>
-      <title>{`${title} - ${defaultTitle}`}</title>
-      <span>{defaultTitle}</span>
+      <title>{`الحارث الذكي - ${title}`}</title>
+      <span>{title}</span>
     </>
   );
 };
@@ -60,7 +61,7 @@ const ListActions = ({ mode, onModeChange }: { mode: "table" | "card"; onModeCha
 
   return (
     <TopToolbar sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-      <Box sx={{ display: "flex", alignItems: "center", bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: 1, px: 1, py: 0.3, minWidth: 220 }}>
+      <Box sx={{ display: "flex", alignItems: "center", bgcolor: "background.paper", border: "1px solid", borderColor: "divider", borderRadius: "8px", px: 1.5, py: 0.5, minWidth: 220 }}>
         <SearchIcon sx={{ color: "text.secondary", mr: 0.5, fontSize: 20 }} />
         <InputBase
           placeholder={translate("pos.subcategories.search")}
@@ -70,7 +71,18 @@ const ListActions = ({ mode, onModeChange }: { mode: "table" | "card"; onModeCha
         />
       </Box>
       <SortButton fields={["en_name", "createdAt"]} />
-      <CreateButton />
+      <CreateButton
+        variant="contained"
+        sx={{
+          backgroundColor: "#2563EB",
+          borderRadius: "8px",
+          fontWeight: 600,
+          boxShadow: "0 2px 6px rgba(37, 99, 235, 0.3)",
+          "&:hover": {
+            backgroundColor: "#1D4ED8",
+          },
+        }}
+      />
       <ViewToggle resource={RESOURCE} mode={mode} onChange={onModeChange} />
     </TopToolbar>
   );
@@ -78,31 +90,70 @@ const ListActions = ({ mode, onModeChange }: { mode: "table" | "card"; onModeCha
 
 const CategoryChip = () => {
   const record = useRecordContext();
+  const locale = useLocale();
   return record ? (
-    <Chip label={record.en_name} size="small" variant="outlined" color="primary" />
+    <Chip
+      label={locale === 'ar' ? (record.ar_name || record.en_name) : (record.en_name || record.ar_name)}
+      size="small"
+      sx={{
+        borderRadius: "6px",
+        fontWeight: 600,
+        backgroundColor: "rgba(37, 99, 235, 0.08)",
+        color: "#2563EB",
+        borderColor: "rgba(37, 99, 235, 0.2)",
+      }}
+      variant="outlined"
+    />
   ) : null;
 };
 
 const SubcategoryGrid = () => {
+  const translate = useTranslate();
+  const locale = useLocale();
   const { data, error, isPending } = useListContext();
   if (isPending) return (
     <Grid container spacing={2} sx={{ mt: 0 }}>
       {Array.from({ length: 6 }).map((_, i) => (
-        <Grid key={i} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2 }}>
-          <Skeleton variant="rounded" sx={{ height: 160 }} />
+        <Grid key={i} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+          <Skeleton variant="rounded" sx={{ height: 160, borderRadius: "12px" }} />
         </Grid>
       ))}
     </Grid>
   );
-  if (error) return null;
+  if (error || !data) return null;
+  if (data.length === 0) {
+    return (
+      <Box sx={{ textAlign: "center", py: 6 }}>
+        <Typography color="text.secondary" sx={{ fontWeight: 500, fontSize: "0.95rem" }}>
+          {translate("ra.page.empty", {
+            name: translate("resources.subcategories.name", { smart_count: 2, _: "فئات فرعية" }),
+            _: "لا توجد فئات فرعية حتى الآن",
+          })}
+        </Typography>
+      </Box>
+    );
+  }
   return (
-    <Grid container spacing={2} sx={{ mt: 0 }}>
+    <Grid container spacing={2.5} sx={{ mt: 0.5 }}>
       {data.map((record) => (
         <RecordContextProvider key={record.id} value={record}>
-          <Grid key={record.id} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2 }}>
-            <Card>
-              <CardContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1, paddingBottom: "0.5em" }}>
-                <Typography variant="h6" component="h2" align="center">
+          <Grid key={record.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+            <Card
+              sx={{
+                borderRadius: "14px",
+                border: "1px solid",
+                borderColor: "divider",
+                boxShadow: "0 2px 4px rgba(16, 29, 53, 0.04)",
+                transition: "all 0.2s ease",
+                "&:hover": {
+                  borderColor: "primary.main",
+                  boxShadow: "0 8px 18px -4px rgba(37, 99, 235, 0.12)",
+                  transform: "translateY(-3px)",
+                },
+              }}
+            >
+              <CardContent sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.25, pb: 1, pt: 3 }}>
+                <Typography variant="h6" component="h2" align="center" sx={{ fontWeight: 700, color: "text.primary" }}>
                   {record.en_name}
                 </Typography>
                 <ReferenceField source="categoryId" reference="categories" link="show">
@@ -113,12 +164,13 @@ const SubcategoryGrid = () => {
                     variant="body2"
                     align="center"
                     color="text.secondary"
+                    sx={{ fontWeight: 500 }}
                   >
-                    {record.ar_name} / {record.fr_name}
+                    {record.ar_name} {record.fr_name ? `/ ${record.fr_name}` : ""}
                   </Typography>
                 )}
               </CardContent>
-              <CardActions sx={{ justifyContent: "center" }}>
+              <CardActions sx={{ justifyContent: "center", pb: 2 }}>
                 <EditButton />
                 <DeleteButton />
               </CardActions>
@@ -132,6 +184,7 @@ const SubcategoryGrid = () => {
 
 const GroupedTable = () => {
   const translate = useTranslate();
+  const locale = useLocale();
   const { data, error, isPending } = useListContext();
   if (isPending) return (
     <Table>
@@ -157,7 +210,7 @@ const GroupedTable = () => {
       </TableBody>
     </Table>
   );
-  if (error) return null;
+  if (error || !data) return null;
 
   const grouped = React.useMemo(() => {
     const map = new Map<string, { en_name: string; ar_name: string; fr_name: string; categoryIds: string[]; ids: string[]; allActive: boolean; someActive: boolean }>();
@@ -185,12 +238,31 @@ const GroupedTable = () => {
   const { data: categories } = useGetMany("categories", { ids: allCategoryIds });
   const catMap = React.useMemo(() => {
     const m = new Map<string, string>();
-    (categories || []).forEach((c: any) => m.set(c.id, c.en_name));
+    (categories || []).forEach((c: any) => {
+      const label = locale === 'ar' ? (c.ar_name || c.en_name) : (c.en_name || c.ar_name);
+      m.set(c.id, label);
+    });
     return m;
-  }, [categories]);
+  }, [categories, locale]);
 
   return (
-    <Table>
+    <Table
+      sx={{
+        borderRadius: "12px",
+        overflow: "hidden",
+        border: "1px solid",
+        borderColor: "divider",
+        mt: 1,
+        "& .MuiTableHead-root": {
+          backgroundColor: "rgba(16, 29, 53, 0.03)",
+        },
+        "& .MuiTableCell-head": {
+          fontWeight: 700,
+          color: "text.primary",
+          py: 1.5,
+        },
+      }}
+    >
       <TableHead>
         <TableRow>
           <TableCell>{translate("pos.subcategories.columns.name_en")}</TableCell>
@@ -201,24 +273,84 @@ const GroupedTable = () => {
         </TableRow>
       </TableHead>
       <TableBody>
-        {grouped.map((g) => (
-          <TableRow key={g.en_name}>
-            <TableCell sx={{ fontWeight: 600 }}>{g.en_name} {g.ids.length > 1 && <Chip label={`×${g.ids.length}`} size="small" sx={{ ml: 1 }} />}</TableCell>
-            <TableCell>{g.ar_name} / {g.fr_name}</TableCell>
+        {grouped.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={5} align="center">
+              <Typography sx={{ py: 4, color: "text.secondary", fontWeight: 500 }}>
+                {translate("ra.page.empty", {
+                  name: translate("resources.subcategories.name", { smart_count: 2, _: "فئات فرعية" }),
+                  _: "لا توجد فئات فرعية حتى الآن",
+                })}
+              </Typography>
+            </TableCell>
+          </TableRow>
+        ) : (
+          grouped.map((g) => (
+          <TableRow key={g.en_name} sx={{ "&:hover": { backgroundColor: "rgba(37, 99, 235, 0.02)" } }}>
+            <TableCell sx={{ fontWeight: 600 }}>
+              {g.en_name}
+              {g.ids.length > 1 && (
+                <Chip
+                  label={`×${g.ids.length}`}
+                  size="small"
+                  sx={{ ml: 1, height: 20, fontSize: "0.7rem", fontWeight: 700, borderRadius: "6px" }}
+                />
+              )}
+            </TableCell>
+            <TableCell sx={{ color: "text.secondary" }}>{g.ar_name} / {g.fr_name}</TableCell>
             <TableCell>
-              <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap" }}>
+              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
                 {g.categoryIds.map(cid => (
-                  <Chip key={cid} label={catMap.get(cid) || cid} size="small" variant="outlined" color="primary" />
+                  <Chip
+                    key={cid}
+                    label={catMap.get(cid) || cid}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      borderRadius: "6px",
+                      fontWeight: 500,
+                      backgroundColor: "rgba(37, 99, 235, 0.06)",
+                      color: "#2563EB",
+                      borderColor: "rgba(37, 99, 235, 0.2)",
+                    }}
+                  />
                 ))}
               </Box>
             </TableCell>
             <TableCell align="center">
               {g.allActive ? (
-                <Chip label={translate("pos.subcategories.status.active")} size="small" color="success" />
+                <Chip
+                  label={translate("pos.subcategories.status.active")}
+                  size="small"
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    backgroundColor: "rgba(22, 163, 74, 0.12)",
+                    color: "#16A34A",
+                  }}
+                />
               ) : g.someActive ? (
-                <Chip label={translate("pos.subcategories.status.mixed")} size="small" color="warning" />
+                <Chip
+                  label={translate("pos.subcategories.status.mixed")}
+                  size="small"
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    backgroundColor: "rgba(217, 119, 6, 0.12)",
+                    color: "#D97706",
+                  }}
+                />
               ) : (
-                <Chip label={translate("pos.subcategories.status.inactive")} size="small" color="error" />
+                <Chip
+                  label={translate("pos.subcategories.status.inactive")}
+                  size="small"
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: "6px",
+                    backgroundColor: "rgba(220, 38, 38, 0.12)",
+                    color: "#DC2626",
+                  }}
+                />
               )}
             </TableCell>
             <TableCell align="center">
@@ -228,7 +360,7 @@ const GroupedTable = () => {
               </RecordContextProvider>
             </TableCell>
           </TableRow>
-        ))}
+        )))}
       </TableBody>
     </Table>
   );

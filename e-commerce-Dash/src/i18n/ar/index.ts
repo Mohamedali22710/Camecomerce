@@ -44,6 +44,12 @@ const arabicMessages = {
     },
     subcategories: {
       search: "بحث عن الفئات الفرعية...",
+      create_title: "إنشاء فئة فرعية",
+      edit_title: "تعديل الفئة الفرعية",
+      delete_title: "حذف الفئات الفرعية",
+      restore_title: "استعادة الفئات الفرعية",
+      delete_confirm: "هل أنت متأكد من حذف (%{count}) من عناصر الفئة الفرعية؟",
+      restore_confirm: "هل أنت متأكد من استعادة (%{count}) من عناصر الفئة الفرعية؟",
       columns: {
         name_en: "الاسم (EN)",
         name_ar_fr: "الاسم (AR) / الاسم (FR)",
@@ -72,7 +78,10 @@ const arabicMessages = {
       },
     },
     categories: {
+      create_title: "إنشاء فئة جديدة",
+      edit_title: "تعديل الفئة",
       columns: {
+        image: "الصورة",
         name_en: "الاسم (EN)",
         name_ar: "الاسم (AR)",
         name_fr: "الاسم (FR)",
@@ -174,11 +183,11 @@ const arabicMessages = {
         items: "بواسطة %{customer_name}",
       },
       welcome: {
-        title: "مرحبًا بك في لوحة تحكم المتجر",
+        title: "مرحبًا بك في لوحة تحكم الحارث الذكي",
         subtitle:
-          "هذه هي لوحة إدارة متجر إلكتروني. يمكنك استكشاف وتعديل البيانات.",
-        ra_button: "موقع react-admin",
-        demo_button: "مصدر هذا العرض",
+          "إدارة متجر كاميرات المراقبة وحلول الأمان والطلبات والمستخدمين من مكان واحد.",
+        ra_button: "عرض الطلبات",
+        demo_button: "إدارة المنتجات",
       },
     },
     menu: {

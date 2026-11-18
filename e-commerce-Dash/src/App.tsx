@@ -16,34 +16,63 @@ import subcategories from "./subcategories";
 import { Dashboard } from "./dashboard";
 import dataProviderFactory from "./dataProvider";
 import englishMessages from "./i18n/en";
+import arabicMessages from "./i18n/ar";
 import { Layout, Login } from "./layout";
 import orders from "./orders";
 import products from "./products";
 import users from "./users";
 import { themes, ThemeName } from "./themes/themes";
 
-const i18nProvider = polyglotI18nProvider(
+const getInitialLocale = (): string => {
+  try {
+    const saved = localStorage.getItem("ECommerce.locale") || localStorage.getItem("locale");
+    if (saved && ["ar", "en", "fr"].includes(saved)) {
+      return saved;
+    }
+  } catch {}
+  return "ar";
+};
+
+const initialLocale = getInitialLocale();
+
+const messagesMap: Record<string, any> = {
+  ar: arabicMessages,
+  en: englishMessages,
+};
+
+const baseI18nProvider = polyglotI18nProvider(
   (locale) => {
     if (locale === "fr") {
       return import("./i18n/fr").then((messages) => messages.default);
     }
-    if (locale === "ar") {
-      return import("./i18n/ar").then((messages) => messages.default as any);
+    if (messagesMap[locale]) {
+      return messagesMap[locale];
     }
-    return englishMessages;
+    return arabicMessages;
   },
-  "en",
+  initialLocale,
   [
+    { locale: "ar", name: "العربية" },
     { locale: "en", name: "English" },
     { locale: "fr", name: "Français" },
-    { locale: "ar", name: "العربية" },
   ],
 );
+
+const i18nProvider = {
+  ...baseI18nProvider,
+  changeLocale: (newLocale: string, options?: any) => {
+    try {
+      localStorage.setItem("ECommerce.locale", newLocale);
+      localStorage.setItem("locale", newLocale);
+    } catch {}
+    return baseI18nProvider.changeLocale(newLocale, options);
+  },
+};
 
 const store = localStorageStore(undefined, "ECommerce");
 
 const App = () => {
-  const [themeName] = useStore<ThemeName>("themeName", "soft");
+  const [themeName] = useStore<ThemeName>("themeName", "brand");
   const singleTheme = themes.find((theme) => theme.name === themeName)?.single;
   const lightTheme = themes.find((theme) => theme.name === themeName)?.light;
   const darkTheme = themes.find((theme) => theme.name === themeName)?.dark;

@@ -11,6 +11,29 @@
     <link rel="shortcut icon" href="./favicon.ico" />
     <title>Admin Dashboard</title>
     <style>
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+      }
+
+      #root {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+      }
+
       .loader-container {
         display: flex;
         align-items: center;
@@ -33,7 +56,7 @@
       }
 
       .loader {
-        color: #FF7483;
+        color: #2563EB;
         font-size: 11px;
         text-indent: -99999em;
         margin: 55px auto;
@@ -100,6 +123,9 @@
         }
       }
     </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link href="./fonts.css" rel="stylesheet" />
   </head>
 

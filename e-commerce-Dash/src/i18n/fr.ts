@@ -43,6 +43,12 @@ const customFrenchMessages: TranslationMessages = {
     },
     subcategories: {
       search: "Rechercher des sous-catégories...",
+      create_title: "Créer une sous-catégorie",
+      edit_title: "Modifier la sous-catégorie",
+      delete_title: "Supprimer les sous-catégories",
+      restore_title: "Restaurer les sous-catégories",
+      delete_confirm: "Voulez-vous vraiment supprimer (%{count}) éléments de sous-catégorie ?",
+      restore_confirm: "Voulez-vous vraiment restaurer (%{count}) éléments de sous-catégorie ?",
       columns: {
         name_en: "Nom (EN)",
         name_ar_fr: "Nom (AR) / Nom (FR)",
@@ -71,7 +77,10 @@ const customFrenchMessages: TranslationMessages = {
       },
     },
     categories: {
+      create_title: "Créer une catégorie",
+      edit_title: "Modifier la catégorie",
       columns: {
+        image: "Image",
         name_en: "Nom (EN)",
         name_ar: "Nom (AR)",
         name_fr: "Nom (FR)",
@@ -174,11 +183,11 @@ const customFrenchMessages: TranslationMessages = {
           "par %{customer_name}, un poster |||| par %{customer_name}, %{nb_items} posters",
       },
       welcome: {
-        title: "Bienvenue sur la démo e-commerce de react-admin",
+        title: "Bienvenue sur le tableau de bord Al-Harith Smart",
         subtitle:
-          "Ceci est le back-office d'un magasin de posters imaginaire. N'hésitez pas à explorer et à modifier les données. La démo s'exécute en local dans votre navigateur, et se remet à zéro chaque fois que vous rechargez la page.",
-        ra_button: "Site web de react-admin",
-        demo_button: "Code source de cette démo",
+          "Gérez votre boutique de vidéosurveillance, commandes, produits et utilisateurs en toute simplicité.",
+        ra_button: "Voir les commandes",
+        demo_button: "Gérer les produits",
       },
     },
     menu: {
@@ -320,7 +329,7 @@ const customFrenchMessages: TranslationMessages = {
       },
     },
     products: {
-      name: "Poster |||| Posters",
+      name: "Produit |||| Produits",
       fields: {
         category_id: "Catégorie",
         height_gte: "Hauteur mini",
@@ -357,9 +366,9 @@ const customFrenchMessages: TranslationMessages = {
         never_sold: "Jamais vendu",
       },
       notifications: {
-        created: "Poster créé |||| %{smart_count} posters créés",
-        updated: "Poster mis à jour |||| %{smart_count} posters mis à jour",
-        deleted: "Poster supprimé |||| %{smart_count} posters supprimés",
+        created: "Produit créé |||| %{smart_count} produits créés",
+        updated: "Produit mis à jour |||| %{smart_count} produits mis à jour",
+        deleted: "Produit supprimé |||| %{smart_count} produits supprimés",
       },
     },
     categories: {
@@ -374,6 +383,20 @@ const customFrenchMessages: TranslationMessages = {
           "Catégorie mise à jour |||| %{smart_count} catégories mises à jour",
         deleted:
           "Catégorie supprimée |||| %{smart_count} catégories supprimées",
+      },
+    },
+    subcategories: {
+      name: "Sous-catégorie |||| Sous-catégories",
+      fields: {
+        en_name: "Nom (EN)",
+        ar_name: "Nom (AR)",
+        fr_name: "Nom (FR)",
+        categoryId: "Catégorie",
+      },
+      notifications: {
+        created: "Sous-catégorie créée |||| %{smart_count} sous-catégories créées",
+        updated: "Sous-catégorie mise à jour |||| %{smart_count} sous-catégories mises à jour",
+        deleted: "Sous-catégorie supprimée |||| %{smart_count} sous-catégories supprimées",
       },
     },
     reviews: {

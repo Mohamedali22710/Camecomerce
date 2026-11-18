@@ -32,9 +32,12 @@ const handleRes = async (res: Response) => {
 const extractList = (data: any, resource: string) => {
   if (!data) return { records: [], total: 0 };
   if (Array.isArray(data)) return { records: data, total: data.length };
-  if (data.products) return { records: data.products, total: data.total ?? data.products.length };
-  if (data.orders) return { records: data.orders, total: data.total ?? data.orders.length };
-  if (data[resource]) return { records: data[resource], total: data.total ?? data[resource].length };
+  if (Array.isArray(data.products)) return { records: data.products, total: data.total ?? data.products.length };
+  if (Array.isArray(data.orders)) return { records: data.orders, total: data.total ?? data.orders.length };
+  if (Array.isArray(data.categories)) return { records: data.categories, total: data.total ?? data.categories.length };
+  if (Array.isArray(data.subcategories)) return { records: data.subcategories, total: data.total ?? data.subcategories.length };
+  if (Array.isArray(data.users)) return { records: data.users, total: data.total ?? data.users.length };
+  if (Array.isArray(data[resource])) return { records: data[resource], total: data.total ?? data[resource].length };
   return { records: [], total: 0 };
 };
 
@@ -46,7 +49,8 @@ const createProvider = (): DataProvider => ({
     const qs = new URLSearchParams();
     qs.set('page', String(page));
     qs.set('limit', String(perPage));
-    if (field && order) {
+    // Never send sort=id_asc/desc because the backend only accepts specific allowed fields
+    if (field && order && field !== 'id') {
       qs.set('sort', `${field}_${order.toLowerCase()}`);
     }
     if (params.filter) {
@@ -58,36 +62,46 @@ const createProvider = (): DataProvider => ({
     }
 
     const url = `${API_URL}/${getPath(resource)}?${qs}`;
-    const json = await handleRes(await fetchWithRefresh(url));
+    const json = await handleRes(await fetchWithRefresh(url, { headers: getAuthHeaders() }));
     const { records, total } = extractList(json.data, resource);
     return { data: records.map(toId), total };
   },
 
   getOne: async (resource, params) => {
     const url = `${API_URL}/${getPath(resource)}/${params.id}`;
-    const json = await handleRes(await fetchWithRefresh(url));
+    const json = await handleRes(await fetchWithRefresh(url, { headers: getAuthHeaders() }));
     return { data: toId(json.data) };
   },
 
   getMany: async (resource, params) => {
+    const rawIds = (params.ids || []).filter(Boolean);
+    const ids = Array.from(new Set(rawIds));
+    if (ids.length === 0) return { data: [] };
     const results = await Promise.all(
-      params.ids.map(id =>
-        fetchWithRefresh(`${API_URL}/${getPath(resource)}/${id}`).then(handleRes)
+      ids.map(id =>
+        fetchWithRefresh(`${API_URL}/${getPath(resource)}/${id}`, { headers: getAuthHeaders() })
+          .then(handleRes)
+          .then(r => toId(r.data))
+          .catch(() => null)
       )
     );
-    return { data: results.map(r => toId(r.data)) };
+    return { data: results.filter((r): r is any => Boolean(r)) };
   },
 
   getManyReference: async (resource, params) => {
     const { page = 1, perPage = 10 } = params.pagination || {};
+    const { field, order } = params.sort || {};
     const qs = new URLSearchParams();
     qs.set('page', String(page));
     qs.set('limit', String(perPage));
+    if (field && order && field !== 'id') {
+      qs.set('sort', `${field}_${order.toLowerCase()}`);
+    }
     if (params.target && params.id) {
       qs.set(params.target, String(params.id));
     }
     const url = `${API_URL}/${getPath(resource)}?${qs}`;
-    const json = await handleRes(await fetchWithRefresh(url));
+    const json = await handleRes(await fetchWithRefresh(url, { headers: getAuthHeaders() }));
     const { records, total } = extractList(json.data, resource);
     return { data: records.map(toId), total };
   },

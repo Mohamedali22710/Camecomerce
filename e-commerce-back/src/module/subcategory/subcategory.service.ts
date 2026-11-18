@@ -9,7 +9,7 @@ import { productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
 import { userModel } from "../../database/model/user.model.js";
 
-const SORTABLE_FIELDS = ["en_name", "ar_name", "fr_name", "isActive", "createdAt", "updatedAt"];
+const SORTABLE_FIELDS = ["en_name", "ar_name", "fr_name", "isActive", "createdAt", "updatedAt", "id", "_id"];
 
 const parseSort = (raw: unknown): Record<string, 1 | -1> => {
   if (typeof raw !== "string" || !raw) {
@@ -18,7 +18,10 @@ const parseSort = (raw: unknown): Record<string, 1 | -1> => {
 
   const parts = raw.split("_");
   const direction = parts[parts.length - 1];
-  const field = parts.length > 1 ? parts.slice(0, -1).join("_") : "createdAt";
+  let field = parts.length > 1 ? parts.slice(0, -1).join("_") : "createdAt";
+  if (field === "id") {
+    field = "_id";
+  }
 
   if (!SORTABLE_FIELDS.includes(field) || (direction !== "asc" && direction !== "desc")) {
     throw new HttpError(400, `sort must be one of ${SORTABLE_FIELDS.join(", ")}_asc|desc`);

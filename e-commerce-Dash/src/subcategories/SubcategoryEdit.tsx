@@ -13,6 +13,7 @@ import {
     TextInput,
     required,
     useTranslate,
+    useLocale,
 } from 'react-admin';
 import {
     Box,
@@ -22,30 +23,58 @@ import {
     Checkbox,
     FormGroup,
     FormLabel,
+    Card,
+    CardContent,
+    Typography,
+    Divider,
 } from '@mui/material';
 
 const CategoryCheckboxGroup = ({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) => {
     const translate = useTranslate();
-    const { data, isPending } = useGetList('categories', { pagination: { page: 1, perPage: 100 } });
+    const locale = useLocale();
+    const { data, isPending } = useGetList('categories', {
+        pagination: { page: 1, perPage: 100 },
+        sort: { field: 'createdAt', order: 'DESC' },
+    });
     if (isPending) return <CircularProgress size={20} />;
+
+    const categories = data || [];
+
+    if (categories.length === 0) {
+        return (
+            <Box sx={{ mb: 2, p: 2, borderRadius: '8px', bgcolor: 'warning.light', color: 'warning.dark' }}>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {locale === 'ar'
+                        ? 'لا توجد أقسام رئيسية متاحة حتى الآن.'
+                        : 'No categories available yet.'}
+                </Typography>
+            </Box>
+        );
+    }
+
     return (
         <Box sx={{ mb: 2 }}>
-            <FormLabel sx={{ display: 'block', mb: 1, fontWeight: 500 }}>{translate("pos.subcategories.form.categories")}</FormLabel>
-            <FormGroup row>
-                {(data || []).map((cat: any) => (
-                    <FormControlLabel
-                        key={cat.id}
-                        control={
-                            <Checkbox
-                                checked={value.includes(cat.id)}
-                                onChange={(_, checked) =>
-                                    onChange(checked ? [...value, cat.id] : value.filter((id) => id !== cat.id))
-                                }
-                            />
-                        }
-                        label={cat.en_name}
-                    />
-                ))}
+            <FormLabel sx={{ display: 'block', mb: 1, fontWeight: 600, color: 'text.primary' }}>
+                {translate("pos.subcategories.form.categories")}
+            </FormLabel>
+            <FormGroup row sx={{ gap: 1 }}>
+                {categories.map((cat: any) => {
+                    const label = locale === 'ar' ? (cat.ar_name || cat.en_name) : (cat.en_name || cat.ar_name);
+                    return (
+                        <FormControlLabel
+                            key={cat.id}
+                            control={
+                                <Checkbox
+                                    checked={value.includes(cat.id)}
+                                    onChange={(_, checked) =>
+                                        onChange(checked ? [...value, cat.id] : value.filter((id) => id !== cat.id))
+                                    }
+                                />
+                            }
+                            label={label}
+                        />
+                    );
+                })}
             </FormGroup>
         </Box>
     );
@@ -125,29 +154,59 @@ const SubcategoryEditForm = () => {
     };
 
     return (
+        <Card sx={{ width: '100%', borderRadius: '14px', border: '1px solid', borderColor: 'divider' }}>
+            <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                    تعديل القسم الفرعي
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    تحديث بيانات ومسميات القسم وتحديد ارتباطه بالأقسام الرئيسية
+                </Typography>
+                <Divider sx={{ mb: 2.5 }} />
+
+                <TextInput source="en_name" label={translate("pos.common.name_en")} validate={required()} fullWidth onChange={(e: any) => setEnName(e.target.value)} />
+                <TextInput source="ar_name" label={translate("pos.common.name_ar")} fullWidth onChange={(e: any) => setArName(e.target.value)} />
+                <TextInput source="fr_name" label={translate("pos.common.name_fr")} fullWidth onChange={(e: any) => setFrName(e.target.value)} />
+
+                <Box sx={{ mt: 2 }}>
+                    <CategoryCheckboxGroup value={categoryIds} onChange={setCategoryIds} />
+                </Box>
+
+                <Box sx={{ mt: 1 }}>
+                    <FormControlLabel
+                        control={<Checkbox checked={isActive} onChange={(_, c) => setIsActive(c)} />}
+                        label={translate("pos.subcategories.form.active")}
+                    />
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 2, mt: 3 }}>
+                    <Button variant="contained" onClick={handleSave} disabled={saving} sx={{ borderRadius: '8px', px: 3 }}>
+                        {saving ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
+                        {translate("pos.common.save")}
+                    </Button>
+                    <Button variant="outlined" onClick={() => redirect('/subcategories')} sx={{ borderRadius: '8px' }}>
+                        {translate("pos.common.cancel")}
+                    </Button>
+                </Box>
+            </CardContent>
+        </Card>
+    );
+};
+
+const SubcategoryEditTitle = () => {
+    const translate = useTranslate();
+    const title = translate("pos.subcategories.edit_title", { _: "تعديل الفئة الفرعية" });
+    return (
         <>
-            <TextInput source="en_name" validate={required()} fullWidth onChange={(e: any) => setEnName(e.target.value)} />
-            <TextInput source="ar_name" fullWidth onChange={(e: any) => setArName(e.target.value)} />
-            <TextInput source="fr_name" fullWidth onChange={(e: any) => setFrName(e.target.value)} />
-            <CategoryCheckboxGroup value={categoryIds} onChange={setCategoryIds} />
-            <FormControlLabel
-                control={<Checkbox checked={isActive} onChange={(_, c) => setIsActive(c)} />}
-                label={translate("pos.subcategories.form.active")}
-            />
-            <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                <Button variant="contained" onClick={handleSave} disabled={saving}>
-                    {saving ? <CircularProgress size={20} sx={{ mr: 1 }} /> : null}
-                    {translate("pos.common.save")}
-                </Button>
-                <Button variant="outlined" onClick={() => redirect('/subcategories')}>{translate("pos.common.cancel")}</Button>
-            </Box>
+            <title>{`الحارث الذكي - ${title}`}</title>
+            <span>{title}</span>
         </>
     );
 };
 
 const SubcategoryEdit = () => (
-    <Edit>
-        <SimpleForm toolbar={false}>
+    <Edit title={<SubcategoryEditTitle />}>
+        <SimpleForm toolbar={false} sx={{ maxWidth: '48em' }}>
             <SubcategoryEditForm />
         </SimpleForm>
     </Edit>

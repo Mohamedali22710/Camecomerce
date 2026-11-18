@@ -154,6 +154,20 @@ const resourcesMessages = {
       deleted: "تم حذف الفئة |||| تم حذف %{smart_count} فئة",
     },
   },
+  subcategories: {
+    name: "فئة فرعية |||| فئات فرعية",
+    fields: {
+      en_name: "الاسم (EN)",
+      ar_name: "الاسم (AR)",
+      fr_name: "الاسم (FR)",
+      categoryId: "الفئة الرئيسية",
+    },
+    notifications: {
+      created: "تم إنشاء الفئة الفرعية |||| تم إنشاء %{smart_count} فئة فرعية",
+      updated: "تم تحديث الفئة الفرعية |||| تم تحديث %{smart_count} فئة فرعية",
+      deleted: "تم حذف الفئة الفرعية |||| تم حذف %{smart_count} فئة فرعية",
+    },
+  },
   reviews: {
     name: "تقييم |||| تقييمات",
     amount: "1 تقييم |||| %{smart_count} تقييم",

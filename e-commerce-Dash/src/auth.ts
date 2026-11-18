@@ -90,7 +90,9 @@ let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 export const fetchWithRefresh = async (url: string, options?: RequestInit): Promise<Response> => {
-  let res = await fetch(url, options);
+  const authHeaders = getAuthHeaders();
+  const initialHeaders = { ...authHeaders, ...options?.headers };
+  let res = await fetch(url, { ...options, headers: initialHeaders });
   if (res.status !== 401) return res;
 
   if (!isRefreshing) {

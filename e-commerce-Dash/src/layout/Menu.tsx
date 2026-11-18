@@ -34,14 +34,17 @@ const Menu = ({ dense = false }: MenuProps) => {
     return (
         <Box
             sx={{
-                width: open ? 200 : 50,
-                marginTop: 1,
-                marginBottom: 1,
+                width: open ? 220 : 56,
+                marginTop: 1.5,
+                marginBottom: 1.5,
                 transition: theme =>
                     theme.transitions.create('width', {
                         easing: theme.transitions.easing.sharp,
                         duration: theme.transitions.duration.leavingScreen,
                     }),
+                '& .RaMenuItemLink-root': {
+                    fontFamily: 'inherit',
+                },
             }}
         >
             <DashboardMenuItem />

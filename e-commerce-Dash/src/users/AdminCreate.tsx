@@ -10,9 +10,12 @@ import {
   CircularProgress,
   InputAdornment,
   IconButton,
+  Typography,
+  Divider,
 } from "@mui/material";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
 import { fetchWithRefresh, getAuthHeaders } from "../auth";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3007/v1";
@@ -60,19 +63,99 @@ const AdminCreate = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 500, mx: "auto", mt: 4 }}>
+    <Box sx={{ maxWidth: 540, mx: "auto", mt: 4, mb: 4 }}>
       <title>{`${appTitle} - Create Admin`}</title>
       <Title title="Create Admin" />
-      <Card>
-        <CardContent>
-          <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField label={translate("pos.users.form.email")} type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth required size="small" />
-            <TextField label={translate("pos.users.form.password")} type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} fullWidth required size="small" inputProps={{ minLength: 6 }} slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">{showPassword ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} />
-            <TextField label={translate("pos.users.form.confirm_password")} type={showConfirm ? "text" : "password"} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} fullWidth required size="small" slotProps={{ input: { endAdornment: <InputAdornment position="end"><IconButton onClick={() => setShowConfirm(!showConfirm)} edge="end" size="small">{showConfirm ? <VisibilityOff /> : <Visibility />}</IconButton></InputAdornment> } }} />
-            <TextField label={translate("pos.users.form.phone")} value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth size="small" />
+      <Card sx={{ borderRadius: "16px", border: "1px solid", borderColor: "divider", boxShadow: "0 2px 6px rgba(16, 29, 53, 0.05)" }}>
+        <CardContent sx={{ p: 3.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 2 }}>
+            <PersonAddOutlinedIcon sx={{ color: "primary.main", fontSize: 26 }} />
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
+                إنشاء حساب مشرف جديد
+              </Typography>
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                منح صلاحيات إدارة المنتجات والطلبات والتصنيفات
+              </Typography>
+            </Box>
+          </Box>
+          <Divider sx={{ mb: 3 }} />
+
+          <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            <TextField
+              label={translate("pos.users.form.email")}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              fullWidth
+              required
+              size="small"
+            />
+            <TextField
+              label={translate("pos.users.form.password")}
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              fullWidth
+              required
+              size="small"
+              inputProps={{ minLength: 6 }}
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <TextField
+              label={translate("pos.users.form.confirm_password")}
+              type={showConfirm ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              fullWidth
+              required
+              size="small"
+              slotProps={{
+                input: {
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowConfirm(!showConfirm)} edge="end" size="small">
+                        {showConfirm ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <TextField
+              label={translate("pos.users.form.phone")}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              fullWidth
+              size="small"
+              sx={{ direction: "ltr" }}
+            />
             <Box sx={{ display: "flex", gap: 2, mt: 1 }}>
-              <Button type="submit" variant="contained" disabled={saving}>
-                {saving ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={saving}
+                sx={{
+                  backgroundColor: "#2563EB",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  px: 3,
+                  py: 1,
+                  boxShadow: "0 2px 6px rgba(37, 99, 235, 0.3)",
+                  "&:hover": { backgroundColor: "#1D4ED8" },
+                }}
+              >
+                {saving ? <CircularProgress size={18} sx={{ mr: 1, color: "white" }} /> : null}
                 Create Admin
               </Button>
             </Box>

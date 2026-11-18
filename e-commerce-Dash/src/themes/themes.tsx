@@ -13,10 +13,12 @@ import {
 } from 'react-admin';
 
 import { softDarkTheme, softLightTheme } from './softTheme';
+import { brandDarkTheme, brandLightTheme } from './brandTheme';
 import { chiptuneTheme } from './chiptuneTheme';
 import { cssVariablesTheme } from './cssVariablesTheme';
 
 export type ThemeName =
+    | 'brand'
     | 'soft'
     | 'B&W'
     | 'default'
@@ -47,6 +49,7 @@ const BW_SIDEBAR_OVERRIDE = {
 };
 
 export const themes: Theme[] = [
+    { name: 'brand', light: brandLightTheme, dark: brandDarkTheme },
     { name: 'soft', light: softLightTheme, dark: softDarkTheme },
     {
         name: 'cssVariables',

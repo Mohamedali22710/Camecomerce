@@ -12,12 +12,24 @@ import {
     Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import { useFormContext } from 'react-hook-form';
 import { useTranslate } from 'react-admin';
 
 const ALLOWED_COLORS = ['Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Pink', 'Navy', 'White', 'Purple', 'Black'];
+const COLOR_HEX_MAP: Record<string, string> = {
+    Blue: '#1B2BFF',
+    Green: '#16A34A',
+    Yellow: '#F59E0B',
+    Orange: '#EA580C',
+    Red: '#DC2626',
+    Pink: '#EC4899',
+    Navy: '#101D35',
+    White: '#FFFFFF',
+    Purple: '#9333EA',
+    Black: '#0F172A',
+};
 const SIZES = ['xs', 's', 'm', 'l', 'xl', 'xxl'];
 
 interface VariantEntry {
@@ -142,30 +154,34 @@ const VariantsEditor = () => {
     }, []);
 
     return (
-        <Box>
-            <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>{translate("pos.products.variants.heading")}</Typography>
+        <Box sx={{ my: 2 }}>
+            <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 700, color: 'text.primary' }}>
+                {translate("pos.products.variants.heading")}
+            </Typography>
             {entries.map((entry, idx) => (
                 <Box
                     key={idx}
                     sx={{
                         border: '1px solid',
                         borderColor: 'divider',
-                        borderRadius: 1,
-                        p: 2,
-                        mb: 1.5,
+                        borderRadius: '12px',
+                        p: 2.5,
+                        mb: 2,
                         position: 'relative',
+                        backgroundColor: 'background.paper',
+                        boxShadow: '0 1px 3px rgba(16, 29, 53, 0.04)',
                     }}
                 >
                     <Button
                         size="small"
                         color="error"
                         onClick={() => removeEntry(idx)}
-                        sx={{ position: 'absolute', top: 4, right: 4, minWidth: 0 }}
+                        sx={{ position: 'absolute', top: 8, right: 8, minWidth: 0, p: 0.75, borderRadius: '8px' }}
                     >
-                        <DeleteIcon fontSize="small" />
+                        <DeleteOutlineIcon fontSize="small" />
                     </Button>
 
-                    <FormControl size="small" sx={{ minWidth: 140, mb: 1.5 }}>
+                    <FormControl size="small" sx={{ minWidth: 160, mb: 2 }}>
                         <InputLabel>{translate("pos.products.variants.color")}</InputLabel>
                         <Select
                             value={entry.color}
@@ -173,16 +189,29 @@ const VariantsEditor = () => {
                             onChange={(e) => updateEntry(idx, { color: e.target.value })}
                         >
                             {ALLOWED_COLORS.map((c) => (
-                                <MenuItem key={c} value={c}>{c}</MenuItem>
+                                <MenuItem key={c} value={c}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        <Box
+                                            sx={{
+                                                width: 14,
+                                                height: 14,
+                                                borderRadius: '50%',
+                                                backgroundColor: COLOR_HEX_MAP[c] || '#ccc',
+                                                border: '1px solid rgba(0,0,0,0.15)',
+                                            }}
+                                        />
+                                        <span>{c}</span>
+                                    </Box>
+                                </MenuItem>
                             ))}
                         </Select>
                     </FormControl>
 
-                    <Box sx={{ mb: 1.5 }}>
-                        <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.secondary' }}>
+                    <Box sx={{ mb: 2 }}>
+                        <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 600 }}>
                             {translate("pos.products.variants.sizes")}
                         </Typography>
-                        <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                             {SIZES.map((size) => {
                                 const checked = entry.sizes[size] !== undefined;
                                 return (
@@ -193,7 +222,7 @@ const VariantsEditor = () => {
                                         variant={checked ? 'filled' : 'outlined'}
                                         color={checked ? 'primary' : 'default'}
                                         onClick={() => toggleSize(idx, size)}
-                                        sx={{ cursor: 'pointer' }}
+                                        sx={{ cursor: 'pointer', fontWeight: 600, borderRadius: '6px' }}
                                     />
                                 );
                             })}
@@ -201,7 +230,7 @@ const VariantsEditor = () => {
                     </Box>
 
                     {Object.keys(entry.sizes).length > 0 && (
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 1.5 }}>
+                        <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', mb: 2 }}>
                             {Object.keys(entry.sizes).map((size) => (
                                 <TextField
                                     key={size}
@@ -211,22 +240,22 @@ const VariantsEditor = () => {
                                     value={entry.sizes[size]}
                                     onChange={(e) => setStock(idx, size, e.target.value)}
                                     slotProps={{ htmlInput: { min: 0 } }}
-                                    sx={{ width: 130 }}
+                                    sx={{ width: 140 }}
                                 />
                             ))}
                         </Box>
                     )}
 
-                    <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.secondary' }}>
+                    <Typography variant="caption" sx={{ display: 'block', mb: 0.75, color: 'text.secondary', fontWeight: 600 }}>
                         {translate("pos.products.variants.color_image")}
                     </Typography>
-                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
                         {entry.imageUrl && (
                             <Avatar
                                 src={entry.imageUrl}
                                 alt={entry.color}
                                 variant="rounded"
-                                sx={{ width: 48, height: 48 }}
+                                sx={{ width: 48, height: 48, border: '1px solid #E5E7EB' }}
                             />
                         )}
                         <Button
@@ -234,6 +263,7 @@ const VariantsEditor = () => {
                             size="small"
                             component="label"
                             startIcon={entry.imageUrl ? <EditIcon /> : <AddIcon />}
+                            sx={{ borderRadius: '8px' }}
                         >
                             {entry.imageUrl ? translate("pos.common.change") : translate("pos.common.upload")}
                             <input
@@ -254,6 +284,7 @@ const VariantsEditor = () => {
                                 size="small"
                                 color="error"
                                 onClick={() => updateEntry(idx, { imageUrl: '' })}
+                                sx={{ borderRadius: '8px' }}
                             >
                                 {translate("pos.common.remove")}
                             </Button>
@@ -262,7 +293,19 @@ const VariantsEditor = () => {
                 </Box>
             ))}
 
-            <Button startIcon={<AddIcon />} onClick={addEntry} size="small" sx={{ borderStyle: 'dashed' }} variant="outlined">
+            <Button
+                startIcon={<AddIcon />}
+                onClick={addEntry}
+                size="small"
+                variant="outlined"
+                sx={{
+                    borderStyle: 'dashed',
+                    borderRadius: '8px',
+                    fontWeight: 600,
+                    px: 2,
+                    py: 1,
+                }}
+            >
                 {translate("pos.products.variants.add_color_variant")}
             </Button>
         </Box>

@@ -11,10 +11,11 @@ import {
   TextField,
   Button,
   CircularProgress,
+  Divider,
 } from "@mui/material";
 import CameraAltIcon from "@mui/icons-material/CameraAlt";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 import { getAuthHeaders, fetchWithRefresh } from "../auth";
-import { useAuthContext } from "../context/AuthContext";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3007/v1";
 
@@ -81,33 +82,69 @@ const UserProfile = () => {
 
   const displayUrl = preview || user?.imageURL;
 
+  const roleStyles: Record<string, { bg: string; color: string }> = {
+    superAdmin: { bg: 'rgba(16, 29, 53, 0.15)', color: '#101D35' },
+    admin: { bg: 'rgba(37, 99, 235, 0.12)', color: '#2563EB' },
+    user: { bg: 'rgba(100, 116, 139, 0.12)', color: '#475569' },
+  };
+  const roleCfg = roleStyles[user?.role] || roleStyles.user;
+
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto", mt: 4 }}>
+    <Box sx={{ maxWidth: 640, mx: "auto", mt: 3, mb: 4 }}>
       <title>{`${appTitle} - Profile`}</title>
       <Title title={translate("pos.users.title.profile")} />
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 1 }}>
-        {permissions === "superAdmin" && <CreateButton label="Create Admin" />}
-      </Box>
-      <Card>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+      
+      {permissions === "superAdmin" && (
+        <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+          <CreateButton
+            label="Create Admin"
+            variant="contained"
+            sx={{
+              backgroundColor: '#2563EB',
+              borderRadius: '8px',
+              fontWeight: 600,
+              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+              '&:hover': {
+                backgroundColor: '#1D4ED8',
+              },
+            }}
+          />
+        </Box>
+      )}
+
+      <Card sx={{ borderRadius: "16px", border: "1px solid", borderColor: "divider", boxShadow: "0 2px 6px rgba(16, 29, 53, 0.05)" }}>
+        <CardContent sx={{ p: 3.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2.5, mb: 3 }}>
             <Box sx={{ position: "relative" }}>
-              <Avatar src={displayUrl} sx={{ width: 80, height: 80, mr: 2 }}>
+              <Avatar
+                src={displayUrl}
+                sx={{
+                  width: 84,
+                  height: 84,
+                  fontSize: '2rem',
+                  fontWeight: 700,
+                  backgroundColor: '#2563EB',
+                  color: '#FFFFFF',
+                  boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
+                }}
+              >
                 {user?.name?.[0]?.toUpperCase()}
               </Avatar>
               <Button
                 component="label"
                 sx={{
                   position: "absolute",
-                  bottom: 4,
-                  right: 4,
+                  bottom: -2,
+                  right: -2,
                   minWidth: 0,
-                  width: 28,
-                  height: 28,
+                  width: 32,
+                  height: 32,
                   borderRadius: "50%",
-                  bgcolor: "primary.main",
+                  bgcolor: "#2563EB",
                   color: "white",
-                  "&:hover": { bgcolor: "primary.dark" },
+                  border: '2px solid white',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                  "&:hover": { bgcolor: "#1D4ED8" },
                 }}
                 size="small"
               >
@@ -115,32 +152,123 @@ const UserProfile = () => {
                 <input type="file" accept="image/*" hidden onChange={handleImageChange} />
               </Button>
             </Box>
-            <Box>
-              <Typography variant="h5">{user?.name}</Typography>
-              <Typography color="text.secondary">{user?.email}</Typography>
-              <Chip
-                label={user?.role}
-                color={user?.role === "superAdmin" ? "error" : "primary"}
-                size="small"
-                sx={{ mt: 0.5 }}
-              />
+
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                {user?.name}
+              </Typography>
+              <Typography color="text.secondary" sx={{ fontSize: '0.9rem', mb: 1 }}>
+                {user?.email}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip
+                  label={user?.role}
+                  size="small"
+                  sx={{
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    borderRadius: '6px',
+                    backgroundColor: roleCfg.bg,
+                    color: roleCfg.color,
+                  }}
+                />
+                <Chip
+                  label={user?.isActive ? "مفعّل" : "غير مفعّل"}
+                  size="small"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    borderRadius: '6px',
+                    backgroundColor: user?.isActive ? 'rgba(22, 163, 74, 0.12)' : 'rgba(220, 38, 38, 0.12)',
+                    color: user?.isActive ? '#16A34A' : '#DC2626',
+                  }}
+                />
+              </Box>
             </Box>
           </Box>
-          <Box sx={{ borderTop: "1px solid #eee", pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField label={translate("pos.common.phone")} value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth size="small" />
-            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 1.5, color: "text.secondary", fontSize: "0.9rem" }}>
-              <Typography><strong>{translate("pos.users.info.email")}:</strong> {user?.email}</Typography>
-              <Typography><strong>{translate("pos.users.info.role")}:</strong> {user?.role}</Typography>
-              <Typography><strong>{translate("pos.users.info.active")}:</strong> {user?.isActive ? "Yes" : "No"}</Typography>
-              <Typography><strong>{translate("pos.users.info.joined")}:</strong> {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</Typography>
+
+          <Divider sx={{ mb: 3 }} />
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+            <TextField
+              label={translate("pos.common.phone")}
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              fullWidth
+              size="small"
+              sx={{ direction: 'ltr' }}
+            />
+
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 2,
+                p: 2,
+                borderRadius: "10px",
+                backgroundColor: "rgba(16, 29, 53, 0.02)",
+                border: "1px solid #E5E7EB",
+              }}
+            >
+              <Box>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  {translate("pos.users.info.email")}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', mt: 0.25 }}>
+                  {user?.email}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  {translate("pos.users.info.role")}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', mt: 0.25 }}>
+                  {user?.role}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  {translate("pos.users.info.active")}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: user?.isActive ? '#16A34A' : '#DC2626', mt: 0.25 }}>
+                  {user?.isActive ? "Yes / نعم" : "No / لا"}
+                </Typography>
+              </Box>
+
+              <Box>
+                <Typography variant="caption" sx={{ color: "text.secondary", fontWeight: 600 }}>
+                  {translate("pos.users.info.joined")}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary', mt: 0.25 }}>
+                  {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}
+                </Typography>
+              </Box>
             </Box>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button variant="contained" onClick={handleSave} disabled={saving}>
-                {saving ? <CircularProgress size={18} sx={{ mr: 1 }} /> : null}
+
+            <Box sx={{ display: "flex", gap: 1.5, mt: 1 }}>
+              <Button
+                variant="contained"
+                onClick={handleSave}
+                disabled={saving}
+                sx={{
+                  backgroundColor: '#2563EB',
+                  borderRadius: '8px',
+                  fontWeight: 600,
+                  px: 3,
+                  '&:hover': { backgroundColor: '#1D4ED8' },
+                }}
+              >
+                {saving ? <CircularProgress size={18} sx={{ mr: 1, color: 'white' }} /> : null}
                 {translate("pos.common.save")}
               </Button>
               {(imageFile || phone !== (user?.phone || "")) && (
-                <Button variant="outlined" onClick={() => { setPhone(user?.phone || ""); setImageFile(null); setPreview(null); }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => { setPhone(user?.phone || ""); setImageFile(null); setPreview(null); }}
+                  sx={{ borderRadius: '8px' }}
+                >
                   {translate("pos.common.cancel")}
                 </Button>
               )}

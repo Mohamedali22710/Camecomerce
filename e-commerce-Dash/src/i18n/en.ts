@@ -43,6 +43,12 @@ const customEnglishMessages: TranslationMessages = {
     },
     subcategories: {
       search: "Search subcategories...",
+      create_title: "Create Subcategory",
+      edit_title: "Edit Subcategory",
+      delete_title: "Delete Subcategories",
+      restore_title: "Restore Subcategories",
+      delete_confirm: "Are you sure you want to delete (%{count}) subcategory items?",
+      restore_confirm: "Are you sure you want to restore (%{count}) subcategory items?",
       columns: {
         name_en: "Name (EN)",
         name_ar_fr: "Name (AR) / Name (FR)",
@@ -71,7 +77,10 @@ const customEnglishMessages: TranslationMessages = {
       },
     },
     categories: {
+      create_title: "Create Category",
+      edit_title: "Edit Category",
       columns: {
+        image: "Image",
         name_en: "Name (EN)",
         name_ar: "Name (AR)",
         name_fr: "Name (FR)",
@@ -174,11 +183,11 @@ const customEnglishMessages: TranslationMessages = {
           "by %{customer_name}, one item |||| by %{customer_name}, %{nb_items} items",
       },
       welcome: {
-        title: "Welcome to the react-admin e-commerce demo",
+        title: "Welcome to Al-Harith Smart CCTV Dashboard",
         subtitle:
-          "This is the admin of an imaginary poster shop. Feel free to explore and modify the data - it's local to your computer, and will reset each time you reload.",
-        ra_button: "react-admin site",
-        demo_button: "Source for this demo",
+          "Manage your security camera solutions, orders, products, and customers seamlessly.",
+        ra_button: "View Orders",
+        demo_button: "Manage Products",
       },
     },
     menu: {
@@ -305,7 +314,7 @@ const customEnglishMessages: TranslationMessages = {
       },
     },
     products: {
-      name: "Poster |||| Posters",
+      name: "Product |||| Products",
       fields: {
         category_id: "Category",
         height_gte: "Min height",
@@ -342,9 +351,9 @@ const customEnglishMessages: TranslationMessages = {
         never_sold: "Never sold",
       },
       notifications: {
-        created: "Poster created |||| %{smart_count} posters created",
-        updated: "Poster updated |||| %{smart_count} posters updated",
-        deleted: "Poster deleted |||| %{smart_count} posters deleted",
+        created: "Product created |||| %{smart_count} products created",
+        updated: "Product updated |||| %{smart_count} products updated",
+        deleted: "Product deleted |||| %{smart_count} products deleted",
       },
     },
     categories: {
@@ -356,6 +365,20 @@ const customEnglishMessages: TranslationMessages = {
         created: "Category created |||| %{smart_count} categories created",
         updated: "Category updated |||| %{smart_count} categories updated",
         deleted: "Category deleted |||| %{smart_count} categories deleted",
+      },
+    },
+    subcategories: {
+      name: "Subcategory |||| Subcategories",
+      fields: {
+        en_name: "Name (EN)",
+        ar_name: "Name (AR)",
+        fr_name: "Name (FR)",
+        categoryId: "Category",
+      },
+      notifications: {
+        created: "Subcategory created |||| %{smart_count} subcategories created",
+        updated: "Subcategory updated |||| %{smart_count} subcategories updated",
+        deleted: "Subcategory deleted |||| %{smart_count} subcategories deleted",
       },
     },
     reviews: {
