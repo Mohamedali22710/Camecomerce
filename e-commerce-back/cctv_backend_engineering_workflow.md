@@ -1,5 +1,12 @@
 # CCTV E-Commerce — Backend Engineering Workflow (7-Day Delivery)
 
+> **Historical planning document.** The baseline audit in this file says there is
+> "no Paymob code at all — only Stripe." That was true when written, not now.
+> Paymob is implemented and Stripe was removed on 2026-11-19. Use
+> [`docs/implementation/7_DAY_MVP_PLAN.md`](docs/implementation/7_DAY_MVP_PLAN.md)
+> and [`docs/DAY5_DAY6_DELIVERY_REPORT.md`](docs/DAY5_DAY6_DELIVERY_REPORT.md) for
+> current status.
+
 **Role:** Backend engineer and software architect
 **Repository:** `D:\freelance\e-commerce-back`
 **Stack:** Node.js 24+, TypeScript (ESM), Express 5, MongoDB/Mongoose 9, Zod, Jest, Cypress

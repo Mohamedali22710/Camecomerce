@@ -1,5 +1,10 @@
 # CCTV E-Commerce Backend — Day 1 & Day 2 Implementation Report
 
+> **Historical document.** This report reflects 2026-11-16. The statement that the
+> "existing Stripe flow is untouched" is superseded: Stripe was removed on
+> 2026-11-19. Current behavior is Paymob-only with a mock adapter. See
+> [`../DAY5_DAY6_DELIVERY_REPORT.md`](../DAY5_DAY6_DELIVERY_REPORT.md).
+
 **Date:** 2026-11-16
 **Scope executed:** MVP-01, MVP-02, MVP-03 (blocked), MVP-04, MVP-05, MVP-06, MVP-07, MVP-08
 **Commits:** none (working tree only)

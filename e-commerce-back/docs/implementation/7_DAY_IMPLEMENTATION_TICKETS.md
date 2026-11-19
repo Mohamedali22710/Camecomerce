@@ -2,19 +2,25 @@
 
 Companion to `7_DAY_MVP_PLAN.md`.
 
-**Execution status (2026-11-17):** Day 1 tickets MVP-01, MVP-02, and MVP-04 are
-complete. MVP-03 is **BLOCKED** (no Paymob KSA account-manager contact or
-merchant credentials were supplied). Day 2 tickets MVP-05, MVP-06, MVP-07, and
-MVP-08 are implemented except the bundle inventory/availability subset, which is
-**BLOCKED** on business decision DEC-01. Day 3 tickets MVP-09, MVP-10, and MVP-11
-are implemented except the bundle-inventory subset (DEC-01). Day 4: MVP-12 is
-implemented for configuration and minor-unit money; its authenticated Paymob HTTP
-client is **BLOCKED** on confirmed endpoints. MVP-13 and MVP-15 are **BLOCKED** on
-Paymob credentials/endpoints. MVP-14 is implemented for stored status; the
-authoritative inquiry subset is deferred to MVP-18.
+**Execution status (2026-11-19):** Day 1–6 code is implemented. Day 5 tickets
+MVP-16…MVP-19 and Day 6 tickets MVP-20…MVP-22 are complete at the unit/mocked
+level. MVP-23 is **PARTIALLY DONE**: the required unit suites exist, but the
+Cypress end-to-end flow and database-backed replay/stock tests were not added.
 
-Detailed Day 3/4 evidence, security findings, and verification limitations:
-[`DAY_3_4_IMPLEMENTATION_AND_SECURITY_REPORT.md`](./DAY_3_4_IMPLEMENTATION_AND_SECURITY_REPORT.md).
+External verification remains blocked:
+
+- MVP-03, MVP-15, and the real Paymob sandbox run in MVP-25 are **BLOCKED** on a
+  merchant account, credentials, and a public HTTPS webhook URL.
+- KSA behavior is **NOT TESTED**; no KSA credentials were supplied.
+- Apple Pay, Tabby, and Tamara are **BLOCKED** on merchant activation.
+
+DEC-01 was resolved by the business on 2026-11-18: a bundle has no independent
+stock counter; checkout reserves its component variants. Stripe was removed on
+Day 5, so ticket clauses that retained `PAYMENT_PROVIDER=stripe` as a rollback are
+superseded by the Day 5 brief.
+
+Day 5/6 evidence and exact command results:
+[`../DAY5_DAY6_DELIVERY_REPORT.md`](../DAY5_DAY6_DELIVERY_REPORT.md).
 
 | Ticket | Day | Status | Notes |
 | --- | --- | --- | --- |
@@ -22,17 +28,25 @@ Detailed Day 3/4 evidence, security findings, and verification limitations:
 | MVP-02 | 1 | DONE | Mock adapter + registry; mock refused in production |
 | MVP-03 | 1 | BLOCKED | Request pack prepared; no recipient/credentials |
 | MVP-04 | 1 | DONE | `brand` + bounded `specifications` |
-| MVP-05 | 2 | DONE except inventory | Model has no `stock`; DEC-01 open |
-| MVP-06 | 2 | DONE except stock admin | CRUD; stock input rejected |
-| MVP-07 | 2 | DONE except availability | Public reads omit availability |
+| MVP-05 | 2 | DONE | No bundle stock counter; DEC-01 resolved to component inventory |
+| MVP-06 | 2 | DONE | CRUD; `stock` is not a bundle field |
+| MVP-07 | 2 | DONE | Public reads omit derived availability; cart computes it |
 | MVP-08 | 2 | DONE | Pure server-side pricing + tests |
-| MVP-09 | 3 | DONE except inventory | Bundle cart/order lines, server pricing, snapshots; no bundle stock (DEC-01) |
+| MVP-09 | 3 | DONE | Bundle cart/order lines, server pricing, component snapshots, component stock reservation/release |
 | MVP-10 | 3 | DONE | `useCart` checkout, revalidation, success-only cart clear, idempotent replay |
 | MVP-11 | 3 | DONE | `orderNumber`, `statusHistory`, guarded transitions, audited manual paid, one-time stock release |
-| MVP-12 | 4 | PARTIAL / BLOCKED | Config guard + minor-unit money done; cached auth client blocked on confirmed endpoints |
-| MVP-13 | 4 | BLOCKED | No confirmed Paymob session endpoint/version or credentials |
-| MVP-14 | 4 | PARTIAL | Stored status endpoint + ownership done; authoritative inquiry deferred to MVP-18 |
-| MVP-15 | 4 | BLOCKED | No sandbox credentials; recorded NOT TESTED in the blockers log |
+| MVP-12 | 4 | DONE | Paymob config guard, region checks, minor-unit money, cached inquiry auth token |
+| MVP-13 | 4 | DONE (sandbox NOT TESTED) | Intention API + Unified Checkout implemented; no real Paymob request was run |
+| MVP-14 | 4 | DONE | Stored status, ownership, `nextAction`; inquiry path implemented in MVP-18 |
+| MVP-15 | 4 | BLOCKED | No sandbox credentials or public webhook; recorded NOT TESTED |
+| MVP-16 | 5 | DONE (unit only) | Raw webhook before JSON, 20-field HMAC-SHA512, known vector, tamper tests |
+| MVP-17 | 5 | DONE (unit only) | Ledger + unique replay guard + settlement decisions; no DB integration harness |
+| MVP-18 | 5 | DONE (mocked) | Inquiry, admin sync, debounce, shared settlement; no real Paymob inquiry |
+| MVP-19 | 5 | DONE (unit only) | Lazy expiry, sweep, one-time release, late-payment reconciliation; no DB integration harness |
+| MVP-20 | 6 | DONE | Explicit method list + integration ID gating; no secrets returned |
+| MVP-21 | 6 | DONE | Status filters, restricted sort, validated enums |
+| MVP-22 | 6 | DONE | Tracking by id/number, owner checks, chronological field-excluding timeline |
+| MVP-23 | 6 | PARTIALLY DONE | Unit suites added; Cypress E2E and DB-backed replay/stock tests missing |
 
 ## How to read a ticket
 
@@ -66,10 +80,11 @@ post-launch and are **not** part of the 7-day commitment.
 | Delivery day | Day 1 |
 | Module | `order`, `payment`, `config` |
 
-**Problem.** Order creation, payment session creation, and webhook handling are
-currently coupled to Stripe inside `src/module/order/stripe.service.ts`. Building
-Paymob directly into that file would make both providers fragile and would hide
-the contract that the frontend depends on.
+**Problem (baseline).** At Day 1 start, order creation, payment session creation,
+and webhook handling were coupled to Stripe inside
+`src/module/order/stripe.service.ts`. Building Paymob directly into that file
+would have made both providers fragile and hidden the contract the frontend
+depends on. Stripe was removed on Day 5.
 
 **Scope / expected files.**
 - `src/module/payment/payment.types.ts` (new) — `PaymentProvider` interface,
@@ -118,7 +133,7 @@ and payment logic would rot behind a credential blocker.
 **Scope / expected files.**
 - `src/module/payment/mock.provider.ts` (new)
 - `src/module/payment/payment.registry.ts` (new) — selects provider from
-  `PAYMENT_PROVIDER` (`paymob` | `mock` | `stripe` legacy).
+  `PAYMENT_PROVIDER` (`paymob` | `mock`; no Stripe fallback).
 - `config/env.service.ts`, `config/.env.example` — `PAYMENT_PROVIDER`,
   `PAYMENT_MOCK=true` documentation only.
 
@@ -252,8 +267,8 @@ items with server-owned prices.
    `basePrice` (SAR, > 0), `discount` (0–100), `cameras` (array of
    `{ productId, color, size, quantity }`), `hddOptions` (array of
    `{ code, labelEn, labelAr, priceDelta }`), `installationOptions` (array of
-   `{ code, labelEn, labelAr, priceDelta, city? }`), `stock` (int ≥ 0),
-   `isActive`.
+   `{ code, labelEn, labelAr, priceDelta, city? }`), `isActive`. There is **no**
+   bundle-level `stock` field (DEC-01).
 2. Unique index on `code`; index on `{ isActive, createdAt }`.
 3. Use native arrays/objects for this new collection. Do **not** replicate the
    JSON-string pattern; no migration is involved because the collection is new.
@@ -272,8 +287,10 @@ items with server-owned prices.
 
 **Guards.** Clean Code, Test.
 
-**Inventory assumption (DEC-01).** `stock` is the bundle's own counter. Component
-products are descriptive and are **not** deducted in the MVP.
+**Inventory decision (DEC-01, resolved 2026-11-18).** A bundle has no independent
+stock counter. Availability is derived from its `cameras` component variants, and
+checkout reserves/releases those component quantities exactly once. This
+supersedes the original plan text that assumed a bundle-owned `stock` field.
 
 ---
 
@@ -424,19 +441,21 @@ cart only supports `productId/color/size` and the order only prices products.
 - `src/module/order/order.validate.ts`, `order.service.ts`.
 - `src/module/bundle/bundle.pricing.ts` — consumed by both.
 
-**Steps.**
+**Steps (as implemented, component stock).**
 1. Cart: accept `{ itemType: "bundle", bundleId, hddOption, installationOption,
    quantity }`; keep the product path unchanged.
-2. Validate bundle active, options valid, `bundle.stock >= requested`.
+2. Validate bundle active, options valid, and every `cameras` component has
+   enough stock for the requested quantity.
 3. `GET /v1/cart` returns bundle lines with computed price, resolved labels, and
-   availability.
+   component-derived availability.
 4. Order creation: for a bundle line, re-resolve price from the database (never
-   from the request), snapshot bundle name, options, component list, and price.
-5. Decrement `bundle.stock` inside the existing transaction, guarded with
+   from the request), snapshot bundle name, options, component list
+   (`cameras`), and price.
+5. Reserve each component variant inside the existing transaction, guarded with
    `stock >= quantity`; on failure abort the whole order.
-6. Cancel/expiry restores `bundle.stock` once, using the same idempotency marker
-   introduced in MVP-19.
-7. Do **not** touch component product stock (DEC-01).
+6. Cancel/expiry restores each component quantity once, using the idempotency
+   marker introduced in MVP-19.
+7. Never decrement a bundle-level counter; there is none (DEC-01).
 
 **Acceptance criteria.**
 - Bundle in cart shows the same total as the order and as the payment amount.
@@ -622,8 +641,9 @@ start.
    raw secret or client secret in logs.
 4. On provider error: cancel the order, release stock through the MVP-19 path,
    return a safe `502` — never leave a payable orphan.
-5. Response: `{ orderId, orderNumber, redirectUrl | clientSecret, provider }`.
-6. Stripe path stays behind `PAYMENT_PROVIDER=stripe` for rollback only.
+5. Response: `{ orderId, orderNumber, redirectUrl, provider }`.
+6. Paymob is the only online provider. Stripe was removed on Day 5; there is no
+   rollback adapter.
 
 **Acceptance criteria.**
 - A session is created with an amount that exactly matches the stored order total
@@ -732,8 +752,8 @@ created, or the missing input must be proven.
 | Delivery day | Day 5 |
 | Module | `payment`, `app` |
 
-**Problem.** The current Stripe webhook is Stripe-specific and there is no Paymob
-verification. Without HMAC validation, anyone can mark an order paid.
+**Problem.** At baseline, the Stripe webhook was Stripe-specific and there was no
+Paymob verification. Without HMAC validation, anyone can mark an order paid.
 
 **Scope / expected files.**
 - `src/module/payment/paymob.webhook.ts` (new)
@@ -756,7 +776,8 @@ verification. Without HMAC validation, anyone can mark an order paid.
 - Tampered body or signature returns `401` and changes no order.
 - Missing `hmac` returns `401`.
 - Route receives the raw buffer, not a parsed object (assert `Buffer.isBuffer`).
-- Stripe webhook route still works unchanged.
+- The removed Stripe webhook route stays absent; no second payment provider is
+  mounted.
 
 **Tests.** Jest with a fixed secret and known vector; tamper case; Buffer
 assertion.
@@ -1171,7 +1192,7 @@ money.
 | --- | --- | --- | --- | --- |
 | PL-01 | Refund/void admin automation with partial refunds | P1 | 4h | None; manual via dashboard first |
 | PL-02 | Reconciliation cron and daily settlement report | P1 | 3h | None |
-| PL-03 | Component-level bundle stock deduction | P1 | 6–8h | **DEC-01 unanswered** |
+| PL-03 | ~~Component-level bundle stock deduction~~ | — | — | **Resolved:** DEC-01 answered; delivered in MVP-09 (no bundle-level counter) |
 | PL-04 | Guest checkout + phone OTP order lookup | P1 | 6h | Product decision |
 | PL-05 | Shipping carrier integration (labels, rates, webhooks) | P2 | TBD | No carrier contract or API credentials |
 | PL-06 | `variants` JSON string → subdocument migration | P2 | 6h | Data migration plan |

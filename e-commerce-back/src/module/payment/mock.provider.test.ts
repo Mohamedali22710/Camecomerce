@@ -65,7 +65,8 @@ describe("mock payment provider", () => {
       success: true,
       amountMinor: 125_000,
       currency: "SAR",
-      hmacVerified: true,
+      verified: true,
+      source: "webhook",
     });
   });
 

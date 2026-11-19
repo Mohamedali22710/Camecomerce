@@ -22,14 +22,19 @@ export const ORDER_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
  *
  * `paid` is terminal and is never downgraded. `failed` and `expired` may still
  * become `paid` because only the provider is authoritative for money, and may be
- * closed as `cancelled` when the order is voided. `cancelled` is terminal.
+ * closed as `cancelled` when the order is voided.
+ *
+ * `reconciliation_required` exists for money that arrived after the stock hold
+ * was released. It is entered only by the settlement path and resolved by the
+ * admin reconcile endpoint, never by the ordinary status update.
  */
 export const PAYMENT_TRANSITIONS: Record<PaymentStatus, readonly PaymentStatus[]> = {
-  pending: ["paid", "failed", "expired", "cancelled"],
+  pending: ["paid", "failed", "expired", "cancelled", "reconciliation_required"],
   paid: [],
-  failed: ["paid", "cancelled"],
-  expired: ["paid", "cancelled"],
-  cancelled: [],
+  failed: ["paid", "cancelled", "reconciliation_required"],
+  expired: ["paid", "cancelled", "reconciliation_required"],
+  cancelled: ["reconciliation_required"],
+  reconciliation_required: ["paid", "cancelled"],
 };
 
 /** Shipping is independent from payment and fulfilment. */
@@ -97,6 +102,13 @@ const readReason = (reason: string | null | undefined): string | null => {
 };
 
 /**
+ * States whose payment decision is already closed or explicitly deferred.
+ * Only the reconcile endpoint may move them to `paid`.
+ */
+export const isReconcileOnlyStatus = (status: PaymentStatus): boolean =>
+  status === "expired" || status === "cancelled" || status === "reconciliation_required";
+
+/**
  * Validates an admin status update and produces the audit entries.
  * Throws before any database write when a transition is illegal.
  */
@@ -131,9 +143,21 @@ export const planOrderStatusUpdate = (
   if (input.paymentStatus !== undefined) {
     assertTransition("paymentStatus", order.paymentStatus, input.paymentStatus, PAYMENT_TRANSITIONS);
     if (order.paymentStatus !== input.paymentStatus) {
-      // A manual "paid" is a money-affecting action and must be attributable.
-      if (input.paymentStatus === "paid" && !reason) {
-        throw new HttpError(400, "A reason is required when an admin marks an order paid");
+      if (input.paymentStatus === "paid") {
+        // A manual "paid" is a money-affecting action and must be attributable.
+        if (!reason) {
+          throw new HttpError(400, "A reason is required when an admin marks an order paid");
+        }
+        // Stock is gone, or the attempt was already closed: the ordinary status
+        // endpoint cannot silently mark this paid. Use the reconcile endpoint,
+        // which decides whether stock must be re-acquired first.
+        if (order.stockReleasedAt || isReconcileOnlyStatus(order.paymentStatus)) {
+          throw new HttpError(
+            409,
+            "This order cannot be marked paid through a status update " +
+              "(stock released or payment closed). Use POST /v1/order/admin/:id/reconcile-payment.",
+          );
+        }
       }
       addChange("paymentStatus", order.paymentStatus, input.paymentStatus);
     }

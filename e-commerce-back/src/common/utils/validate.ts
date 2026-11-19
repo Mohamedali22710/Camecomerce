@@ -35,6 +35,31 @@ export const validateInput = <Schema extends z.ZodType>(schema: Schema) => {
   };
 };
 
+/** Request shape extended by {@link validateQuery}. */
+export type RequestWithValidatedQuery<T> = Request & { validatedQuery?: T };
+
+/**
+ * @desc Express middleware that validates `req.query` without mutating it
+ * (Express 5 exposes `req.query` as a getter). The parsed value is stored on
+ * `req.validatedQuery` for the handler.
+ * @returns Middleware that returns 400 on validation failure.
+ */
+export const validateQuery = <Schema extends z.ZodType>(schema: Schema) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const result = schema.safeParse(req.query);
+    if (!result.success) {
+      res.status(400).json({
+        message: "validation error",
+        error: result.error.issues.map(formatIssue),
+      });
+      return;
+    }
+
+    (req as RequestWithValidatedQuery<z.infer<Schema>>).validatedQuery = result.data;
+    next();
+  };
+};
+
 /**
  * @desc Express middleware that validates route params (for example ObjectIds).
  * @returns Middleware that returns 400 on validation failure.

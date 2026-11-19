@@ -176,6 +176,52 @@ describe("planOrderStatusUpdate", () => {
     ).toThrow(/Illegal paymentStatus transition/);
   });
 
+  it("requires the reconcile endpoint when stock was released or payment is closed", () => {
+    for (const paymentStatus of ["expired", "reconciliation_required"] as const) {
+      expect(() =>
+        planOrderStatusUpdate(
+          { ...baseOrder, paymentStatus },
+          { paymentStatus: "paid", reason: "Late confirmation" },
+          actor,
+          now,
+        ),
+      ).toThrow(/reconcile-payment/);
+    }
+
+    expect(() =>
+      planOrderStatusUpdate(
+        { ...baseOrder, stockReleasedAt: now },
+        { paymentStatus: "paid", reason: "Late confirmation" },
+        actor,
+        now,
+      ),
+    ).toThrow(/reconcile-payment/);
+
+    // A cancelled payment is terminal for the ordinary endpoint; the reconcile
+    // endpoint is the only path that may reopen it.
+    expect(() =>
+      planOrderStatusUpdate(
+        { ...baseOrder, paymentStatus: "cancelled" },
+        { paymentStatus: "paid", reason: "Late confirmation" },
+        actor,
+        now,
+      ),
+    ).toThrow(/Illegal paymentStatus transition/);
+  });
+
+  it("allows a reconciliation state to be resolved only through the reconcile flow", () => {
+    const plan = planOrderStatusUpdate(
+      // A reconciliation state means the stock hold was already released.
+      { ...baseOrder, paymentStatus: "reconciliation_required", stockReleasedAt: now },
+      { orderStatus: "cancelled", paymentStatus: "cancelled", reason: "Voided after review" },
+      actor,
+      now,
+    );
+
+    expect(changeFor(plan.changes, "paymentStatus")?.to).toBe("cancelled");
+    expect(plan.releaseStock).toBe(false);
+  });
+
   it("returns no changes when the submitted statuses already match", () => {
     const plan = planOrderStatusUpdate(baseOrder, { orderStatus: "pending", paymentStatus: "pending" }, actor, now);
     expect(plan.changes).toEqual([]);

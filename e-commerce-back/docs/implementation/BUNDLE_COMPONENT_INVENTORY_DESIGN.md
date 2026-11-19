@@ -2,13 +2,15 @@
 
 | Field | Value |
 | --- | --- |
-| Status | **Design only.** Not implemented in Phase 0. |
+| Status | **Implemented** (Day 3, 2026-11-18; verified by unit tests only). |
 | Decision | DEC-01 resolved by the business on 2026-11-18 |
 | Scope | Checkout, cancellation, stock release, catalogue availability |
 | Applies to | `bundle`, `cart`, `order`, `payment` modules |
 
-> This document is a plan. No schema, index, migration, endpoint, or stock
-> behaviour described here exists in the code yet.
+> Implementation status: the schema, aggregation, reservation, availability, and
+> one-time release described here exist in `bundle.model.ts`, `cart.service.ts`,
+> `cart.lines.ts`, and `order.stock.ts`. Database-backed concurrency tests remain
+> outstanding (MVP-23).
 
 ---
 
@@ -27,20 +29,20 @@ availability is a *derived* value computed from its components.
 
 ---
 
-## 2. Current state (inspected)
+## 2. Baseline state before implementation
 
-| Concern | Current behaviour | Gap |
+| Concern | Baseline behaviour | Resolution |
 | --- | --- | --- |
-| Bundle composition | `bundle.model.ts` → `cameras: { productId, color, size, quantity }[]` | Already sufficient as the component list |
-| Bundle price | `basePrice` + optional `discount` + `hddOptions[].priceDelta` + `installationOptions[].priceDelta` (`bundle.pricing.ts`) | Manual price exists; no change needed |
-| Cart availability | `cart.lines.ts` sets `available: true`, `stock: null`, `availabilityUnknown: true` for bundles | No component check |
-| Checkout | `order.service.ts` `resolveOrderLines` skips bundle stock entirely (`stockReleasedAt`/DEC-01 comment) | No deduction, no shortage check |
-| Order snapshot | `BundleOrderSnapshot` stores `bundleId`, `bundleCode`, names, `quantity`, `unitPrice` | **No component snapshot** → restock would depend on the live bundle document |
-| Stock release | `restoreProductStock` skips `itemType: "bundle"` | No bundle restoration |
-| Concurrency | Product stock lives in a JSON string on the product document, mutated inside a transaction | Write conflicts under contention; no per-variant atomic guard |
+| Bundle composition | `bundle.model.ts` → `cameras: { productId, color, size, quantity }[]` | Kept as the component list |
+| Bundle price | `basePrice` + optional `discount` + `hddOptions[].priceDelta` + `installationOptions[].priceDelta` (`bundle.pricing.ts`) | Unchanged |
+| Cart availability | `cart.lines.ts` set `available: true`, `stock: null`, `availabilityUnknown: true` for bundles | Replaced by component-derived availability |
+| Checkout | `order.service.ts` skipped bundle stock | Now aggregates and reserves component variants transactionally |
+| Order snapshot | `BundleOrderSnapshot` had no component snapshot | **`cameras` snapshot added** and frozen at order time |
+| Stock release | `restoreProductStock` skipped `itemType: "bundle"` | Now restores from the order snapshot |
+| Concurrency | Product stock lives in a JSON string mutated inside a transaction | Transaction + per-variant `stock >= quantity` check; no bundle counter |
 
 The existing `bundle.cameras` array is the source of truth for composition. The
-model must **not** gain a `stock` field.
+model does **not** have a `stock` field.
 
 ---
 
@@ -70,19 +72,23 @@ Validation to add when implemented:
 * The referenced product/variant must exist; a warning (not a hard failure) when
   the product is inactive, as today.
 
-### 3.2 Order bundle line (additive snapshot)
+### 3.2 Order bundle line (implemented snapshot)
 
 ```
 BundleOrderSnapshot {
   itemType: "bundle",
   bundleId, bundleCode, en_name, ar_name, fr_name,
   quantity, unitPrice, lineTotal,
-  hddOption, installationOption,          // keep the chosen option codes
-  components: [                           // NEW — frozen at order time
-    { productId, color, size, quantity }  // quantity = component qty × line qty
+  hddOption, installationOption,          // chosen option codes
+  cameras: [                              // frozen at order time
+    { productId, color, size, quantity }  // original component quantity
   ]
 }
 ```
+
+The field is named `cameras` to match the bundle document and avoid a duplicate
+`components` shape. Expansion multiplies `cameras[].quantity` by
+`line.quantity` at reservation/release time.
 
 Why snapshot the components:
 
@@ -91,8 +97,8 @@ Why snapshot the components:
   to contain at cancellation time.
 * Support needs an auditable record of what the customer's bundle consumed.
 
-`components` is derived data inside the existing `items` JSON string, so no
-schema migration is required for the order collection.
+`cameras` is derived data inside the existing `items` JSON string, so no schema
+migration was required for the order collection.
 
 ---
 
@@ -233,32 +239,30 @@ Properties:
 
 ---
 
-## 7. Rollout plan (when approved)
+## 7. Rollout record
 
-Additive, no destructive migration:
+Delivered additively, with no destructive migration:
 
-1. Extend `BundleOrderSnapshot` with `components` and populate it in
-   `toBundleSnapshot` / `resolveBundleLine`; new orders only. Old orders without
-   `components` fall back to "skip bundle lines" (current behaviour) and are
-   logged for manual reconciliation.
-2. Add `components` expansion + aggregation + availability validation behind the
-   existing transaction. No API contract change: `items[]` still sends
-   `bundleId + hddOption + installationOption + quantity`.
-3. Compute availability in `cart.lines.ts`; remove `availabilityUnknown` for
-   bundles.
-4. Enable bundle restoration in `restoreProductStock` using the snapshot.
-5. Add the admin-side duplicate/quantity validation for `cameras`.
+1. `BundleOrderSnapshot` gained the `cameras` snapshot, populated when the order
+   line is resolved. Old orders without `cameras` parse defensively.
+2. `collectStockRequirements` expands and aggregates components across the whole
+   order; `reserveStock` runs inside the existing transaction.
+3. `cart.lines.ts` computes component-derived availability and sets
+   `availabilityUnknown: false` once checked.
+4. Cancel/expiry release restores from the snapshot through `releaseStock`.
+5. Bundle validation enforces at least one component, deduplicated
+   `(productId, color, size)`, and a bounded quantity.
 
-No index change is required. No data backfill is required for orders that were
-never bundle orders. Orders created before step 1 need the documented manual
-policy (they currently hold no bundle stock reservation, so there is nothing to
-restore).
+No index change was required. No backfill was required because pre-existing
+bundle orders held no component reservation.
 
 ---
 
-## 8. Test plan (must be database-backed, ephemeral replica set)
+## 8. Test status
 
-Unit tests cannot prove any of this. Required cases:
+Unit tests cover expansion/aggregation, availability, snapshot shape, and
+release-once behaviour. The following database-backed cases are **still
+outstanding** under MVP-23:
 
 1. Bundle ×2 with a component quantity of 3 → requires 6; stock 5 → checkout
    rejected, no stock changed.
@@ -275,6 +279,9 @@ Unit tests cannot prove any of this. Required cases:
    works after repair.
 10. Storefront availability equals `min(floor(stock / componentQty))`.
 11. No bundle document ever exposes a `stock` field.
+
+No test connects to MongoDB yet; a replica set integration harness is required
+before these can be marked verified.
 
 ---
 

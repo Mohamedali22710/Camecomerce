@@ -1,14 +1,38 @@
-/** Payment routes (MVP-14). */
+/** Payment routes (MVP-14/MVP-16/MVP-20). */
 import { Router } from "express";
 
 import { auth } from "../../common/middleware/auth.js";
 import { rateLimiter } from "../../common/utils/rateLimit.js";
-import { validateParams } from "../../common/utils/validate.js";
+import { validateInput, validateParams } from "../../common/utils/validate.js";
 
-import { getPaymentStatus } from "./payment.service.js";
-import { paymentOrderParamsValidate } from "./payment.validate.js";
+import { createPaymentSession, getPaymentMethods, getPaymentStatus } from "./payment.service.js";
+import { paymentOrderParamsValidate, paymentSessionValidate } from "./payment.validate.js";
 
 const router = Router();
+
+/**
+ * @route GET /payment/methods
+ * @desc Methods the merchant has actually activated. Never returns integration
+ *       ids, keys, or secrets.
+ * @access Public
+ * @returns { 200 } { message, data: { cod, provider, region, environment, methods } }
+ */
+router.get("/methods", rateLimiter(60, 60), getPaymentMethods);
+
+/**
+ * @route POST /payment/session
+ * @desc Creates or retries a hosted session for a persisted pending card order.
+ *       Amounts are read from the order; a disabled method returns 400.
+ * @access User or admin
+ * @returns { 200 } { message, data: { orderId, orderNumber, paymentStatus, redirectUrl, provider } }
+ */
+router.post(
+  "/session",
+  rateLimiter(60, 10),
+  auth,
+  validateInput(paymentSessionValidate),
+  createPaymentSession,
+);
 
 /**
  * @route GET /payment/status/:orderNumber

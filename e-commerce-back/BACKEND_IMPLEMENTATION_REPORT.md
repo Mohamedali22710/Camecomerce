@@ -1,5 +1,11 @@
 # Backend Implementation Report
 
+> **Historical document (2026-11-15).** This report predates the Paymob migration.
+> Statements that Stripe is the only card provider, and references to
+> `/order/webhook` or Stripe configuration, describe that snapshot only. Stripe was
+> removed on 2026-11-19; current behavior is Paymob-only. See
+> [docs/DAY5_DAY6_DELIVERY_REPORT.md](docs/DAY5_DAY6_DELIVERY_REPORT.md).
+
 **Project:** CCTV e-commerce backend (`D:\freelance\e-commerce-back`)
 **Report date:** 2026-11-15
 **Git state:** `main`; all continuation changes are uncommitted in the working

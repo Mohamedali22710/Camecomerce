@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Status | Approved. Day 1–2 executed 2026-11-16: MVP-01, MVP-02, MVP-04, MVP-08 complete; MVP-05/06/07 complete except the DEC-01 inventory subset; MVP-03 BLOCKED. No Day 3+ ticket executed. |
+| Status | Approved. Day 1–6 executed through 2026-11-19: MVP-01…MVP-22 complete at unit/mocked level; MVP-23 PARTIALLY DONE; MVP-03, MVP-15, MVP-24/25 external verification BLOCKED. See `../DAY5_DAY6_DELIVERY_REPORT.md`. |
 | Plan date | 2026-11-16 |
 | Repository | `D:\freelance\e-commerce-back` (branch `main`) |
 | Baseline commit | `7980051` (Zod + Jest migration), plus uncommitted workflow file |
@@ -79,9 +79,10 @@ deployment:
    trusted).
 3. Stock is reserved transactionally and released exactly once when an order is
    cancelled or an unpaid card order expires.
-4. Paymob KSA integration is implemented and configurable. If merchant
-   credentials are available, a sandbox payment is verified end to end. If they
-   are not, the same code path is exercised against the mock adapter and every
+4. Paymob integration is implemented for both supported regions, selected
+   explicitly by `PAYMOB_REGION` (`eg` or `ksa`). If merchant credentials are
+   available, a sandbox payment is verified end to end. If they are not, the same
+   code path is exercised against unit tests and the mock adapter, and every
    unverified item is listed in `EXTERNAL_INTEGRATION_BLOCKERS.md`.
 5. COD remains available as an additional method and a fallback. It does not
    replace Paymob.
@@ -104,7 +105,7 @@ Tabby/Tamara live, or production payment credentials validated.
 | 3 | Product technical specifications + brand | MVP-04 | 1.5 |
 | 4 | Fixed bundles: model, admin API, public read, option pricing, cart + order resolution, availability | MVP-05 to MVP-09 | 10.0 |
 | 5 | Checkout and order integrity: cart→order, order number, timeline, guarded transitions | MVP-10, MVP-11 | 3.5 |
-| 6 | Paymob KSA integration: session, webhook, ledger, inquiry, failure/expiry | MVP-12 to MVP-19 | 14.0 |
+| 6 | Paymob integration: intention/session, webhook, ledger, inquiry, failure/expiry (regional) | MVP-12 to MVP-19 | 14.0 |
 | 7 | Method gating, admin monitoring, customer tracking | MVP-20 to MVP-22 | 3.5 |
 | 8 | Essential tests | MVP-23 | 3.5 |
 | 9 | Staging deploy + sandbox E2E attempt | MVP-24, MVP-25 | 3.0 |
@@ -124,7 +125,7 @@ and none is required for the first launch flow.
 
 | Item | Reason | Revisit |
 | --- | --- | --- |
-| Component-level bundle stock deduction | Business rule unresolved (DEC-01) | Post-launch, +6–8h |
+| ~~Component-level bundle stock deduction~~ | **Resolved (DEC-01):** bundles have no own counter; component variants are reserved/released. Delivered in MVP-09 | — |
 | Refund / void automation | Manual through the Paymob dashboard is acceptable for launch volume | Post-launch, 4h |
 | Reconciliation cron / daily settlement report | Manual admin "sync payment status" covers launch | Post-launch, 3h |
 | Admin date-range and free-text order search | Status filters cover launch operations | Post-launch, 2h |
@@ -138,7 +139,7 @@ and none is required for the first launch flow.
 
 ---
 
-## 6. Bundle inventory assumptions (open business decision DEC-01)
+## 6. Bundle inventory decision (DEC-01, resolved 2026-11-18)
 
 Fixed bundles are in scope: a **4-camera package** and an **8-camera package**,
 each with:
@@ -151,41 +152,39 @@ All prices are computed and all option selections are validated **server-side**.
 The client never supplies a price or an option code that the server has not
 whitelisted.
 
-### 6.1 Assumptions used by the MVP implementation
+### 6.1 Resolved inventory model
 
-1. A bundle is its **own sellable unit** with its own admin-managed availability
-   counter. It is not a virtual view over component products.
-2. Selling a bundle does **not** decrement camera, HDD, or accessory variant
-   stock in the MVP.
-3. HDD capacity and installation are **selection and pricing attributes**, not
+The business answered DEC-01: **selling a bundle does deplete its component
+variants.** The implemented model is:
+
+1. A bundle has **no independent stock counter**. `stock` is not a bundle field.
+2. Availability is derived from the `cameras` component variants
+   (`productId`, `color`, `size`, `quantity`) for the requested bundle quantity.
+3. Checkout reserves every component variant transactionally, guarded by
+   `stock >= quantity`; any shortfall aborts the whole order.
+4. HDD capacity and installation remain **selection and pricing attributes**, not
    stock-deducting components. Each option carries a server-side price delta.
-4. Total price = bundle base price + HDD delta + installation delta. Discounts, if
+5. Total price = bundle base price + HDD delta + installation delta. Discounts, if
    any, are applied server-side only.
-5. Component products referenced by a bundle are treated as descriptive
-   metadata for the storefront (what the customer receives), not as inventory
-   reservations.
+6. Cancel/expiry restores every reserved component quantity exactly once, using
+   the same idempotency marker as a product order.
 
-### 6.2 Consequence the business must accept
+### 6.2 Consequence
 
-Bundle sales and component SKU stock can drift apart. If the store sells 3 of a
-4-camera bundle, the individual camera product pages still show the old stock
-until someone reconciles them. During the MVP this is a **manual operational
-task**, documented in the payment/operations runbook.
+Bundle sales and component SKU stock stay consistent. The original drift concern
+no longer applies, and `PL-03` is closed as delivered in MVP-09.
 
-### 6.3 Decision required
+### 6.3 Decision record
 
 > **DEC-01:** Does selling a bundle deplete the stock of its component products
-> and the selected HDD variant?
+> and the selected HDD variant? — **Answered: yes for camera components.**
 
 | Answer | Impact | Effort |
 | --- | --- | --- |
-| No (default if unanswered) | Ship MVP as described; manual reconciliation | 0h, inside 47h |
-| Yes | Derived availability, transactional multi-line deduction, bundle-aware release on cancel/expiry | **+6 to +8h, does not fit 47h** |
+| Yes (selected) | Derived availability, transactional component reservation, bundle-aware release on cancel/expiry | Delivered inside Day 3 (MVP-09) |
 
-**Owner:** client. **Deadline:** end of Day 3. **If unanswered by Day 3:** the
-MVP ships with assumption 1 above, and the drift risk is recorded in the delivery
-note. No component-level deduction code will be written before the decision is
-recorded in this document.
+**Owner:** client. **Recorded:** 2026-11-18. No bundle-level counter is
+implemented or permitted.
 
 ---
 
@@ -228,8 +227,8 @@ both installation options; the public endpoint returns computed SAR totals.
 | MVP-11 | Human-readable `orderNumber`, `statusHistory`, guarded status transitions | 2.0 |
 
 **Exit:** a bundle in the cart produces the exact totals from Day 2, the order
-snapshots the selection, decrements the bundle counter once, clears the cart, and
-records initial history. **DEC-01 answered or defaulted here.**
+snapshots the selection, reserves each component variant once, clears the cart,
+and records initial history. **DEC-01 resolved to component inventory.**
 
 ### Day 4 — 7.0h — Paymob integration starts
 
@@ -322,7 +321,7 @@ A ticket is done only when all of the following are true:
 | R1 | Paymob KSA credentials or Mada activation not available by Day 4 | High | Payment cannot be verified | Mock adapter with identical contract; blocker file; COD fallback; no false claims |
 | R2 | Paymob HMAC field order or endpoint differs from public documentation | Medium | Day 5 overrun | Isolate verification in one module; ask account manager for the field list; unit-test with a known vector |
 | R3 | Real callback requires public HTTPS; staging has none | Medium | E2E blocked | Tunnel on Day 7; otherwise mark NOT TESTED |
-| R4 | DEC-01 answered "yes" after Day 3 | Medium | +6–8h | Recorded as Day 8 requirement; no silent absorption |
+| R4 | DEC-01 component-stock model implemented late | Low | Resolved 2026-11-18; delivered in MVP-09 | Component reservation/release covered by unit tests |
 | R5 | Bundle option pricing logic drifts from approved prices | Medium | Wrong money charged | Single pricing function, unit-tested, DB is the only price source |
 | R6 | Stock release double-applies on concurrent cancel | Low | Inventory corruption | `stockReleasedAt` marker inside a transaction; conditional update |
 | R7 | Existing uncommitted work is lost | Low | Lost audit history | No reset/clean/checkout; preserve `BACKEND_CODE_AUDIT_CCTV.md` and `OPENCODE_CHANGE_REPORT.md` deletions as-is |
@@ -350,11 +349,11 @@ weakened.
 7. **Provider references only.** No card number, CVV, or expiry is ever stored;
    hosted checkout keeps the integration in SAQ A scope.
 
-## 11.1 Frozen payment contract (MVP-01, applied 2026-11-16)
+## 11.1 Frozen payment contract (MVP-01, applied 2026-11-16; implemented Day 4–5)
 
-**Status:** contract frozen in `src/module/payment/payment.types.ts`. No order
-route has been migrated onto it; the existing Stripe card path and all existing
-responses are unchanged.
+**Status:** contract frozen in `src/module/payment/payment.types.ts` and now
+implemented. `POST /v1/order` and `POST /v1/payment/session` return the envelope
+below; Stripe was removed on Day 5. Paymob is the only online provider.
 
 ### Checkout response envelope
 
@@ -390,16 +389,18 @@ contract.
 
 | Variable | State | Meaning |
 | --- | --- | --- |
-| `PAYMENT_PROVIDER` | implemented | `mock` \| `paymob` \| `stripe` (legacy order path) |
-| `PAYMOB_ENV` | planned (MVP-12) | `sandbox` \| `live`; values unconfirmed |
-| `PAYMOB_API_KEY` | planned (MVP-12) | server-side only |
-| `PAYMOB_SECRET_KEY` | planned (MVP-12) | server-side only |
-| `PAYMOB_PUBLIC_KEY` | planned (MVP-12) | checkout only |
-| `PAYMOB_HMAC_SECRET` | planned (MVP-16) | webhook verification |
-| `PAYMOB_BASE_URL` | planned (MVP-12) | **UNCONFIRMED** for KSA |
-| `PAYMOB_CHECKOUT_URL` | planned (MVP-12) | **UNCONFIRMED** |
-| `PAYMOB_INTEGRATION_ID_*` | planned (MVP-13) | only activated methods are sent |
-| `PAYMENT_ORDER_TTL_MINUTES` | planned (MVP-19) | unpaid-order expiry window |
+| `PAYMENT_PROVIDER` | implemented | `paymob` \| `mock`; no implicit default, no Stripe |
+| `PAYMOB_REGION` | implemented | `eg` \| `ksa`; selects the regional endpoint. No fallback |
+| `PAYMOB_ENV` | implemented | `sandbox` \| `live`; defaults to `sandbox` |
+| `PAYMOB_API_KEY` | implemented | server-side only; used for inquiry auth token |
+| `PAYMOB_SECRET_KEY` | implemented | server-side only; `Authorization: Token ...` for intention |
+| `PAYMOB_PUBLIC_KEY` | implemented | embedded in the Unified Checkout URL |
+| `PAYMOB_HMAC_SECRET` | implemented | webhook HMAC-SHA512 verification |
+| `PAYMOB_BASE_URL` | implemented | derived per region (`accept` / `ksa`); overridable only with a matching region |
+| `PAYMOB_CHECKOUT_URL` | implemented | Unified Checkout base, per region |
+| `PAYMOB_INTEGRATION_ID_*` | implemented | `CARD`, `MADA`, `APPLE_PAY`, `TABBY`, `TAMARA`; only enabled methods are sent |
+| `PAYMOB_METHODS_ENABLED` | implemented | comma-separated allow-list; default `card` |
+| `PAYMENT_ORDER_TTL_MINUTES` | implemented | unpaid card order expiry window; default `30` |
 
 `PAYMENT_PROVIDER=mock` is development-only and the process refuses to boot with
 that combination when `NODE_ENV=production`. The mock adapter proves the
@@ -428,5 +429,6 @@ explicitly in every handoff.
 
 - **Plan approved for documentation:** yes, 2026-11-16.
 - **Implementation approved:** **no.** Each ticket requires separate approval.
-- **Bundle business decision DEC-01:** open, due end of Day 3.
-- **Next action after approval:** execute MVP-01 only.
+- **Bundle business decision DEC-01:** resolved 2026-11-18; component inventory delivered.
+- **Day 5/6 delivery:** implemented and unit/mocked verified; real Paymob sandbox and KSA remain untested.
+- **Next action after approval:** schedule external Paymob verification once credentials and a public webhook URL exist.

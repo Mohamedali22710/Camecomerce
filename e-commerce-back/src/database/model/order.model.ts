@@ -5,9 +5,9 @@
  *
  * MVP-11 adds a human-readable unique `orderNumber`, an append-only
  * `statusHistory` audit trail, and `stockReleasedAt` which makes stock release
- * a one-time operation. `paymentAttempts` links the order to provider
- * transactions once the ledger lands (MVP-17); the reference stays optional so
- * the existing Stripe path keeps working.
+ * a one-time operation. `paymentAttempts` links the order to the payment ledger
+ * (MVP-17). Paymob is the only online provider; provider references never
+ * contain card data.
  */
 import mongoose, { Document, Schema, Types } from "mongoose";
 
@@ -21,8 +21,20 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
  * `src/module/payment/payment.types.ts`. `paid` is terminal and is never
  * downgraded; `expired` and `cancelled` exist so abandoned or voided attempts can
  * be reconciled without inventing a new collection.
+ *
+ * `reconciliation_required` is the explicit exception state for money that
+ * arrived after the stock hold was released (or with a mismatched amount). It
+ * is never treated as paid by the normal flow: an admin must resolve it through
+ * the reconcile endpoint.
  */
-export const PAYMENT_STATUSES = ["pending", "paid", "failed", "expired", "cancelled"] as const;
+export const PAYMENT_STATUSES = [
+  "pending",
+  "paid",
+  "failed",
+  "expired",
+  "cancelled",
+  "reconciliation_required",
+] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 
 export const SHIPPING_STATUSES = ["pending", "prepared", "shipped", "delivered", "returned", "cancelled"] as const;
@@ -52,10 +64,16 @@ export interface IOrder extends Document {
   shippingCost: number;
   paymentMethod: "cod" | "card";
   paymentStatus: PaymentStatus;
-  /** Provider used for card payments (for example "stripe", later "paymob"). */
+  /** Online provider used for card payments ("paymob"). */
   paymentProvider?: string | null;
-  /** Provider-side session/reference. Never contains card data. */
+  /** Provider-side order/reference used for inquiry. Never contains card data. */
   paymentReference?: string | null;
+  /** Paymob intention id created by the Intention API. */
+  paymentIntentionId?: string | null;
+  /** Last time an admin/inquiry sync asked the provider for the truth. */
+  lastPaymentSyncAt?: Date | null;
+  /** Card orders stop being payable at this instant (lazy expiry / sweep). */
+  expiresAt?: Date | null;
   orderStatus: OrderStatus;
   shippingStatus: ShippingStatus;
   shippingCarrier?: string | null;
@@ -67,8 +85,13 @@ export interface IOrder extends Document {
   statusHistory: IOrderStatusHistoryEntry[];
   /** Set exactly once by the stock-release path (MVP-11/MVP-19). */
   stockReleasedAt?: Date | null;
-  /** Ledger rows for this order (MVP-17). Kept optional for now. */
+  /** Set when an admin reconcile re-reserved stock for a late payment. */
+  stockReacquiredAt?: Date | null;
+  /** Ledger rows for this order (MVP-17). */
   paymentAttempts: Types.ObjectId[];
+  /** Mongoose timestamps. */
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 const statusHistorySchema = new Schema<IOrderStatusHistoryEntry>(
@@ -105,6 +128,9 @@ const orderSchema = new Schema<IOrder>(
     },
     paymentProvider: { type: String, default: null },
     paymentReference: { type: String, default: null },
+    paymentIntentionId: { type: String, default: null },
+    lastPaymentSyncAt: { type: Date, default: null },
+    expiresAt: { type: Date, default: null },
     orderStatus: {
       type: String,
       enum: ORDER_STATUSES,
@@ -128,6 +154,7 @@ const orderSchema = new Schema<IOrder>(
     idempotencyKey: { type: String, default: null },
     statusHistory: { type: [statusHistorySchema], default: [] },
     stockReleasedAt: { type: Date, default: null },
+    stockReacquiredAt: { type: Date, default: null },
     paymentAttempts: {
       type: [{ type: Schema.Types.ObjectId, ref: "PaymentTransaction" }],
       default: [],
@@ -140,6 +167,9 @@ orderSchema.index({ userId: 1, createdAt: -1 });
 orderSchema.index({ orderStatus: 1, createdAt: -1 });
 orderSchema.index({ paymentStatus: 1 });
 orderSchema.index({ shippingStatus: 1 });
+// Expiry sweep: unpaid card orders whose deadline passed.
+orderSchema.index({ paymentMethod: 1, paymentStatus: 1, expiresAt: 1 });
+orderSchema.index({ paymentReference: 1 });
 orderSchema.index(
   { orderNumber: 1 },
   {

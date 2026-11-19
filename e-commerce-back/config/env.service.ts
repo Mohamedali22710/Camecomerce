@@ -75,10 +75,10 @@ interface Env {
 
   /** Undefined when PAYMENT_PROVIDER is absent; never defaulted implicitly. */
   paymentProvider: string | undefined;
-  Secret_key_Stripe: string | undefined;
-  STRIPE_WEBHOOK_SECRET: string | undefined;
 
-  /** Paymob KSA configuration (MVP-12). Optional so COD still boots. */
+  /** Paymob configuration. Optional so COD-only deployments still boot. */
+  /** Region is explicit and must never be inferred from a URL or a key. */
+  PAYMOB_REGION: string | undefined;
   PAYMOB_ENV: "sandbox" | "live";
   PAYMOB_API_KEY: string | undefined;
   PAYMOB_SECRET_KEY: string | undefined;
@@ -87,9 +87,12 @@ interface Env {
   PAYMOB_BASE_URL: string | undefined;
   PAYMOB_CHECKOUT_URL: string | undefined;
   PAYMOB_INTEGRATION_ID_CARD: string | undefined;
+  PAYMOB_INTEGRATION_ID_MADA: string | undefined;
   PAYMOB_INTEGRATION_ID_APPLE_PAY: string | undefined;
   PAYMOB_INTEGRATION_ID_TABBY: string | undefined;
   PAYMOB_INTEGRATION_ID_TAMARA: string | undefined;
+  /** Explicit merchant-confirmed list; absent means card-only. */
+  PAYMOB_METHODS_ENABLED: string | undefined;
   /** How long a card order may stay payable before expiry handling. */
   PAYMENT_ORDER_TTL_MINUTES: number;
 }
@@ -140,9 +143,8 @@ export const env: Env = {
   // Provider selection is explicit. No implicit default: a missing value keeps
   // card checkout disabled (COD still works) and fails boot in production.
   paymentProvider: process.env.PAYMENT_PROVIDER?.trim().toLowerCase() || undefined,
-  Secret_key_Stripe: process.env.Secret_key_Stripe,
-  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
 
+  PAYMOB_REGION: process.env.PAYMOB_REGION?.trim().toLowerCase() || undefined,
   PAYMOB_ENV: process.env.PAYMOB_ENV === "live" ? "live" : "sandbox",
   PAYMOB_API_KEY: process.env.PAYMOB_API_KEY || undefined,
   PAYMOB_SECRET_KEY: process.env.PAYMOB_SECRET_KEY || undefined,
@@ -151,15 +153,17 @@ export const env: Env = {
   PAYMOB_BASE_URL: process.env.PAYMOB_BASE_URL || undefined,
   PAYMOB_CHECKOUT_URL: process.env.PAYMOB_CHECKOUT_URL || undefined,
   PAYMOB_INTEGRATION_ID_CARD: process.env.PAYMOB_INTEGRATION_ID_CARD || undefined,
+  PAYMOB_INTEGRATION_ID_MADA: process.env.PAYMOB_INTEGRATION_ID_MADA || undefined,
   PAYMOB_INTEGRATION_ID_APPLE_PAY: process.env.PAYMOB_INTEGRATION_ID_APPLE_PAY || undefined,
   PAYMOB_INTEGRATION_ID_TABBY: process.env.PAYMOB_INTEGRATION_ID_TABBY || undefined,
   PAYMOB_INTEGRATION_ID_TAMARA: process.env.PAYMOB_INTEGRATION_ID_TAMARA || undefined,
+  PAYMOB_METHODS_ENABLED: process.env.PAYMOB_METHODS_ENABLED || undefined,
   PAYMENT_ORDER_TTL_MINUTES: Number(process.env.PAYMENT_ORDER_TTL_MINUTES) || 30,
 };
 
 /**
  * Fails fast when security-critical configuration is missing.
- * Optional integrations (Redis, Cloudinary, Google, Stripe, SMTP) degrade gracefully.
+ * Optional integrations (Redis, Cloudinary, Google, SMTP) degrade gracefully.
  */
 const MIN_SECRET_LENGTH = 32;
 const PLACEHOLDER_SECRET = /replace-with|change-?me|your-?secret|example|development-secret/i;

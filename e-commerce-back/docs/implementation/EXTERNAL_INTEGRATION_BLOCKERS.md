@@ -13,6 +13,7 @@ claim of "verified".
 | --- | --- |
 | **VERIFIED** | Proven with the real provider, with evidence recorded below |
 | **CONFIGURED** | Credentials present and a request succeeded, but not a full business flow |
+| **IMPLEMENTED** | Code exists and follows documented defaults; the provider has not been exercised |
 | **NOT TESTED** | Code exists, provider not exercised |
 | **BLOCKED** | Cannot proceed without an external action |
 | **UNCONFIRMED** | Public information only; must be confirmed in writing by the provider |
@@ -23,11 +24,11 @@ claim of "verified".
 
 | ID | Item | Type | Owner | Needed by | Impact if missing | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| B-01 | Paymob KSA merchant account approved for e-commerce | Commercial | Client | Day 1 | No card/mada/Apple Pay at all | BLOCKED (assumed not ready) |
-| B-02 | Confirmed KSA API base URLs and API version | Technical | Paymob AM | Day 1 | Integration built against wrong host | UNCONFIRMED |
-| B-03 | API key, secret key, public key, HMAC secret | Credential | Paymob / Client | Day 4 | Session and webhook cannot be verified | BLOCKED |
-| B-04 | Per-method integration IDs: card, mada, Apple Pay, Tabby, Tamara | Credential | Paymob AM | Day 4 | Method silently fails or is hidden | BLOCKED |
-| B-05 | Exact HMAC field list and ordering for this account | Technical | Paymob AM | Day 5 | Every callback rejected, or worse, unverified | UNCONFIRMED |
+| B-01 | Paymob merchant account approved for e-commerce (Egypt or KSA) | Commercial | Client | Day 1 | No card/mada/Apple Pay at all | BLOCKED |
+| B-02 | Confirmed regional API base URLs and API version | Technical | Paymob AM | Day 1 | Integration built against wrong host | IMPLEMENTED, NOT VERIFIED |
+| B-03 | API key, secret key, public key, HMAC secret | Credential | Paymob / Client | Day 4 | Session and webhook cannot be verified | PARTIAL — NOT VERIFIED: Egyptian API/secret/public keys located; HMAC secret unverified |
+| B-04 | Per-method integration IDs: card, mada, Apple Pay, Tabby, Tamara | Credential | Paymob AM | Day 4 | Method silently fails or is hidden | PARTIAL — NOT VERIFIED: Egyptian integration ID `6067` located; method mapping and remaining methods unverified |
+| B-05 | Exact HMAC field list and ordering for this account | Technical | Paymob AM | Day 5 | Every callback rejected, or worse, unverified | IMPLEMENTED, NOT VERIFIED |
 | B-06 | Public HTTPS webhook URL (staging or tunnel) | Infrastructure | Client / Dev | Day 5 | No real callback can be received | BLOCKED |
 | B-07 | Sandbox test cards / mada simulation procedure | Technical | Paymob AM | Day 4 | Cannot complete a test payment | BLOCKED |
 | B-08 | Apple Pay merchant ID + domain verification file hosted | Commercial + Ops | Client / Apple | Post-launch if not ready | Apple Pay hidden | BLOCKED |
@@ -42,38 +43,41 @@ claim of "verified".
 
 ---
 
-## 2. Paymob KSA
+## 2. Paymob (Egypt / KSA)
 
-### 2.1 What we need to know before writing provider code
+### 2.1 What is implemented, and what still needs written confirmation
 
-The planning environment could not reach `docs.paymob.com` (transport errors), so
-**no endpoint, field name, or HMAC ordering in this repository is treated as
-confirmed**. The integration is written behind one provider module so that a
-wrong assumption is a one-file correction, not a rewrite.
+The integration is deliberately region-explicit. `PAYMOB_REGION` selects one
+host set; there is no fallback and no cross-region credential use. The code
+follows Paymob's documented contract, but no request has been sent to a real
+merchant account, so the table below is **IMPLEMENTED, NOT VERIFIED**.
 
-| Question | Why it matters | Answer |
+| Question | Implemented default | Verification state |
 | --- | --- | --- |
-| Which host serves KSA merchant API calls? | A wrong host fails every session | **TBC — written answer required** |
-| Which host serves KSA checkout? | Redirect URL must be valid | **TBC** |
-| Intention API + Unified Checkout, or legacy Accept (auth token → order → payment key → iframe)? | Determines the whole request sequence | **TBC** |
-| What is the minimum supported amount and currency format? | 100× money errors | **TBC** |
-| Does the account use transaction callbacks, order callbacks, or both? | Determines parser | **TBC** |
-| What is the retry policy and timeout for callbacks? | Determines idempotency and reconciliation | **TBC** |
-| What is the session expiry window? | Drives `PAYMENT_ORDER_TTL_MINUTES` | **TBC** |
+| Which host serves merchant API calls? | Egypt `https://accept.paymob.com`; KSA `https://ksa.paymob.com` | Not provider-verified |
+| Which host serves checkout? | Same regional host + `/unifiedcheckout/` | Not provider-verified |
+| Which API? | Intention API `POST /v1/intention/` with `Authorization: Token <secret>` | Not provider-verified |
+| Inquiry API? | Legacy API-key → auth token → `GET /api/ecommerce/orders/{id}?token=` | Not provider-verified |
+| Amount format? | Integer minor units (halalas/piastres), derived from the stored order | Unit-tested only |
+| Currency? | Configured store currency (`SAR` in `.env.example`) | Not provider-verified |
+| Callback shape? | Transaction and order callbacks parsed defensively | Not provider-verified |
+| HMAC? | SHA-512 over a fixed 20-field order, `hmac` query parameter, constant-time compare | Unit-tested with a known vector; not provider-verified |
+| Session expiry? | `PAYMENT_ORDER_TTL_MINUTES` (default 30) | Local policy, not provider-matched |
 
-Candidate values seen in public material — **do not deploy these without written
-confirmation**:
+Implemented endpoint constants (override only with a region-matching URL):
 
-| Setting | Candidate | State |
+| Setting | Egypt | KSA |
 | --- | --- | --- |
-| KSA API base | `https://ksa.paymob.com/api` | UNCONFIRMED |
-| Egypt API base (not for KSA) | `https://accept.paymob.com/api` | UNCONFIRMED, do not use for KSA |
-| Unified checkout page | `https://checkout.paymob.com/unifiedcheckout/` | UNCONFIRMED |
-| Callback signature | HMAC-SHA512 over a fixed field list, `hmac` query parameter | UNCONFIRMED field order |
+| API base | `https://accept.paymob.com` | `https://ksa.paymob.com` |
+| Unified Checkout | `https://accept.paymob.com/unifiedcheckout/` | `https://ksa.paymob.com/unifiedcheckout/` |
+
+The account manager must still confirm that the merchant's account is attached
+to the selected region and that the endpoint/version is current for that account.
 
 ### 2.2 Credentials checklist (B-03, B-04)
 
-Send to the Paymob KSA account manager and request answers in writing:
+Send to the Paymob account manager for the selected region (`eg` or `ksa`) and
+request answers in writing:
 
 1. Merchant account ID and whether it is **live** or **test**.
 2. API key.
@@ -107,7 +111,10 @@ what is enabled.
 | COD | Yes | N/A | N/A | Always shown as an additional method |
 
 **Rule:** if activation is unknown, the method is hidden. Never show a method that
-will fail at the provider.
+will fail at the provider. The code enforces this with
+`PAYMOB_METHODS_ENABLED` plus a non-empty integration ID; by default only `card`
+is exposed. Apple Pay, Tabby, and Tamara remain disabled until activation is
+confirmed in writing.
 
 ### 2.4 Onboarding requirements to confirm with Paymob
 
@@ -230,7 +237,7 @@ Purchase and DNS control are client responsibilities.
 
 | ID | Decision | Default if unanswered | Needed by | Impact |
 | --- | --- | --- | --- | --- |
-| DEC-01 | Does a bundle sale deplete component and HDD stock? | **No** — bundle has its own counter; manual reconciliation | Day 3 | +6–8h if yes; does not fit 47h |
+| DEC-01 | Does a bundle sale deplete component and HDD stock? | **Resolved:** yes for camera components; bundle has no own counter | Day 3 | Delivered in MVP-09; component reservation/release implemented |
 | DEC-02 | Refund policy: who approves, partial allowed, restocking fee? | Manual via Paymob dashboard, full refund only | Day 7 | Ops runbook accuracy |
 | DEC-03 | COD scope: all KSA, Riyadh only, order value cap, fee? | All KSA, no fee | Day 7 | Checkout availability and totals |
 | DEC-04 | Installation coverage outside Riyadh? | Riyadh only, shown as an option | Day 2 | Bundle option catalogue |
@@ -238,8 +245,8 @@ Purchase and DNS control are client responsibilities.
 | DEC-06 | Are displayed prices VAT-inclusive (15%)? | Yes, VAT-inclusive | Day 7 | Payment amount and receipt wording |
 | DEC-07 | Order cancellation window for customers | No self-service cancel; support only | Day 7 | API surface |
 
-**DEC-01 is the only decision that can change the engineering estimate.** The
-others change copy, operations, and configuration.
+**DEC-01 is resolved** to component-level inventory and delivered in MVP-09. No
+remaining business decision changes the engineering estimate.
 
 ---
 
@@ -285,23 +292,33 @@ Fill in during implementation. No row may be marked VERIFIED without evidence.
 | 2026-11-16 | Mock payment adapter contract (MVP-02) | Jest | **VERIFIED** (contract only, not a provider) | 8 Jest tests across registry/mock suites | Dev |
 | 2026-11-17 | Bundle cart/order pricing, cart checkout, order lifecycle (MVP-09/10/11) | Jest unit suites | **VERIFIED** (unit only; no DB integration harness) | `cart.validate`, `order.validate`, `order.lifecycle`, `order.number`, pricing/money suites | Dev |
 | 2026-11-17 | Paymob config guard + minor-unit money (MVP-12) | Jest unit suites | **VERIFIED** (config/conversion only; no network) | `paymob.config`, `payment.registry`, `money` suites | Dev |
-| 2026-11-17 | Paymob session/intention creation (MVP-13) | Sandbox request | **BLOCKED**: required variables and confirmed endpoint/version are not available; adapter returns an explicit `503` | `config/.env.example` placeholders; `src/module/payment/paymob.provider.ts` | Client / Dev |
-| 2026-11-17 | Payment status endpoint (MVP-14) | Jest/validation + code review | **VERIFIED** for stored status and ownership (`404` for another user). Authoritative inquiry subset **NOT TESTED** (deferred to MVP-18) | `src/module/payment/payment.service.ts`; `payment.validate` suite | Dev |
-| 2026-11-17 | Paymob sandbox smoke run (MVP-15) | Sandbox request | **NOT TESTED**: no Paymob KSA credentials, integration IDs, or confirmed endpoints were supplied | Blocker B-01–B-12; no provider reference exists | Client / Dev |
-| 2026-11-17 | Post-implementation regression baseline | Local command | **VERIFIED**: typecheck pass; lint 0 errors; Jest 23 suites / 158 tests pass | `npm run typecheck`, `npm run lint`, `npm test` | Dev |
-| 2026-11-19 | Intention/session creation | Sandbox request | Pending | Provider reference | Dev |
-| 2026-11-20 | Webhook HMAC | Real callback or known vector | Pending | Accepted/rejected status | Dev |
-| 2026-11-20 | Replay protection | Duplicate callback | Pending | Ledger row count | Dev |
-| 2026-11-22 | Mada payment | Sandbox checkout | Pending | Transaction status | Dev |
-| 2026-11-22 | Apple Pay | Sandbox device | Pending | Transaction status | Dev |
-| 2026-11-22 | Public webhook reachability | External request | Pending | HTTP status | Dev |
+| 2026-11-17 | Paymob session/intention creation (MVP-13) | Jest with stubbed HTTP client | **VERIFIED** at the unit/contract level: Intention API request shape, token header, amount in minor units, checkout URL, error mapping. **NOT TESTED** against Paymob | `src/module/payment/paymob.provider.test.ts` | Dev |
+| 2026-11-17 | Payment status endpoint (MVP-14) | Jest/validation + code review | **VERIFIED** for stored status, ownership (`404` for another user), and `nextAction`. Inquiry path is mocked, not provider-verified | `src/module/payment/payment.service.ts`; `payment.validate` suite | Dev |
+| 2026-11-17 | Paymob sandbox smoke run (MVP-15) | Sandbox request | **NOT TESTED / BLOCKED**: no merchant credentials, integration IDs, or public webhook URL | B-01–B-07 | Client / Dev |
+| 2026-11-19 | Post-implementation regression baseline | Local command | **VERIFIED**: `tsc --noEmit` exit 0; Jest 23 suites / 158 tests pass; lint 0 errors | `npm run typecheck`, `npm test`, `npm run lint` | Dev |
+| 2026-11-19 | Intention API provider (MVP-13/MVP-18/MVP-20) | Jest with stubbed `fetch` | **VERIFIED** (unit only): auth header, regional base URL, intention payload, redirect URL construction, inquiry parsing, method gating. No real request was sent | `paymob.provider.test.ts`, `payment.registry.test.ts` | Dev |
+| 2026-11-19 | Webhook HMAC (MVP-16) | Jest, fixed secret + known vector | **VERIFIED** (unit only): 20-field SHA-512 order, valid signature, tampered body/signature rejection, missing `hmac` rejection, raw `Buffer` assertion | `paymob.hmac.test.ts`, `paymob.webhook.test.ts` | Dev |
+| 2026-11-19 | Ledger, replay dedupe, settlement (MVP-17) | Jest with mocked models | **VERIFIED** (unit only): unique provider transaction key, paid-terminal rule, amount/currency mismatch, late-payment reconciliation decision. **No MongoDB transaction was exercised** | `payment.settlement.test.ts`, `payment.events.test.ts` | Dev |
+| 2026-11-19 | Expiry, stock release, reconcile (MVP-19) | Jest unit suites | **VERIFIED** (unit only): lazy expiry, idempotent sweep, one-time release, reconcile requires `reacquireStock`. **No DB-backed replay/stock test** | `order.expiry.test.ts`, `order.stock.test.ts` | Dev |
+| 2026-11-19 | Admin filters, tracking, method gating (MVP-20–22) | Jest unit/validation + code review | **VERIFIED** (unit only): filters, restricted sort, validated enums, tracking ownership, chronological timeline, method allow-list | `order.lifecycle.test.ts`, `payment.registry.test.ts` | Dev |
+| 2026-11-19 | Day 5/6 full local gate | Local command | **VERIFIED**: `tsc --noEmit` exit 0; Jest 31 suites / 233 tests pass in 31.45s; ESLint 0 errors, 24 warnings | See `../DAY5_DAY6_DELIVERY_REPORT.md` | Dev |
+| 2026-11-19 | Intention/session creation | Sandbox request | **NOT TESTED**: no credentials or public callback URL | — | Dev |
+| 2026-11-19 | Webhook HMAC | Real callback | **NOT TESTED**: known-vector unit tests only | — | Dev |
+| 2026-11-19 | Replay protection | Duplicate real callback | **NOT TESTED**: no database integration harness | — | Dev |
+| 2026-11-19 | Mada / Apple Pay / Tabby / Tamara | Sandbox checkout | **BLOCKED / NOT TESTED**: activation and credentials missing; methods disabled by default | — | Client / Dev |
+| 2026-11-19 | Public webhook reachability | External request | **BLOCKED**: no public HTTPS endpoint | — | Client / Dev |
+| 2026-11-19 | KSA regional behavior | Sandbox request | **NOT TESTED**: no KSA merchant account or credentials | — | Client / Dev |
 
 ---
 
 ## 9. Sign-off
 
-- Blockers listed: 16 external, 7 business decisions.
-- Critical path: **B-03, B-04, B-05, B-06** — Paymob credentials and a public
-  callback URL.
+- Blockers listed: 16 external inputs, 7 business decisions.
+- Critical path for online payments: **B-03, B-04, B-05, B-06** — Paymob
+  credentials, integration IDs, confirmed HMAC contract, and a public callback URL.
+- Code status on 2026-11-19: Day 5/6 implemented; verification is unit/mocked only.
+  No real Paymob request, callback, or sandbox payment has been executed.
+- KSA regional behavior is **NOT TESTED**. Egypt credentials do not authorize a
+  KSA claim, and vice versa.
 - Owner of external follow-up: client, with the developer sending the requests.
 - This document must be updated, not replaced, as answers arrive.

@@ -1,8 +1,8 @@
 /** Bundle business logic (MVP-06, MVP-07).
  *
- * Admin CRUD and public reads use the same pricing function as the future cart
- * and order paths. Component products are descriptive metadata only; no stock is
- * deducted and no availability counter is exposed while DEC-01 is open.
+ * Admin CRUD and public reads use the same pricing function as the cart and order
+ * paths. A bundle has no stock counter of its own: cart availability is derived
+ * from the component variants, and checkout reserves those components.
  */
 import { Request, Response } from "express";
 import { Types } from "mongoose";

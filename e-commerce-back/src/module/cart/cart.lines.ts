@@ -4,8 +4,9 @@
  * cart is exactly the price stored on the order. Client-supplied prices are
  * never part of the input contract.
  *
- * Bundle inventory is intentionally absent: DEC-01 is unresolved, so a bundle
- * line reports `availabilityUnknown: true` and never claims stock.
+ * A bundle has no independent stock counter. `resolveBundleLine` leaves
+ * availability unresolved; the cart service derives it from component variants
+ * and reports `availabilityUnknown: false` once that check has run.
  */
 import { HttpError } from "../../common/utils/httpError.js";
 import { discountedUnitPrice, roundMoney } from "../../common/utils/pricing.js";
@@ -240,6 +241,43 @@ export const toBundleSnapshot = (line: ResolvedBundleLine): BundleOrderSnapshot 
   },
   cameras: line.bundle.cameras.map(snapshotCamera),
 });
+
+export interface BundleStockView {
+  available: boolean;
+  /** Number of complete kits the current component stock can build. */
+  stock: number;
+}
+
+/** Key used by {@link evaluateBundleStock}; `productId|color|size`. */
+export const bundleStockKey = (productId: string, color: string, size: string): string =>
+  `${productId}|${color}|${size}`;
+
+/**
+ * A bundle is available only when every component variant has enough stock for
+ * the requested number of kits. `stockByKey` is supplied by the caller because
+ * this helper stays pure.
+ */
+export const evaluateBundleStock = (
+  bundle: Pick<IBundle, "cameras">,
+  quantity: number,
+  stockByKey: Map<string, number>,
+): BundleStockView => {
+  let kits = Number.POSITIVE_INFINITY;
+
+  for (const component of bundle.cameras) {
+    const available = stockByKey.get(bundleStockKey(String(component.productId), component.color, component.size));
+    if (available === undefined || component.quantity <= 0) {
+      return { available: false, stock: 0 };
+    }
+    kits = Math.min(kits, Math.floor(available / component.quantity));
+  }
+
+  if (!Number.isFinite(kits)) {
+    return { available: false, stock: 0 };
+  }
+  const stock = Math.max(0, kits);
+  return { available: stock >= quantity, stock };
+};
 
 /** Sums already-rounded line totals so mixed product/bundle carts agree. */
 export const sumLineTotals = (lines: { lineTotal: number }[]): number =>

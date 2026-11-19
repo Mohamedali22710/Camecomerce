@@ -1,5 +1,11 @@
 # CCTV E-Commerce Backend — Day 3 & Day 4 Implementation and Security Report
 
+> **Historical document.** This report reflects 2026-11-17. Its Stripe references
+> (including `stripe.service.ts` tests and the "legacy Stripe path preserved"
+> statement) are superseded: Stripe was removed on 2026-11-19. Current behavior is
+> Paymob-only with a mock adapter. See
+> [`../DAY5_DAY6_DELIVERY_REPORT.md`](../DAY5_DAY6_DELIVERY_REPORT.md).
+
 **Date:** 2026-11-17
 **Scope executed:** MVP-09, MVP-10, MVP-11 (Day 3); MVP-12, MVP-14, and the safe
 subsets of MVP-13/MVP-15 (Day 4); confirmed Critical/High security fixes plus

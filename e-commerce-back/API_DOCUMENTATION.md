@@ -70,16 +70,17 @@ Other errors use `{ "message": "..." }` and may include `errors`.
 | 404 | Resource not found |
 | 409 | Duplicate resource or conflicting state |
 | 413 | Request body too large |
+| 429 | Rate limit or payment-sync debounce |
 | 500 | Unhandled server/SMTP/provider error |
-| 502 | Payment session could not be created |
-| 503 | Optional integration is not configured (Google, Redis, contact recipient) |
+| 502 | Payment provider request failed |
+| 503 | Optional integration is not configured (Google, Redis, contact recipient, Paymob) |
 
 ### Pagination and sorting
 
 List endpoints that paginate accept `page` (1-based, default 1) and `limit`
 (max 100). Product lists default to 10 per page; category lists to 20;
-subcategory lists to 25; order and installation admin lists to 20 and 50
-respectively.
+subcategory lists to 25; order admin lists to 50 and installation admin lists to
+20.
 
 Sorting uses `field_asc` or `field_desc`:
 
@@ -101,6 +102,11 @@ Rate limits are per IP, in memory, and per process:
 | Reset password | 5 / 60 s |
 | Refresh access token | 20 / 60 s |
 | Create order | 20 / 60 s |
+| Payment methods | 60 / 60 s |
+| Create/retry payment session | 10 / 60 s |
+| Payment status | 60 / 60 s |
+| Expiry sweep | 5 / 60 s |
+| Payment sync | 10 / 60 s |
 | Contact form | 5 / 60 s |
 
 ---
@@ -500,11 +506,11 @@ A bundle is a fixed CCTV kit (for example 4 or 8 cameras) with server-owned
 prices. Clients never send a price; they send option codes that the server
 validates against the bundle itself.
 
-**Inventory note (DEC-01, open).** The bundle model currently has **no stock
-field** and no component/HDD stock deduction. Whether a bundle keeps its own
-availability counter or derives it from component stock is a pending business
-decision. Public responses therefore omit `availability` rather than claiming
-stock that has not been defined.
+**Inventory note (DEC-01 resolved 2026-11-18).** A bundle has **no stock field**
+of its own. Availability is derived from the component variants in `cameras`.
+Checkout reserves those component quantities in the same transaction as the
+order, so a bundle is never a separate stock-keeping unit. The public bundle
+document omits `availability`; the cart response computes and returns it.
 
 ### Bundle payload
 
@@ -554,7 +560,8 @@ Rules:
 - `priceDelta` must be non-negative.
 - Every `productId` must exist. An unknown component returns `404` naming the
   component index. Inactive products are accepted but returned in `warnings`.
-- `stock` and `availability` are rejected until DEC-01 is resolved.
+- `stock` and `availability` are not bundle fields. Availability is computed from
+  the component variants at cart and checkout time.
 
 ### Pricing rule
 
@@ -682,8 +689,10 @@ Bundle line (server-priced; a client `price` field is ignored):
 ```
 
 The bundle must be active and both option codes must exist in its stored
-configuration. Bundle inventory stays unknown until DEC-01 is resolved, so bundle
-lines report `availabilityUnknown: true` and never claim stock.
+configuration. Bundle availability is the minimum number of complete kits that
+the current component stock can build. A bundle line reports the derived
+`available` and `stock`, with `availabilityUnknown: false`; adding more kits than
+the components can build returns `400`.
 
 `201` when a new line is created; `200` when an existing line is updated.
 
@@ -747,11 +756,16 @@ Removes one product from the wishlist.
 | Field | Values |
 |-------|--------|
 | `orderStatus` | `pending`, `processing`, `shipped`, `delivered`, `cancelled` |
-| `paymentStatus` | `pending`, `paid`, `failed` |
+| `paymentStatus` | `pending`, `paid`, `failed`, `expired`, `cancelled`, `reconciliation_required` |
 | `shippingStatus` | `pending`, `prepared`, `shipped`, `delivered`, `returned`, `cancelled` |
 
-These are independent. The webhook changes payment status only. Installation has
-its own workflow.
+These are independent. A payment change never changes fulfilment or shipping.
+Installation has its own workflow.
+
+`paid` is terminal. `reconciliation_required` means money may have arrived after
+the stock hold was released, or with a mismatched amount or currency. It is never
+treated as paid by the normal settlement path; an admin must resolve it through
+`POST /v1/order/admin/:id/reconcile-payment`.
 
 ### `POST /v1/order`
 
@@ -785,9 +799,7 @@ Authenticated. Rate-limited.
 }
 ```
 
-- `items` must contain at least one active product or bundle line. Product
-  variants must exist with enough stock; bundle option codes must exist in the
-  stored bundle configuration.
+- `items` must contain at least one active product or bundle line.
 - `useCart: true` (or an omitted/empty `items` array) builds the order from the
   caller's stored cart. The cart is revalidated and re-priced at order time and is
   cleared only after a successful checkout response. A validation or stock failure
@@ -795,53 +807,64 @@ Authenticated. Rate-limited.
 - Bundle items use `{ "itemType": "bundle", "bundleId", "hddOption",
   "installationOption", "quantity" }`. Explicit items and cart checkout may be
   mixed across lines but each request uses one mode.
+- `paymentMethod` is `cod` or `card`.
+- `paymentMethodCode` is optional and valid only with `paymentMethod: "card"`.
+  Accepted values are `card`, `mada`, `apple_pay`, `tabby`, and `tamara`. The
+  method must appear in `GET /v1/payment/methods`; the default is `card`.
+  Sending `paymentMethodCode` with COD returns `400`.
 - Prices and totals are calculated server-side; client prices are ignored.
+- Stock is reserved in a MongoDB transaction. Product lines decrement their
+  variant. Bundle lines decrement every component variant captured in the order
+  snapshot, aggregated across the whole order.
 - `installation` is optional. When present, an installation request is created
   for `cod` orders immediately, and for `card` orders after the payment session
   is created successfully.
 - `idempotencyKey` is optional. Repeating the same key for the same user returns
   the existing order with `200` instead of creating a duplicate or clearing the
   cart again.
-- Stock is reserved in a MongoDB transaction, so MongoDB must run as a replica
-  set or a sharded cluster (mongos). The server verifies the topology at boot and
-  refuses to start against a standalone `mongod`. Product stock is decremented
-  once per order; bundle component stock is not deducted yet (design:
-  `docs/implementation/BUNDLE_COMPONENT_INVENTORY_DESIGN.md`).
+- MongoDB must run as a replica set or a sharded cluster (mongos). The server
+  verifies the topology at boot and refuses to start against a standalone
+  `mongod`.
 - Every new order receives a unique `orderNumber` in the form
   `CCTV-YYMMDD-XXXX`. Legacy rows without one are serialized with a
   display-only `CCTV-LEGACY-XXXXXXXX` fallback.
+- Card orders receive `expiresAt = createdAt + PAYMENT_ORDER_TTL_MINUTES`. COD
+  orders have no payment deadline.
 
 `cod` response: `201`
 
 ```json
-{ "message": "Order created", "data": {/* order, including orderNumber */} }
+{ "message": "Order created", "data": { /* order, including orderNumber */ } }
 ```
 
 `card` response: `201`
-
-The redirect target depends on `PAYMENT_PROVIDER`. `url` is kept for existing
-storefront clients; `redirectUrl` and `provider` are the canonical fields.
 
 ```json
 {
   "message": "Redirect to payment",
   "data": {
-    "url": "https://accept.paymob.com/unifiedcheckout/?publicKey=...",
-    "redirectUrl": "https://accept.paymob.com/unifiedcheckout/?publicKey=...",
+    "url": "https://accept.paymob.com/unifiedcheckout/?publicKey=...&clientSecret=...",
+    "redirectUrl": "https://accept.paymob.com/unifiedcheckout/?publicKey=...&clientSecret=...",
     "provider": "paymob",
     "orderId": "507f1f77bcf86cd799439011",
-    "orderNumber": "CCTV-261117-AB12",
+    "orderNumber": "CCTV-261119-AB12",
     "currency": "SAR",
     "paymentStatus": "pending"
   }
 }
 ```
 
-If the selected provider is unavailable, the order is cancelled, reserved product
-stock is restored exactly once, no installation request is created, and the
-response is the provider's safe error: `503` for a configured-but-not-ready
-Paymob adapter, `503`/`502` for an unconfigured or failing Stripe session. The
-order flow never calls a provider that is not selected by `PAYMENT_PROVIDER`.
+Send the customer to `redirectUrl`. `url` is retained as an alias for older
+storefront clients. The response never contains the Paymob secret key, API key,
+HMAC secret, or intention client secret.
+
+A disabled or unknown `paymentMethodCode` is rejected with `400` before the order
+is written. If Paymob cannot create a session after the order is written, the
+order is cancelled, its reserved stock is restored exactly once, no installation
+request is created, and the response is a safe error:
+
+- `503` — Paymob is not configured.
+- `502` — Paymob was reached but the request or response failed.
 
 ### `GET /v1/order/mine`
 
@@ -853,8 +876,21 @@ Authenticated. Returns the caller's orders newest first:
 
 ### `GET /v1/order/admin`
 
-Admin/SuperAdmin. Paginated (`page`, `limit` default 50, max 100), newest first,
-with `total`.
+Admin/SuperAdmin. Paginated and filterable.
+
+Query parameters:
+
+| Parameter | Values |
+|-----------|--------|
+| `page` | integer, default `1` |
+| `limit` | integer, default `50`, max `100` |
+| `orderStatus` | one of the `orderStatus` values |
+| `paymentStatus` | one of the `paymentStatus` values |
+| `shippingStatus` | one of the `shippingStatus` values |
+| `sort` | `createdAt`, `-createdAt`, `totalAmount`, `-totalAmount` |
+
+An unknown status or sort value returns `400`. The response includes `orders`,
+`total`, `page`, `limit`, and `currency`; totals reflect the active filters.
 
 ### `PATCH /v1/order/admin/:id`
 
@@ -876,45 +912,213 @@ Transitions are enforced before any write:
 | Status | Allowed next values | Terminal |
 |---|---|---|
 | `orderStatus` | `pending → processing/shipped/cancelled`, `processing → shipped/cancelled`, `shipped → delivered/cancelled` | `delivered`, `cancelled` |
-| `paymentStatus` | `pending → paid/failed`, `failed → paid` | `paid` |
+| `paymentStatus` | `pending → paid/failed/expired/cancelled/reconciliation_required`, `failed → paid/cancelled/reconciliation_required`, `expired → paid/cancelled/reconciliation_required`, `cancelled → reconciliation_required`, `reconciliation_required → paid/cancelled` | `paid` |
 | `shippingStatus` | `pending → prepared/shipped/delivered/cancelled/returned`, `prepared → shipped/delivered/cancelled/returned`, `shipped → delivered/cancelled/returned` | `delivered`, `returned`, `cancelled` |
 
 An illegal transition returns `400` and changes nothing. Marking an order `paid`
-manually requires a non-empty `reason`. Every accepted change appends
-`{ at, actor, actorId, field, from, to, reason }` to `statusHistory`.
+through this endpoint requires a non-empty `reason`. It is also refused with `409`
+when the stock hold was released or the payment is already `expired`, `cancelled`,
+or `reconciliation_required`; use the reconcile endpoint in those cases. Every
+accepted change appends `{ at, actor, actorId, field, from, to, reason }` to
+`statusHistory`.
 
-Moving `orderStatus` into `cancelled` restores reserved product stock exactly
-once, guarded by `stockReleasedAt`. Bundle stock is not restored because bundle
-inventory is still undecided (DEC-01).
+Moving `orderStatus` into `cancelled` restores reserved product and bundle-
+component stock exactly once, guarded by `stockReleasedAt`. A paid order is never
+restocked.
 
 ### `GET /v1/order/:id`
 
 Owner or admin. Returns the order with parsed `items` and `shippingAddress`.
+Another user's order returns `404`.
 
-### `POST /v1/order/webhook`
+### `GET /v1/order/:id/tracking`
 
-Public Stripe webhook. Must receive the raw request body and a valid
-`stripe-signature` header. The route is mounted before the JSON body parser.
+Owner or admin. Returns the customer-facing tracking projection:
 
-- `checkout.session.completed` and `checkout.session.async_payment_succeeded`
-  set `paymentStatus: "paid"` and store the provider reference **only when** the
-  session reports `payment_status: "paid"` and its `amount_total` and `currency`
-  match the stored order. A mismatch is logged and ignored.
-- `checkout.session.async_payment_failed` and `checkout.session.expired` set
-  `paymentStatus: "failed"` unless the order is already paid.
-- Response: `200 { "received": true }`, or `400` for an invalid signature/event.
+```json
+{
+  "message": "Order tracking",
+  "data": {
+    "orderNumber": "CCTV-261119-AB12",
+    "orderStatus": "processing",
+    "paymentStatus": "paid",
+    "shippingStatus": "shipped",
+    "shippingCarrier": "SMSA",
+    "trackingNumber": "TRACK-123",
+    "estimatedDelivery": null,
+    "currency": "SAR",
+    "events": [
+      {
+        "at": "2026-11-19T10:00:00.000Z",
+        "field": "orderStatus",
+        "from": "none",
+        "to": "pending"
+      }
+    ]
+  }
+}
+```
+
+Events are chronological. Actor ids, admin reasons, provider references, and
+admin-only fields are excluded. `estimatedDelivery` is currently always `null`;
+shipping data is returned as `null` when unset, not as an error.
+
+### `GET /v1/order/track/:orderNumber`
+
+Owner only. Same response shape as `/v1/order/:id/tracking`. A missing order and
+another user's order both return `404`.
+
+### `POST /v1/order/admin/expire-sweep`
+
+Admin/SuperAdmin. Releases the stock hold for expired unpaid card orders. There is
+no cron; call this endpoint periodically or rely on lazy expiry during order and
+payment reads.
+
+```json
+{ "limit": 50 }
+```
+
+`limit` is optional, default `50`, max `200`. Response:
+
+```json
+{ "message": "Expiry sweep complete", "data": { "scanned": 12, "expired": 12 } }
+```
+
+Expiry is idempotent. An order that was already expired or cancelled is skipped,
+and stock is released exactly once. Repeat the sweep while `scanned` equals the
+requested limit.
+
+### `POST /v1/order/admin/:id/sync-payment`
+
+Admin/SuperAdmin. Asks Paymob for the authoritative state of a card payment and
+applies it through the same settlement path as the webhook. Use it when a callback
+is delayed or missing.
+
+Response when a state change is applied:
+
+```json
+{
+  "message": "Payment sync complete",
+  "data": {
+    "changed": true,
+    "result": "applied",
+    "paymentStatus": "paid"
+  }
+}
+```
+
+- An order already `paid` returns `changed: false`, `result: "duplicate"`.
+- No provider transaction yet returns `changed: false`, `result: "pending"` and
+  records `lastPaymentSyncAt`.
+- A provider error returns `502` and leaves local state unchanged.
+- Repeated calls within 10 seconds return `429`.
+- A COD order or an order with no provider reference returns `409`.
+
+### `POST /v1/order/admin/:id/reconcile-payment`
+
+Admin/SuperAdmin. The only endpoint allowed to resolve a late or mismatched
+payment.
+
+```json
+{
+  "resolution": "paid",
+  "reason": "Late payment confirmed in the Paymob dashboard",
+  "reacquireStock": true
+}
+```
+
+- `resolution` is `paid` or `cancelled`.
+- `reason` is required and must be at least 3 characters.
+- `reacquireStock` is required when marking `paid` after the stock hold was
+  released. Stock is reserved again in the same transaction; if component stock
+  is no longer available, the request fails and the order stays unchanged.
+- A paid order cannot be cancelled through this endpoint.
+- Cancelling releases stock once if it is still held.
+- Every resolution appends a `statusHistory` entry with the admin actor and
+  reason.
+
+Returns `200` with the updated order.
+
+### `GET /v1/payment/methods`
+
+Public. Returns the methods the merchant has activated plus COD. Integration IDs,
+keys, and secrets are never returned.
+
+```json
+{
+  "message": "Payment methods",
+  "data": {
+    "cod": true,
+    "provider": "paymob",
+    "region": "eg",
+    "environment": "sandbox",
+    "methods": [
+      { "code": "card", "label": "Credit / debit card" }
+    ]
+  }
+}
+```
+
+When Paymob is not fully configured, the endpoint still succeeds with
+`methods: []` and `cod: true`. When no provider is selected, `provider` is `null`.
+A method appears only when it is in `PAYMOB_METHODS_ENABLED` and has a configured
+integration ID. Apple Pay, Tabby, and Tamara never appear by default.
+
+### `POST /v1/payment/session`
+
+Authenticated. Creates or retries a hosted checkout for an existing pending card
+order. Amounts are always read from the stored order; the request cannot supply a
+price.
+
+```json
+{
+  "orderNumber": "CCTV-261119-AB12",
+  "method": "card"
+}
+```
+
+`method` is optional; the default is `card`. It must be enabled.
+
+Returns `200`:
+
+```json
+{
+  "message": "Redirect to payment",
+  "data": {
+    "orderId": "507f1f77bcf86cd799439011",
+    "orderNumber": "CCTV-261119-AB12",
+    "paymentStatus": "pending",
+    "redirectUrl": "https://accept.paymob.com/unifiedcheckout/?publicKey=...&clientSecret=...",
+    "provider": "paymob"
+  }
+}
+```
+
+Errors:
+
+| Status | Meaning |
+|--------|---------|
+| `400` | Unknown or disabled payment method |
+| `404` | Order not found or not owned by the caller |
+| `409` | Order is not a card order, payment window elapsed, payment is no longer `pending`, or the stock hold was released |
+| `429` | Session creation rate limit |
+| `502` | Paymob request failed |
+| `503` | Paymob is not configured |
+
+A retry never changes the order total. If the order has expired or its stock hold
+was released, create a new order.
 
 ### `GET /v1/payment/status/:orderNumber`
 
-Owner or admin. Returns only the stored payment state; query-string parameters
-such as `?success=true` are ignored and can never mark an order paid. Another
-user's order returns `404`.
+Owner or admin. Returns only the stored payment state. Query-string parameters such
+as `?success=true` are ignored and can never mark an order paid. Another user's
+order returns `404`. Reads may apply lazy expiry to an abandoned card order.
 
 ```json
 {
   "message": "Payment status",
   "data": {
-    "orderNumber": "CCTV-261117-AB12",
+    "orderNumber": "CCTV-261119-AB12",
     "paymentStatus": "pending",
     "paymentMethod": "card",
     "currency": "SAR",
@@ -923,54 +1127,127 @@ user's order returns `404`.
 }
 ```
 
-`nextAction` is `none` (paid), `complete_payment` (pending card),
-`await_confirmation` (pending cash on delivery), or `contact_support` (failed).
+`nextAction` values:
+
+| Value | Meaning |
+|-------|---------|
+| `none` | Paid or cancelled; no payment action |
+| `complete_payment` | Pending card order; finish the hosted checkout |
+| `await_confirmation` | Pending COD order; payment is collected on delivery |
+| `contact_support` | Failed, expired, or reconciliation required |
+
 The response never includes `paymentReference`, provider secrets, or raw provider
 payloads.
+
+### `POST /v1/payment/paymob/webhook`
+
+Public Paymob transaction callback. Paymob signs the exact received bytes, so this
+route is mounted before the JSON body parser and reads the raw body.
+
+```text
+POST {BASE_URL}/v1/payment/paymob/webhook?hmac=<signature>
+Content-Type: application/json
+```
+
+- The signature is HMAC-SHA512 over the documented 20 transaction fields,
+  concatenated in order with no separator, lower-case hex. Missing or invalid
+  signatures return `401` and change nothing.
+- The body is parsed only after verification.
+- The event is deduplicated by `{ provider, providerTransactionId }` in the payment
+  ledger. A retry returns `200` with `result: "duplicate"` and no side effects.
+- A successful amount or currency mismatch is recorded as
+  `reconciliation_required`, never `paid`.
+- A payment that succeeds after the stock hold was released is also recorded as
+  `reconciliation_required`.
+- Unknown order numbers are recorded in the ledger and acknowledged with `200`;
+  this prevents infinite provider retries.
+
+Response:
+
+```json
+{ "received": true, "result": "applied", "changed": true }
+```
+
+`400` means the body was unreadable, `401` means the signature was missing or
+invalid, and `5xx` means local persistence failed. Paymob may retry a `5xx`.
 
 ---
 
 ## Payment Provider Contract
 
-**Status:** `PAYMENT_PROVIDER` is authoritative for card checkout. The order flow
-resolves one adapter through `getPaymentProvider()` and never imports a provider
-SDK. Paymob configuration is validated at boot when selected, but the adapter
-deliberately returns `503` because session creation, status inquiry, and the HMAC
-field list are blocked on confirmed Paymob endpoints/credentials
-(MVP-13/MVP-15). No endpoint, payload, or signature field list is assumed.
-Stripe remains available only as the legacy rollback adapter
-(`PAYMENT_PROVIDER=stripe`); its webhooks stay on `/v1/order/webhook`.
+**Status:** Paymob is the only online provider. `PAYMENT_PROVIDER` must be
+`paymob` or the development-only `mock`; there is no Stripe adapter, dependency,
+webhook, or rollback option. Region separation is explicit and mandatory.
+
+The order flow resolves one adapter through `getPaymentProvider()` and never
+imports a provider SDK. Paymob configuration is validated when a Paymob operation
+runs, so COD-only deployments boot without Paymob credentials. A card attempt
+with missing or inconsistent configuration returns `503` before any money is
+taken.
 
 ### Checkout envelope (frozen)
 
-Future card checkout responses use:
+Card checkout responses use:
 
 ```json
 {
   "orderId": "507f1f77bcf86cd799439011",
-  "orderNumber": "CCTV-261116-0001",
+  "orderNumber": "CCTV-261119-AB12",
   "paymentStatus": "pending",
-  "redirectUrl": "https://provider.example/checkout/...",
-  "provider": "mock"
+  "redirectUrl": "https://accept.paymob.com/unifiedcheckout/?publicKey=...&clientSecret=...",
+  "provider": "paymob"
 }
 ```
 
-`redirectUrl` is `null` when only a browser-side secret is returned.
+`redirectUrl` is `null` only if a provider returns no browser redirect. The Paymob
+adapter does not return a browser-side secret to API clients; it embeds the
+intention client secret in the checkout URL server-side.
 
 ### Provider interface
 
 `src/module/payment/payment.types.ts` defines:
 
-- `createSession(input)` — amount in integer minor units, currency, order
-  number as the provider reference, line items, customer/billing data, callback
-  URLs, and enabled integration IDs.
-- `verifyAndParse(rawBody, headers)` — verifies the provider signature over the
-  raw body before parsing. Invalid or missing signatures throw `401`.
+- `createSession(input)` — amount in integer minor units, currency, order number
+  as the provider special reference, line items, customer/billing data, callback
+  URLs, and the selected integration ID.
+- `verifyAndParse(rawBody, headers, query)` — verifies the provider signature over
+  the raw body before parsing. Invalid or missing signatures throw `401`.
 - `fetchStatus(providerReference)` — authoritative inquiry.
-- `refund?(input)` — optional and post-launch.
+- `refund?(input)` — optional and not implemented.
 
-Provider statuses are `pending`, `paid`, `failed`, `expired`, and `cancelled`.
-`paid` is terminal. A redirect or return URL never changes payment state.
+Provider statuses are `pending`, `paid`, `failed`, `expired`, `cancelled`, and
+`reconciliation_required`. `paid` is terminal. A redirect or return URL never
+changes payment state.
+
+### Paymob adapter
+
+Implemented against Paymob's Intention API and Unified Checkout:
+
+1. `POST {PAYMOB_BASE_URL}/v1/intention/` with
+   `Authorization: Token <PAYMOB_SECRET_KEY>` creates an intention and returns
+   `id`, `intention_order_id`, and `client_secret`.
+2. The customer is redirected to
+   `{PAYMOB_CHECKOUT_URL}/?publicKey=<PAYMOB_PUBLIC_KEY>&clientSecret=<client_secret>`.
+3. Paymob posts the transaction callback to the notification URL with
+   `?hmac=<signature>`.
+4. `fetchStatus` uses Paymob's inquiry API (API key exchanged for a short-lived
+   token) as the pull-based confirmation path.
+
+`PAYMOB_BASE_URL` defaults to `https://accept.paymob.com` for `eg` and
+`https://ksa.paymob.com` for `ksa`. `PAYMOB_CHECKOUT_URL` defaults to
+`{base}/unifiedcheckout`. A configured URL with a different origin is rejected.
+The key-prefix checks reject Egypt credentials on the KSA host and test keys in
+live mode.
+
+The intention payload uses `amount` in integer minor units, `currency` in upper
+case, `special_reference` equal to the order number, one `payment_methods`
+integration ID, item lines from the stored order snapshot, a separate shipping
+line, billing data derived from the shipping address, `notification_url`, and
+`redirection_url`.
+
+The inquiry response is mapped to the same `VerifiedPaymentEvent` used by the
+webhook. The webhook path and the inquiry path therefore share one settlement
+decision function.
 
 ### Mock provider (development only)
 
@@ -985,14 +1262,13 @@ Provider statuses are `pending`, `paid`, `failed`, `expired`, and `cancelled`.
 
 ### Registry
 
-`getPaymentProvider()` selects `mock`, `paymob`, or the legacy `stripe` adapter.
-Paymob reports “not implemented yet” with `503` until its endpoints are confirmed;
-Stripe creates the existing hosted session and keeps its webhook on
-`/v1/order/webhook`. An unknown `PAYMENT_PROVIDER` fails at boot with the accepted
-values.
+`getPaymentProvider()` selects `paymob` or `mock`. An unknown
+`PAYMENT_PROVIDER` fails at boot with the accepted values. A missing value in
+production fails at boot; in development it leaves card checkout disabled with
+`503` while COD continues to work.
 
-Env variables are documented in `config/.env.example`. Paymob values are
-placeholders marked **UNCONFIRMED**; see
+Env variables are documented in `config/.env.example`. Paymob sandbox and KSA
+verification status is tracked in
 `docs/implementation/EXTERNAL_INTEGRATION_BLOCKERS.md`.
 
 ---
@@ -1124,13 +1400,16 @@ Stored as JSON strings:
 `installationOptions` (`[{ code, labelEn, labelAr, priceDelta, city }]`),
 `addedByEmail`, `isActive`, timestamps.
 
-There is intentionally **no stock/availability field** yet: DEC-01 (bundle
-inventory model) is unresolved. No component or HDD stock is deducted.
+There is intentionally **no bundle stock field**. Checkout reserves the variants
+listed in `cameras`; availability is derived from those variants.
 
 ### Cart
 
-`userId`, `productId`, `color`, `size`, `quantity`. Unique per
-user + product + color + size.
+Product line: `userId`, `itemType` (`product`), `productId`, `color`, `size`,
+`quantity`. Unique per user + product + color + size.
+
+Bundle line: `userId`, `itemType` (`bundle`), `bundleId`, `hddOption`,
+`installationOption`, `quantity`. Unique per user + bundle + option pair.
 
 ### Wishlist
 
@@ -1138,14 +1417,30 @@ user + product + color + size.
 
 ### Order
 
-`userId`, `items` (JSON snapshot array), `subtotal`, `shippingCost`,
-`totalAmount`, `paymentMethod` (`cod`/`card`), `paymentStatus`, `paymentProvider`,
-`paymentReference`, `orderStatus`, `shippingStatus`, `shippingCarrier`,
-`trackingNumber`, `shippingAddress` (JSON object string), `installationRequested`,
-`installationRequestId`, `idempotencyKey`, timestamps.
+`userId`, `orderNumber` (unique for new orders), `items` (JSON snapshot array),
+`subtotal`, `shippingCost`, `totalAmount`, `paymentMethod` (`cod`/`card`),
+`paymentStatus`, `paymentProvider`, `paymentReference`, `paymentIntentionId`,
+`lastPaymentSyncAt`, `expiresAt`, `orderStatus`, `shippingStatus`,
+`shippingCarrier`, `trackingNumber`, `shippingAddress` (JSON object string),
+`installationRequested`, `installationRequestId`, `idempotencyKey`,
+`statusHistory`, `stockReleasedAt`, `stockReacquiredAt`, `paymentAttempts`,
+timestamps.
 
-Indexes: user + created date, status fields, and a partial unique index on
-user + idempotency key.
+Indexes: user + created date, status fields, `paymentMethod + paymentStatus +
+expiresAt`, `paymentReference`, a unique partial index on `orderNumber`, and a
+unique partial index on user + idempotency key.
+
+### PaymentTransaction
+
+Payment ledger row written by webhook and inquiry settlement. Fields:
+`orderId` (null for an unknown order), `orderNumber`, `provider`,
+`providerTransactionId` (unique with `provider`), `intentionId`, `amountMinor`,
+`currency`, `status`, `success`, `hmacVerified`, `source`
+(`webhook`/`inquiry`/`session`/`admin`), `result`, `reason`, `payloadDigest`,
+`processedAt`, timestamps.
+
+The unique `{ provider, providerTransactionId }` index is the replay guard.
+Raw provider payloads are not stored; `payloadDigest` is a short SHA-256 digest.
 
 ### InstallationRequest
 
@@ -1166,10 +1461,14 @@ user + idempotency key.
 - Helmet sets security headers; CORS uses `CORS_ORIGINS` when configured.
 - Uploads are held in memory, limited in size/count, and validated by magic
   bytes (JPEG, PNG, GIF, WebP).
-- Stripe webhooks are signature-verified. Card data is never accepted or stored.
+- Paymob webhooks are HMAC-SHA512 verified over the raw body before parsing.
+  Card data is never accepted or stored.
+- Payment amounts cross the provider boundary as integer minor units; no card
+  number, CVV, or expiry is ever stored.
+- Paymob region, base URL, checkout URL, and credentials are cross-checked; a
+  cross-region or test/live mismatch is rejected.
 - The mock payment adapter is development-only and is refused when
-  `NODE_ENV=production`. Payment amounts cross the provider boundary as integer
-  minor units; no card number, CVV, or expiry is ever stored.
+  `NODE_ENV=production`.
 - Password-reset tokens are single-use and require Redis.
 - Access tokens are not revoked on password change; refresh tokens are stateless.
   Rotate the signing secrets to invalidate all issued tokens.

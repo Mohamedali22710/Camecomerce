@@ -1,5 +1,7 @@
 /** Order business logic: creation from explicit lines or the stored cart,
- * server-side pricing, guarded status transitions, and one-time stock release. */
+ * server-side pricing, guarded status transitions, idempotent stock release,
+ * payment inquiry sync, reconciliation, and customer tracking.
+ */
 import { Request, Response } from "express";
 import mongoose, { ClientSession, UpdateQuery } from "mongoose";
 
@@ -7,6 +9,7 @@ import { env } from "../../../config/env.service.js";
 import { HttpError } from "../../common/utils/httpError.js";
 import { toMinorUnits } from "../../common/utils/money.js";
 import { calculateShipping, roundMoney } from "../../common/utils/pricing.js";
+import { RequestWithValidatedQuery } from "../../common/utils/validate.js";
 import { findVariant, parseVariants } from "../../common/validation/variant.js";
 import { bundleModel } from "../../database/model/bundle.model.js";
 import { cartModel } from "../../database/model/cart.model.js";
@@ -21,11 +24,27 @@ import {
   toBundleSnapshot,
   toProductSnapshot,
 } from "../cart/cart.lines.js";
+import { assertPaymentMethodEnabled } from "../payment/payment.methods.js";
 import { getPaymentProvider } from "../payment/payment.registry.js";
-import type { CreateSessionResult, PaymentProvider } from "../payment/payment.types.js";
+import { settlePaymentEvent } from "../payment/payment.settlement.js";
+import type {
+  CreateSessionResult,
+  PaymentMethodCode,
+  PaymentProvider,
+  VerifiedPaymentEvent,
+} from "../payment/payment.types.js";
 
+import { expireOrderIfNeeded, expireStaleOrders } from "./order.expiry.js";
 import { initialOrderHistory, planOrderStatusUpdate } from "./order.lifecycle.js";
 import { generateOrderNumber, legacyOrderNumber } from "./order.number.js";
+import {
+  collectStockRequirements,
+  parseOrderItems,
+  releaseStock,
+  reserveStock,
+} from "./order.stock.js";
+import { serializeTracking } from "./order.tracking.js";
+import type { OrderListQuery } from "./order.validate.js";
 
 interface ProductItemInput {
   itemType?: "product";
@@ -72,6 +91,8 @@ const requireUserId = (req: Request): string => {
   }
   return userId;
 };
+
+const isAdmin = (req: Request): boolean => req.bearer === "admin" || req.bearer === "superAdmin";
 
 /**
  * Resolves the configured card adapter. In development the provider may be
@@ -150,8 +171,8 @@ const readCartItems = async (userId: string): Promise<OrderItemInput[]> => {
 
 /**
  * Re-resolves every requested line against the database inside the order
- * transaction. Prices and snapshots come from stored data only. Product stock is
- * reserved here; bundle stock is intentionally untouched (DEC-01).
+ * transaction. Prices and snapshots come from stored data only. Product and
+ * bundle-component stock is reserved afterwards in one aggregated pass.
  */
 const resolveOrderLines = async (items: OrderItemInput[], session: ClientSession): Promise<OrderLineSnapshot[]> => {
   const snapshots: OrderLineSnapshot[] = [];
@@ -173,67 +194,20 @@ const resolveOrderLines = async (items: OrderItemInput[], session: ClientSession
       throw new HttpError(404, `Product with id ${item.productId} not found or inactive`);
     }
 
-    const resolved = resolveProductLine(product, item, { enforceStock: true });
-
+    const resolved = resolveProductLine(product, item, { enforceStock: false });
     const variants = parseVariants(product.variants);
-    const variant = findVariant(variants, resolved.variant.color, resolved.variant.size);
-    if (!variant) {
+    if (!findVariant(variants, resolved.variant.color, resolved.variant.size)) {
       throw new HttpError(
         400,
         `Variant ${resolved.variant.color}/${resolved.variant.size} not found for ${product.en_name}`,
       );
     }
-    if (variant.stock < resolved.quantity) {
-      throw new HttpError(
-        400,
-        `Insufficient stock for ${product.en_name} (${variant.color}/${variant.size}). Available: ${variant.stock}, requested: ${resolved.quantity}`,
-      );
-    }
-
-    variant.stock -= resolved.quantity;
-    product.variants = JSON.stringify(variants);
-    await product.save({ session });
 
     snapshots.push(toProductSnapshot(resolved));
   }
 
+  await reserveStock(collectStockRequirements(snapshots), session);
   return snapshots;
-};
-
-/**
- * Adds reserved product stock back inside the caller's transaction. Bundle lines
- * are skipped because bundle component inventory is still design-only (DEC-01).
- *
- * A missing product or variant is a data-integrity failure, not a no-op: silently
- * skipping it would permanently lose inventory with no audit trail.
- */
-const restoreProductStock = async (lines: OrderLineSnapshot[], session: ClientSession): Promise<void> => {
-  for (const line of lines) {
-    if (line.itemType === "bundle") {
-      continue;
-    }
-
-    const product = await productModel.findById(line.productId).session(session);
-    if (!product) {
-      throw new HttpError(
-        409,
-        `Cannot release stock: product ${line.productId} referenced by this order no longer exists`,
-      );
-    }
-
-    const variants = parseVariants(product.variants);
-    const variant = findVariant(variants, line.color, line.size);
-    if (!variant) {
-      throw new HttpError(
-        409,
-        `Cannot release stock: variant ${line.color}/${line.size} of ${product.en_name} no longer exists`,
-      );
-    }
-
-    variant.stock += line.quantity;
-    product.variants = JSON.stringify(variants);
-    await product.save({ session });
-  }
 };
 
 /** Allocates a collision-free order number before inserting the order. */
@@ -258,9 +232,9 @@ const cancelOrderAndReleaseStock = async (order: IOrder, reason: string): Promis
     session.startTransaction();
     const now = new Date();
     const claimed = await orderModel.findOneAndUpdate(
-      // Never restock an order the provider has already settled, and never
-      // release twice. Both conditions are re-checked inside the write.
-      { _id: order._id, stockReleasedAt: null, paymentStatus: { $ne: "paid" } },
+      // Never restock an order the provider has already settled or flagged, and
+      // never release twice. Both conditions are re-checked inside the write.
+      { _id: order._id, stockReleasedAt: null, paymentStatus: { $nin: ["paid", "reconciliation_required"] } },
       {
         $set: {
           stockReleasedAt: now,
@@ -302,7 +276,7 @@ const cancelOrderAndReleaseStock = async (order: IOrder, reason: string): Promis
       return false;
     }
 
-    await restoreProductStock(parseJson<OrderLineSnapshot[]>(claimed.items, []), session);
+    await releaseStock(collectStockRequirements(parseOrderItems(claimed.items)), session);
     await session.commitTransaction();
     return true;
   } catch (error) {
@@ -313,13 +287,15 @@ const cancelOrderAndReleaseStock = async (order: IOrder, reason: string): Promis
   }
 };
 
-/** Creates an order, reserves product stock, and (for card) starts checkout. */
+/** Creates an order, reserves stock, and (for card) starts checkout. */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
   const userId = requireUserId(req);
   const body = req.body as {
     useCart?: boolean;
     items?: OrderItemInput[];
     paymentMethod: "cod" | "card";
+    /** Optional online method when `paymentMethod` is `card`. */
+    paymentMethodCode?: string;
     shippingAddress: ShippingAddress;
     installation?: InstallationInput;
     idempotencyKey?: string | null;
@@ -327,6 +303,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   const { paymentMethod, shippingAddress } = body;
   const installation = body.installation;
   const idempotencyKey = body.idempotencyKey || null;
+
+  if (paymentMethod === "cod" && body.paymentMethodCode) {
+    throw new HttpError(400, "paymentMethodCode is only valid when paymentMethod is card");
+  }
 
   if (idempotencyKey) {
     const existing = await orderModel.findOne({ userId, idempotencyKey });
@@ -342,8 +322,12 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
   const useCart = Boolean(body.useCart) || !body.items?.length;
   const requestedItems = useCart ? await readCartItems(userId) : body.items!;
 
-  // Resolve the card provider before any write: a misconfigured provider must
-  // never leave a persisted order holding reserved stock.
+  // Resolve and validate the card provider/method before any write: a
+  // misconfigured provider or a disabled method must never leave a persisted
+  // order holding reserved stock.
+  const methodCode: PaymentMethodCode = paymentMethod === "card"
+    ? assertPaymentMethodEnabled(body.paymentMethodCode ?? "card")
+    : "card";
   const cardProvider = paymentMethod === "card" ? resolveCardProvider() : null;
 
   const dbSession = await mongoose.startSession();
@@ -357,6 +341,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     const shippingCost = calculateShipping(subtotal, shippingConfig());
     const totalAmount = roundMoney(subtotal + shippingCost);
     const orderNumber = await allocateOrderNumber(dbSession);
+    const now = new Date();
+    const expiresAt =
+      paymentMethod === "card" ? new Date(now.getTime() + env.PAYMENT_ORDER_TTL_MINUTES * 60_000) : null;
 
     const created = await orderModel.create(
       [
@@ -379,6 +366,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           statusHistory: initialOrderHistory(userId),
           stockReleasedAt: null,
           paymentAttempts: [],
+          expiresAt,
         },
       ],
       { session: dbSession },
@@ -428,9 +416,6 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       throw new HttpError(503, "The configured payment provider is unavailable.");
     }
     const provider = cardProvider;
-    // PAYMENT_PROVIDER is authoritative. The order flow never imports a provider
-    // SDK, so selecting Paymob cannot silently create a Stripe session. A
-    // configured-but-unavailable adapter (Paymob today) throws HttpError(503).
     let checkout: CreateSessionResult;
 
     try {
@@ -438,7 +423,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
         orderId: String(order._id),
         orderNumber: orderData.orderNumber,
         amountMinor: toMinorUnits(order.totalAmount),
+        shippingMinor: toMinorUnits(order.shippingCost),
         currency: env.CURRENCY,
+        method: methodCode,
         items: orderItems.map((line) => ({
           name: line.en_name,
           quantity: line.quantity,
@@ -454,7 +441,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
           zipCode: shippingAddress.zipCode,
           country: shippingAddress.country,
         },
-        notificationUrl: `${env.base_url}/v1/order/webhook`,
+        notificationUrl: `${env.base_url}/v1/payment/paymob/webhook`,
         redirectionUrl: `${env.frontendUrl}/checkout/success?orderId=${encodeURIComponent(String(order._id))}`,
       });
     } catch (error) {
@@ -470,6 +457,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     await orderModel.findByIdAndUpdate(order._id, {
       paymentProvider: provider.name,
       paymentReference: checkout.providerReference,
+      paymentIntentionId: checkout.providerSessionId,
+      lastPaymentSyncAt: null,
     });
     await attachInstallation();
     await clearUsedCart();
@@ -507,38 +496,90 @@ export const getMyOrders = async (req: Request, res: Response): Promise<void> =>
 /** Returns one order to its owner or to an admin. Non-owners get 404. */
 export const getOrderById = async (req: Request, res: Response): Promise<void> => {
   const userId = requireUserId(req);
-  const order = await orderModel.findById(req.params.id);
+  let order = await orderModel.findById(req.params.id);
   if (!order) {
     throw new HttpError(404, "Order not found");
   }
 
-  const isAdmin = req.bearer === "admin" || req.bearer === "superAdmin";
-  if (String(order.userId) !== userId && !isAdmin) {
+  if (String(order.userId) !== userId && !isAdmin(req)) {
     // Do not reveal that the order exists.
     throw new HttpError(404, "Order not found");
+  }
+
+  // Lazy expiry: a read of an abandoned card order releases its stock once.
+  if (await expireOrderIfNeeded(order)) {
+    order = (await orderModel.findById(order._id)) ?? order;
   }
 
   res.status(200).json({ message: "Order", data: serializeOrder(order) });
 };
 
-/** Admin order listing. */
+/** Admin order listing with validated filters and a restricted sort. */
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 50));
+  const query = ((req as RequestWithValidatedQuery<OrderListQuery>).validatedQuery ?? req.query) as OrderListQuery;
+
+  const page = Math.max(1, Number(query.page) || 1);
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 50));
+
+  const filter: Record<string, unknown> = {};
+  if (query.orderStatus) {
+    filter.orderStatus = query.orderStatus;
+  }
+  if (query.paymentStatus) {
+    filter.paymentStatus = query.paymentStatus;
+  }
+  if (query.shippingStatus) {
+    filter.shippingStatus = query.shippingStatus;
+  }
+
+  const sort: Record<string, 1 | -1> =
+    query.sort === "createdAt"
+      ? { createdAt: 1 }
+      : query.sort === "totalAmount"
+        ? { totalAmount: 1 }
+        : query.sort === "-totalAmount"
+          ? { totalAmount: -1 }
+          : { createdAt: -1 };
 
   const [orders, total] = await Promise.all([
     orderModel
-      .find()
-      .sort({ createdAt: -1 })
+      .find(filter)
+      .sort(sort)
       .skip((page - 1) * limit)
       .limit(limit),
-    orderModel.countDocuments(),
+    orderModel.countDocuments(filter),
   ]);
 
   res.status(200).json({
     message: "Orders",
     data: { orders: orders.map(serializeOrder), total, page, limit, currency: env.CURRENCY },
   });
+};
+
+/** GET /v1/order/:id/tracking — owner or admin. */
+export const getOrderTracking = async (req: Request, res: Response): Promise<void> => {
+  const userId = requireUserId(req);
+  const order = await orderModel.findById(req.params.id);
+  if (!order) {
+    throw new HttpError(404, "Order not found");
+  }
+  if (String(order.userId) !== userId && !isAdmin(req)) {
+    throw new HttpError(404, "Order not found");
+  }
+
+  res.status(200).json({ message: "Order tracking", data: serializeTracking(order) });
+};
+
+/** GET /v1/order/track/:orderNumber — owner only, support-friendly links. */
+export const getOrderTrackingByNumber = async (req: Request, res: Response): Promise<void> => {
+  const userId = requireUserId(req);
+  const order = await orderModel.findOne({ orderNumber: String(req.params.orderNumber ?? "") });
+  if (!order || String(order.userId) !== userId) {
+    // Same response for missing and foreign orders: existence is not disclosed.
+    throw new HttpError(404, "Order not found");
+  }
+
+  res.status(200).json({ message: "Order tracking", data: serializeTracking(order) });
 };
 
 /**
@@ -637,7 +678,7 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
       if (plan.releaseStock) {
         // Throws on a missing product/variant, aborting the claim and the status
         // change together instead of silently losing inventory.
-        await restoreProductStock(parseJson<OrderLineSnapshot[]>(updatedOrder.items, []), session);
+        await releaseStock(collectStockRequirements(parseOrderItems(updatedOrder.items)), session);
       }
 
       await session.commitTransaction();
@@ -650,6 +691,218 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
   }
 
   res.status(200).json({ message: "Order updated", data: serializeOrder(updatedOrder) });
+};
+
+const SYNC_DEBOUNCE_MS = 10_000;
+
+/**
+ * POST /v1/order/admin/:id/sync-payment — asks Paymob for the authoritative
+ * state and applies it through the same settlement path as the webhook.
+ *
+ * A provider error leaves the order untouched. Repeated clicks are debounced.
+ */
+export const syncOrderPayment = async (req: Request, res: Response): Promise<void> => {
+  const order = await orderModel.findById(req.params.id);
+  if (!order) {
+    throw new HttpError(404, "Order not found");
+  }
+  if (order.paymentMethod !== "card") {
+    throw new HttpError(409, "Only card orders have a provider payment to sync");
+  }
+  if (order.paymentStatus === "paid") {
+    res.status(200).json({
+      message: "Payment already settled",
+      data: { changed: false, paymentStatus: order.paymentStatus, result: "duplicate" },
+    });
+    return;
+  }
+
+  const reference = order.paymentReference || order.paymentIntentionId;
+  if (!reference) {
+    throw new HttpError(409, "This order has no provider reference to inquire about");
+  }
+
+  if (order.lastPaymentSyncAt && Date.now() - order.lastPaymentSyncAt.getTime() < SYNC_DEBOUNCE_MS) {
+    throw new HttpError(429, "Payment sync was run moments ago. Try again in a few seconds.");
+  }
+
+  const provider = resolveCardProvider();
+  const inquiry = await provider.fetchStatus(reference);
+
+  if (!inquiry.providerTransactionId) {
+    // Nothing was attempted yet. Record the check time without inventing a state.
+    await orderModel.updateOne({ _id: order._id }, { $set: { lastPaymentSyncAt: new Date() } });
+    res.status(200).json({
+      message: "No provider transaction yet",
+      data: { changed: false, paymentStatus: order.paymentStatus, result: "pending" },
+    });
+    return;
+  }
+
+  if (inquiry.amountMinor === null || !inquiry.currency) {
+    throw new HttpError(502, "Paymob returned an incomplete inquiry response. Local state was not changed.");
+  }
+
+  const event: VerifiedPaymentEvent = {
+    provider: provider.name,
+    providerTransactionId: inquiry.providerTransactionId,
+    providerReference: inquiry.providerReference || reference,
+    providerSessionId: order.paymentIntentionId ?? null,
+    orderNumber: order.orderNumber || legacyOrderNumber(String(order._id)),
+    status: inquiry.status,
+    success: inquiry.success,
+    amountMinor: inquiry.amountMinor,
+    currency: inquiry.currency,
+    verified: true,
+    source: "inquiry",
+    payload: {},
+  };
+
+  const outcome = await settlePaymentEvent(event);
+  await orderModel.updateOne({ _id: order._id }, { $set: { lastPaymentSyncAt: new Date() } });
+  const fresh = await orderModel.findById(order._id);
+
+  res.status(200).json({
+    message: "Payment sync complete",
+    data: {
+      changed: outcome.changed,
+      result: outcome.result,
+      paymentStatus: fresh?.paymentStatus ?? order.paymentStatus,
+    },
+  });
+};
+
+export interface ReconcilePaymentBody {
+  resolution: "paid" | "cancelled";
+  reason: string;
+  /** Required when paying an order whose stock hold was released. */
+  reacquireStock?: boolean;
+}
+
+/**
+ * POST /v1/order/admin/:id/reconcile-payment — the only path allowed to mark a
+ * late/mismatched payment as paid.
+ *
+ * Paying after expiry requires `reacquireStock: true`: stock is reserved again
+ * in the same transaction, so the order never ends up paid without inventory
+ * and inventory is never deducted twice by accident.
+ */
+export const reconcileOrderPayment = async (req: Request, res: Response): Promise<void> => {
+  const body = req.body as ReconcilePaymentBody;
+  const reason = String(body.reason ?? "").trim();
+  const actor = { role: req.bearer || req.user?.role || "admin", userId: req.user?._id ?? null };
+
+  if (!reason) {
+    throw new HttpError(400, "A reason is required for a manual reconciliation");
+  }
+
+  const session = await mongoose.startSession();
+  let order: IOrder | null = null;
+
+  try {
+    session.startTransaction();
+
+    const current = await orderModel.findById(req.params.id).session(session);
+    if (!current) {
+      throw new HttpError(404, "Order not found");
+    }
+    if (current.paymentMethod !== "card") {
+      throw new HttpError(409, "Only card orders can be reconciled");
+    }
+
+    const now = new Date();
+    const setFields: Record<string, unknown> = {};
+    const history: IOrderStatusHistoryEntry[] = [];
+    const guards: Record<string, unknown> = {
+      _id: current._id,
+      paymentStatus: current.paymentStatus,
+      // Proves the release/re-acquire decision still matches committed state.
+      stockReleasedAt: current.stockReleasedAt ?? null,
+    };
+
+    if (body.resolution === "paid") {
+      if (current.paymentStatus === "paid") {
+        // Idempotent: nothing to change, but the transaction still closes below.
+        order = current;
+      } else {
+        if (current.stockReleasedAt) {
+          if (!body.reacquireStock) {
+            throw new HttpError(
+              400,
+              "Stock was released for this order. Retry with reacquireStock: true to reserve it again before marking paid.",
+            );
+          }
+          // Throws (and aborts) when the inventory is no longer available.
+          await reserveStock(collectStockRequirements(parseOrderItems(current.items)), session);
+          setFields.stockReleasedAt = null;
+          setFields.stockReacquiredAt = now;
+        }
+
+        setFields.paymentStatus = "paid";
+        setFields.paymentProvider = current.paymentProvider || "paymob";
+        history.push({
+          at: now,
+          actor: actor.role,
+          actorId: actor.userId,
+          field: "paymentStatus",
+          from: current.paymentStatus,
+          to: "paid",
+          reason,
+        });
+      }
+    } else {
+      if (current.paymentStatus === "paid") {
+        throw new HttpError(409, "A paid order cannot be cancelled through reconciliation");
+      }
+
+      const needsRelease = !current.stockReleasedAt;
+      setFields.paymentStatus = "cancelled";
+      if (needsRelease) {
+        setFields.stockReleasedAt = now;
+        guards.stockReleasedAt = null;
+      }
+      history.push({
+        at: now,
+        actor: actor.role,
+        actorId: actor.userId,
+        field: "paymentStatus",
+        from: current.paymentStatus,
+        to: "cancelled",
+        reason,
+      });
+    }
+
+    if (Object.keys(setFields).length > 0) {
+      const update: UpdateQuery<IOrder> = {
+        $set: setFields as Partial<IOrder>,
+        $push: { statusHistory: { $each: history } },
+      };
+      order = await orderModel.findOneAndUpdate(guards, update, { new: true, session });
+      if (!order) {
+        throw new HttpError(409, "Order changed while reconciliation was running. Reload and retry.");
+      }
+
+      if (setFields.stockReleasedAt instanceof Date && body.resolution === "cancelled") {
+        await releaseStock(collectStockRequirements(parseOrderItems(order.items)), session);
+      }
+    }
+
+    await session.commitTransaction();
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    await session.endSession();
+  }
+
+  res.status(200).json({ message: "Payment reconciled", data: serializeOrder(order!) });
+};
+
+/** POST /v1/order/admin/expire-sweep — releases expired, unpaid card holds. */
+export const expireOrdersSweep = async (req: Request, res: Response): Promise<void> => {
+  const limit = Math.min(200, Math.max(1, Number(req.body?.limit) || 50));
+  const result = await expireStaleOrders(limit);
+  res.status(200).json({ message: "Expiry sweep complete", data: result });
 };
 
 /** Total paid revenue helper used by reports (kept small and explicit). */

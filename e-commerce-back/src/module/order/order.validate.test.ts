@@ -1,6 +1,11 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { createOrderValidate } from "./order.validate.js";
+import {
+  createOrderValidate,
+  orderListQueryValidate,
+  orderNumberParamsValidate,
+  reconcilePaymentValidate,
+} from "./order.validate.js";
 
 const shippingAddress = {
   fullName: "Test User",
@@ -97,5 +102,76 @@ describe("createOrderValidate", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("accepts a known online method and rejects an unknown one", () => {
+    expect(
+      createOrderValidate.safeParse({
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: "card",
+        paymentMethodCode: "mada",
+        shippingAddress,
+      }).success,
+    ).toBe(true);
+
+    expect(
+      createOrderValidate.safeParse({
+        items: [{ productId, quantity: 1 }],
+        paymentMethod: "card",
+        paymentMethodCode: "bitcoin",
+        shippingAddress,
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("orderListQueryValidate", () => {
+  it("accepts status filters, pagination, and a restricted sort", () => {
+    const result = orderListQueryValidate.safeParse({
+      paymentStatus: "paid",
+      orderStatus: "processing",
+      shippingStatus: "shipped",
+      sort: "-totalAmount",
+      page: "2",
+      limit: "25",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toMatchObject({ page: 2, limit: 25, sort: "-totalAmount" });
+    }
+  });
+
+  it("rejects an unknown status, sort, or oversized limit", () => {
+    expect(orderListQueryValidate.safeParse({ paymentStatus: "refunded" }).success).toBe(false);
+    expect(orderListQueryValidate.safeParse({ sort: "password" }).success).toBe(false);
+    expect(orderListQueryValidate.safeParse({ limit: "500" }).success).toBe(false);
+  });
+
+  it("keeps default behaviour when no filters are supplied", () => {
+    const result = orderListQueryValidate.safeParse({});
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data).toEqual({});
+    }
+  });
+});
+
+describe("orderNumberParamsValidate", () => {
+  it("accepts generated and legacy order numbers", () => {
+    expect(orderNumberParamsValidate.safeParse({ orderNumber: "CCTV-261119-AB12" }).success).toBe(true);
+    expect(orderNumberParamsValidate.safeParse({ orderNumber: "CCTV-LEGACY-507F1F77" }).success).toBe(true);
+  });
+
+  it("rejects malformed order numbers", () => {
+    expect(orderNumberParamsValidate.safeParse({ orderNumber: "12345" }).success).toBe(false);
+  });
+});
+
+describe("reconcilePaymentValidate", () => {
+  it("requires a resolution and an attributable reason", () => {
+    expect(reconcilePaymentValidate.safeParse({ resolution: "paid", reason: "Bank transfer" }).success).toBe(true);
+    expect(reconcilePaymentValidate.safeParse({ resolution: "paid" }).success).toBe(false);
+    expect(reconcilePaymentValidate.safeParse({ resolution: "refund", reason: "x" }).success).toBe(false);
   });
 });

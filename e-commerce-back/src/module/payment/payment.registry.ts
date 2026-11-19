@@ -1,21 +1,22 @@
 /** Payment provider registry (MVP-02/MVP-12).
  *
  * Selects the active adapter from `PAYMENT_PROVIDER`. This is the only place the
- * order flow resolves a provider: `createOrder` calls `getPaymentProvider()` and
+ * order flow resolves a provider: checkout calls `getPaymentProvider()` and
  * never imports a provider SDK. Selection is explicit and has no implicit
  * fallback. Paymob configuration is checked when a Paymob operation runs, so
  * COD-only deployments boot without Paymob credentials and a card attempt gets
  * an explicit `503` while the integration is unconfirmed (MVP-13/MVP-15).
- * Stripe is available only as the legacy rollback adapter.
+ *
+ * Stripe was removed on Day 5. Paymob is the only online provider; keeping a
+ * second adapter would contradict the region-separation requirement.
  */
 import { env } from "../../../config/env.service.js";
 
 import { mockPaymentProvider } from "./mock.provider.js";
 import { PaymentProvider, PaymentProviderName } from "./payment.types.js";
 import { paymobPaymentProvider } from "./paymob.provider.js";
-import { stripePaymentProvider } from "./stripe.provider.js";
 
-const KNOWN_PROVIDERS: readonly PaymentProviderName[] = ["paymob", "mock", "stripe"];
+const KNOWN_PROVIDERS: readonly PaymentProviderName[] = ["paymob", "mock"];
 
 export const isPaymentProviderName = (value: string): value is PaymentProviderName =>
   (KNOWN_PROVIDERS as readonly string[]).includes(value);
@@ -41,9 +42,7 @@ const assertMockNotInProduction = (providerName: PaymentProviderName): void => {
 export const assertPaymentProviderConfig = (): void => {
   if (!env.paymentProvider) {
     if (env.isProduction) {
-      throw new Error(
-        'PAYMENT_PROVIDER is required in production. Set it explicitly to "paymob" or "stripe".',
-      );
+      throw new Error('PAYMENT_PROVIDER is required in production. Set it explicitly to "paymob".');
     }
 
     console.warn(
@@ -68,7 +67,7 @@ export const getPaymentProvider = (providerName?: string): PaymentProvider => {
   if (!name) {
     throw new Error(
       "PAYMENT_PROVIDER is not set. Card checkout requires an explicit provider " +
-        "(paymob or stripe; mock only outside production).",
+        "(paymob; mock only outside production).",
     );
   }
   if (!isPaymentProviderName(name)) {
@@ -81,10 +80,7 @@ export const getPaymentProvider = (providerName?: string): PaymentProvider => {
       return mockPaymentProvider;
     case "paymob":
       // Credentials are validated per operation in the adapter. Returning the
-      // stub here keeps boot independent of Paymob, without ever falling back.
+      // adapter here keeps boot independent of Paymob, without ever falling back.
       return paymobPaymentProvider;
-    case "stripe":
-      // Legacy rollback adapter. Webhooks stay on /v1/order/webhook.
-      return stripePaymentProvider;
   }
 };

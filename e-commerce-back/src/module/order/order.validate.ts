@@ -5,6 +5,7 @@ import { phoneSchema } from "../../common/validation/fields.js";
 import { objectIdSchema } from "../../common/validation/objectId.js";
 import { variantLabelSchema } from "../../common/validation/variant.js";
 import { ORDER_STATUSES, PAYMENT_STATUSES, SHIPPING_STATUSES } from "../../database/model/order.model.js";
+import { PAYMENT_METHOD_CODES } from "../payment/payment.types.js";
 
 const quantity = z.coerce.number().int().min(1).max(1000);
 const optionCode = z.string().trim().min(1).max(40);
@@ -52,6 +53,8 @@ export const createOrderValidate = z
     useCart: z.boolean().optional(),
     items: z.array(orderItemValidate).min(1).optional(),
     paymentMethod: z.enum(["cod", "card"]),
+    /** Selected online method; ignored for COD and validated against the merchant list. */
+    paymentMethodCode: z.enum(PAYMENT_METHOD_CODES).optional(),
     shippingAddress: shippingAddressSchema,
     installation: z
       .looseObject({
@@ -89,4 +92,38 @@ export const updateOrderStatusValidate = z
 /** Route params for an order id. */
 export const orderIdParamsValidate = z.looseObject({
   id: objectIdSchema,
+});
+
+/** Route params for the support-friendly order-number lookup. */
+export const orderNumberParamsValidate = z.looseObject({
+  orderNumber: z
+    .string()
+    .trim()
+    .min(5)
+    .max(40)
+    .regex(/^CCTV-[A-Z0-9-]+$/, "Invalid order number"),
+});
+
+/** Admin order filters (MVP-21). Unknown enums and sorts are rejected. */
+export const orderListQueryValidate = z.looseObject({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  orderStatus: z.enum(ORDER_STATUSES).optional(),
+  paymentStatus: z.enum(PAYMENT_STATUSES).optional(),
+  shippingStatus: z.enum(SHIPPING_STATUSES).optional(),
+  sort: z.enum(["createdAt", "-createdAt", "totalAmount", "-totalAmount"]).optional(),
+});
+
+export type OrderListQuery = z.infer<typeof orderListQueryValidate>;
+
+/** Body for the dedicated late-payment reconciliation endpoint (MVP-19). */
+export const reconcilePaymentValidate = z.looseObject({
+  resolution: z.enum(["paid", "cancelled"]),
+  reason: z.string().trim().min(3).max(1000),
+  reacquireStock: z.boolean().optional(),
+});
+
+/** Body for the admin expiry sweep. */
+export const expireSweepValidate = z.looseObject({
+  limit: z.coerce.number().int().min(1).max(200).optional(),
 });

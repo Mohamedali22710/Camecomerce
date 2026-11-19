@@ -9,11 +9,20 @@ import { Request, Response } from "express";
 import { env } from "../../../config/env.service.js";
 import { HttpError } from "../../common/utils/httpError.js";
 import { calculateShipping, roundMoney } from "../../common/utils/pricing.js";
-import { bundleModel } from "../../database/model/bundle.model.js";
+import { findVariant, parseVariants } from "../../common/validation/variant.js";
+import { bundleModel, IBundleComponent } from "../../database/model/bundle.model.js";
 import { cartModel, ICart } from "../../database/model/cart.model.js";
 import { productModel } from "../../database/model/product.model.js";
 
-import { resolveBundleLine, resolveProductLine, ResolvedBundleLine, ResolvedProductLine } from "./cart.lines.js";
+import {
+  bundleStockKey,
+  evaluateBundleStock,
+  resolveBundleLine,
+  resolveProductLine,
+  ResolvedBundleLine,
+  ResolvedProductLine,
+  BundleStockView,
+} from "./cart.lines.js";
 
 interface AddProductBody {
   itemType?: "product";
@@ -44,7 +53,11 @@ const shippingConfig = () => ({
   value: Number(env.SHIPPING_COST_VALUE) || 0,
 });
 
-const lineResponse = (item: ICart, resolved: ResolvedProductLine | ResolvedBundleLine) => ({
+const lineResponse = (
+  item: ICart,
+  resolved: ResolvedProductLine | ResolvedBundleLine,
+  bundleStock?: BundleStockView,
+) => ({
   _id: item._id,
   itemType: item.itemType,
   productId: resolved.itemType === "product" ? resolved.productId : null,
@@ -56,10 +69,48 @@ const lineResponse = (item: ICart, resolved: ResolvedProductLine | ResolvedBundl
   quantity: item.quantity,
   unitPrice: resolved.unitPrice,
   lineTotal: resolved.lineTotal,
-  available: resolved.available,
-  stock: resolved.stock,
-  availabilityUnknown: resolved.availabilityUnknown,
+  available: bundleStock ? bundleStock.available : resolved.available,
+  stock: bundleStock ? bundleStock.stock : resolved.stock,
+  availabilityUnknown: bundleStock ? false : resolved.availabilityUnknown,
 });
+
+interface BundleLike {
+  cameras?: IBundleComponent[];
+}
+
+/**
+ * Loads component variants once for every bundle in the cart and returns
+ * `productId|color|size -> stock`. A missing/inactive product is simply absent,
+ * which makes the bundle unavailable instead of claiming stock.
+ */
+const loadBundleStockMap = async (bundles: BundleLike[]): Promise<Map<string, number>> => {
+  const stockByKey = new Map<string, number>();
+  const ids = new Set<string>();
+  for (const bundle of bundles) {
+    for (const camera of bundle.cameras ?? []) {
+      ids.add(String(camera.productId));
+    }
+  }
+  if (ids.size === 0) {
+    return stockByKey;
+  }
+
+  const products = await productModel.find({ _id: { $in: Array.from(ids) } }).select("variants isActive");
+  const productsById = new Map(products.map((product) => [String(product._id), product]));
+
+  for (const bundle of bundles) {
+    for (const camera of bundle.cameras ?? []) {
+      const product = productsById.get(String(camera.productId));
+      if (!product || !product.isActive) {
+        continue;
+      }
+      const variant = findVariant(parseVariants(product.variants), camera.color, camera.size);
+      stockByKey.set(bundleStockKey(String(camera.productId), camera.color, camera.size), variant?.stock ?? 0);
+    }
+  }
+
+  return stockByKey;
+};
 
 /** Adds a product variant line or increases an existing line. */
 const addProductToCart = async (userId: string, body: AddProductBody, res: Response): Promise<void> => {
@@ -138,10 +189,19 @@ const addBundleToCart = async (userId: string, body: AddBundleBody, res: Respons
     throw new HttpError(400, "Requested quantity exceeds the per-line limit");
   }
 
+  // Bundle inventory is the minimum number of complete component kits.
+  const stockView = evaluateBundleStock(bundle, requestedTotal, await loadBundleStockMap([bundle]));
+  if (!stockView.available) {
+    throw new HttpError(
+      400,
+      `Insufficient component stock for ${bundle.en_name}. Available kits: ${stockView.stock}, requested: ${requestedTotal}`,
+    );
+  }
+
   if (existing) {
     existing.quantity = requestedTotal;
     await existing.save();
-    res.status(200).json({ message: "Cart updated", data: lineResponse(existing, resolved) });
+    res.status(200).json({ message: "Cart updated", data: lineResponse(existing, resolved, stockView) });
     return;
   }
 
@@ -153,7 +213,7 @@ const addBundleToCart = async (userId: string, body: AddBundleBody, res: Respons
     installationOption: resolved.selection.installation.code,
     quantity: body.quantity,
   });
-  res.status(201).json({ message: "Item added to cart", data: lineResponse(cartItem, resolved) });
+  res.status(201).json({ message: "Item added to cart", data: lineResponse(cartItem, resolved, stockView) });
 };
 
 /** Adds an item or increases the quantity of an existing cart line. */
@@ -202,6 +262,12 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
     },
   ]);
 
+  const bundleDocs = items
+    .filter((item) => item.itemType === "bundle")
+    .map((item) => item.bundleId as unknown as BundleLike)
+    .filter((bundle): bundle is BundleLike => Boolean(bundle));
+  const bundleStockMap = await loadBundleStockMap(bundleDocs);
+
   let subtotal = 0;
   const lines = items.map((item) => {
     if (item.itemType === "bundle") {
@@ -237,7 +303,10 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
           installationOption: item.installationOption ?? "",
           quantity: item.quantity,
         });
-        subtotal += resolved.lineTotal;
+        const stockView = evaluateBundleStock(bundle, item.quantity, bundleStockMap);
+        if (stockView.available) {
+          subtotal += resolved.lineTotal;
+        }
 
         return {
           _id: item._id,
@@ -252,12 +321,12 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
           bundle: cartBundleSummary(bundle),
           hdd: resolved.selection.hdd,
           installation: resolved.selection.installation,
-          available: true,
-          availabilityUnknown: true,
-          stock: null,
-          unitPrice: resolved.unitPrice,
-          subtotal: resolved.lineTotal,
-          lineTotal: resolved.lineTotal,
+          available: stockView.available,
+          availabilityUnknown: false,
+          stock: stockView.stock,
+          unitPrice: stockView.available ? resolved.unitPrice : 0,
+          subtotal: stockView.available ? resolved.lineTotal : 0,
+          lineTotal: stockView.available ? resolved.lineTotal : 0,
         };
       } catch {
         // A bundle option may have been removed or renamed after it was added.
@@ -405,9 +474,17 @@ export const updateCartLineQuantity = async (req: Request, res: Response): Promi
       quantity,
     });
 
+    const stockView = evaluateBundleStock(bundle, quantity, await loadBundleStockMap([bundle]));
+    if (!stockView.available) {
+      throw new HttpError(
+        400,
+        `Insufficient component stock for ${bundle.en_name}. Available kits: ${stockView.stock}, requested: ${quantity}`,
+      );
+    }
+
     item.quantity = quantity;
     await item.save();
-    res.status(200).json({ message: "Cart updated", data: lineResponse(item, resolved) });
+    res.status(200).json({ message: "Cart updated", data: lineResponse(item, resolved, stockView) });
     return;
   }
 

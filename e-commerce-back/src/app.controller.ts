@@ -17,8 +17,9 @@ import cartRouter from "./module/cart/cart.controller.js";
 import categoryRouter from "./module/category/category.controller.js";
 import contactRouter from "./module/contact/contact.controller.js";
 import installationRouter from "./module/installation/installation.controller.js";
-import orderRouter, { webhookRouter } from "./module/order/order.controller.js";
+import orderRouter from "./module/order/order.controller.js";
 import paymentRouter from "./module/payment/payment.controller.js";
+import { paymobWebhookRouter } from "./module/payment/paymob.webhook.js";
 import productRouter from "./module/product/product.controller.js";
 import securityRouter from "./module/security/security.controller.js";
 import subcategoryRouter from "./module/subcategory/subcategory.controller.js";
@@ -59,9 +60,9 @@ app.use(
 app.use(helmet());
 app.use(compression());
 
-// Stripe needs the raw request body to verify signatures, so this router must
-// be mounted before the JSON body parser.
-app.use("/v1/order/webhook", webhookRouter);
+// Paymob signs the exact received bytes, so this router must be mounted before
+// the JSON body parser. No other route receives a raw buffer.
+app.use("/v1/payment/paymob/webhook", paymobWebhookRouter);
 
 app.use((req, res, next) => {
   const contentType = req.headers["content-type"] || "";

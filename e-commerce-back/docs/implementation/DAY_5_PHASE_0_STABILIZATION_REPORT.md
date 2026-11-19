@@ -1,5 +1,12 @@
 # Day 5 — Phase 0 Stabilization Report
 
+> **Historical document (superseded 2026-11-19).** This report records the Phase 0
+> state on 2026-11-18, when a Stripe adapter still existed as a rollback. Stripe
+> was removed permanently during the Day 5 Paymob work. References below to
+> `stripe.provider.ts`, `PAYMENT_PROVIDER=stripe`, or the Stripe webhook describe
+> that earlier snapshot only. Current behavior: Paymob or mock, no Stripe. See
+> [`../DAY5_DAY6_DELIVERY_REPORT.md`](../DAY5_DAY6_DELIVERY_REPORT.md).
+
 | Field | Value |
 | --- | --- |
 | Date | 2026-11-18 |

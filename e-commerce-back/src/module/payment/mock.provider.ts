@@ -143,6 +143,7 @@ export const mockPaymentProvider: PaymentProvider = {
     const result: CreateSessionResult = {
       provider: "mock",
       providerReference,
+      providerSessionId: providerReference,
       providerTransactionId,
       amountMinor: input.amountMinor,
       currency: input.currency.toUpperCase(),
@@ -173,7 +174,9 @@ export const mockPaymentProvider: PaymentProvider = {
     return {
       provider: "mock",
       ...fields,
-      hmacVerified: true,
+      providerSessionId: fields.providerReference,
+      verified: true,
+      source: "webhook",
       payload,
     };
   },

@@ -4,9 +4,9 @@
  * server-owned pricing and whitelisted HDD/installation options. Native arrays
  * are used because this is a new collection; no JSON-string migration applies.
  *
- * Inventory is deliberately NOT modelled here. Whether a bundle keeps its own
- * stock counter or deducts component stock is business decision DEC-01, which is
- * still open. No component or HDD stock deduction exists.
+ * Inventory is deliberately NOT modelled here. A bundle has no stock counter of
+ * its own: availability is derived from `cameras`, and checkout reserves those
+ * component variants in the same transaction as the order.
  */
 import mongoose, { Document, Schema, Types } from "mongoose";
 
