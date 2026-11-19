@@ -131,19 +131,20 @@ const Login = () => {
     <RTLWrapper>
       <ThemeProvider theme={forcedLightTheme}>
         <Box
-          sx={{
-            minHeight: "100vh",
-            width: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            position: "relative",
-            boxSizing: "border-box",
-            p: { xs: 2.5, sm: 3 },
-            background:
-              "radial-gradient(circle at 50% 15%, #172554 0%, #0F172A 55%, #0B0F19 100%)",
-          }}
+         sx={{
+    minHeight: "100vh",
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    boxSizing: "border-box",
+    p: { xs: 2.5, sm: 3 },
+    overflow: "hidden", // <--- أضف هذه السطر لمنع أي سكرول ناتج عن العناصر المطلقة أو الحشو الزائد
+    background:
+      "radial-gradient(circle at 50% 15%, #172554 0%, #0F172A 55%, #0B0F19 100%)",
+  }}
         >
           {/* Ambient glowing orbs strictly clipped within container */}
           <Box
