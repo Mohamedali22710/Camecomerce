@@ -186,6 +186,41 @@ const GroupedTable = () => {
   const translate = useTranslate();
   const locale = useLocale();
   const { data, error, isPending } = useListContext();
+
+  const grouped = React.useMemo(() => {
+    if (!data) return [];
+    const map = new Map<string, { en_name: string; ar_name: string; fr_name: string; categoryIds: string[]; ids: string[]; allActive: boolean; someActive: boolean }>();
+    data.forEach((r: any) => {
+      if (!map.has(r.en_name)) {
+        map.set(r.en_name, { en_name: r.en_name, ar_name: r.ar_name, fr_name: r.fr_name, categoryIds: [], ids: [], allActive: true, someActive: false });
+      }
+      const entry = map.get(r.en_name)!;
+      if (!entry.categoryIds.includes(r.categoryId)) {
+        entry.categoryIds.push(r.categoryId);
+      }
+      entry.ids.push(r.id);
+      if (r.isActive) entry.someActive = true;
+      else entry.allActive = false;
+    });
+    return Array.from(map.values());
+  }, [data]);
+
+  const allCategoryIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    grouped.forEach(g => g.categoryIds.forEach(c => ids.add(c)));
+    return Array.from(ids);
+  }, [grouped]);
+
+  const { data: categories } = useGetMany("categories", { ids: allCategoryIds }, { enabled: allCategoryIds.length > 0 });
+  const catMap = React.useMemo(() => {
+    const m = new Map<string, string>();
+    (categories || []).forEach((c: any) => {
+      const label = locale === 'ar' ? (c.ar_name || c.en_name) : (c.en_name || c.ar_name);
+      m.set(c.id, label);
+    });
+    return m;
+  }, [categories, locale]);
+
   if (isPending) return (
     <Table>
       <TableHead>
@@ -211,39 +246,6 @@ const GroupedTable = () => {
     </Table>
   );
   if (error || !data) return null;
-
-  const grouped = React.useMemo(() => {
-    const map = new Map<string, { en_name: string; ar_name: string; fr_name: string; categoryIds: string[]; ids: string[]; allActive: boolean; someActive: boolean }>();
-    data.forEach((r: any) => {
-      if (!map.has(r.en_name)) {
-        map.set(r.en_name, { en_name: r.en_name, ar_name: r.ar_name, fr_name: r.fr_name, categoryIds: [], ids: [], allActive: true, someActive: false });
-      }
-      const entry = map.get(r.en_name)!;
-      if (!entry.categoryIds.includes(r.categoryId)) {
-        entry.categoryIds.push(r.categoryId);
-      }
-      entry.ids.push(r.id);
-      if (r.isActive) entry.someActive = true;
-      else entry.allActive = false;
-    });
-    return Array.from(map.values());
-  }, [data]);
-
-  const allCategoryIds = React.useMemo(() => {
-    const ids = new Set<string>();
-    grouped.forEach(g => g.categoryIds.forEach(c => ids.add(c)));
-    return Array.from(ids);
-  }, [grouped]);
-
-  const { data: categories } = useGetMany("categories", { ids: allCategoryIds });
-  const catMap = React.useMemo(() => {
-    const m = new Map<string, string>();
-    (categories || []).forEach((c: any) => {
-      const label = locale === 'ar' ? (c.ar_name || c.en_name) : (c.en_name || c.ar_name);
-      m.set(c.id, label);
-    });
-    return m;
-  }, [categories, locale]);
 
   return (
     <Table

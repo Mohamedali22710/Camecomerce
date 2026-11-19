@@ -83,6 +83,7 @@ const EcommerceFooter1 = ({
                 alt="Visa"
                 width={44}
                 height={22}
+                style={{ width: "auto", height: "auto" }}
                 className="opacity-90 hover:opacity-100 transition-opacity"
               />
               <Image
@@ -90,6 +91,7 @@ const EcommerceFooter1 = ({
                 alt="Mastercard"
                 width={44}
                 height={22}
+                style={{ width: "auto", height: "auto" }}
                 className="opacity-90 hover:opacity-100 transition-opacity"
               />
             </div>

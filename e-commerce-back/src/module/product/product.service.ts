@@ -277,19 +277,53 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     product.subcategoryId = subcategoryId;
   }
 
+  // Handle existing and newly uploaded images
+  const rawImageURLs = req.body.imageURLs;
+  let keptImageUrls: string[] | null = null;
+  if (rawImageURLs !== undefined) {
+    if (Array.isArray(rawImageURLs)) {
+      keptImageUrls = rawImageURLs.filter((item) => typeof item === "string");
+    } else if (typeof rawImageURLs === "string" && rawImageURLs.trim()) {
+      try {
+        const parsed = JSON.parse(rawImageURLs);
+        keptImageUrls = Array.isArray(parsed)
+          ? parsed.filter((item) => typeof item === "string")
+          : [rawImageURLs];
+      } catch {
+        keptImageUrls = [rawImageURLs];
+      }
+    } else {
+      keptImageUrls = [];
+    }
+  }
+
+  const oldImageUrls: string[] = parseJsonArray(product.imageURLs);
+  if (keptImageUrls !== null) {
+    const deletedUrls = oldImageUrls.filter((url) => !keptImageUrls!.includes(url));
+    if (deletedUrls.length > 0) {
+      try {
+        await deleteImagesByUrls(deletedUrls, "products");
+      } catch {
+        // silent fallback if deletion fails
+      }
+    }
+  }
+
+  let newUploadedUrls: string[] = [];
   const files = req.files as Express.Multer.File[] | undefined;
   if (files && files.length > 0) {
     try {
-      if (product.imageURLs) {
-        await deleteImagesByUrls(parseJsonArray(product.imageURLs), "products");
-      }
       const results = await uploadImages(files, "products");
-      product.imageURLs = JSON.stringify(results.map((result) => result.url));
+      newUploadedUrls = results.map((result) => result.url);
     } catch (error: any) {
       throw new HttpError(400, error?.message || "Image upload failed");
     }
-  } else if (imageURLs !== undefined) {
-    product.imageURLs = imageURLs || null;
+  }
+
+  if ((files && files.length > 0) || keptImageUrls !== null) {
+    const baseUrls = keptImageUrls !== null ? keptImageUrls : oldImageUrls;
+    const finalUrls = [...baseUrls, ...newUploadedUrls];
+    product.imageURLs = finalUrls.length > 0 ? JSON.stringify(finalUrls) : null;
   }
 
   await product.save();

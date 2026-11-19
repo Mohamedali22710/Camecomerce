@@ -29,7 +29,11 @@ export function EcommerceSidebar() {
   const pathname = usePathname();
   const [checkboxState, setCheckboxState] = useState<Record<string, string[]>>(() => {
     const sub = searchParams.get("subcategory");
-    return sub ? { brand: [sub] } : {} as Record<string, string[]>;
+    const cat = searchParams.get("category");
+    const initial: Record<string, string[]> = {};
+    if (sub) initial.brand = [sub];
+    if (cat) initial.category = [cat];
+    return initial;
   });
   const [colorState, setColorState] = useState<string[]>([]);
   const [priceState, setPriceState] = useState<[number, number]>([0, 500]);
@@ -50,17 +54,17 @@ export function EcommerceSidebar() {
         setCategories({
           id: "category",
           title: t("category"),
-          options: catData.map((c: { id: number; en_name: string; ar_name?: string; fr_name?: string }) => ({
-            id: String(c.id),
-            label: getLocalizedField(c, "name", locale),
+          options: catData.map((c: any) => ({
+            id: String(c._id || c.id),
+            label: getLocalizedField(c, "name", locale) || c.en_name,
             count: 0,
           })),
         });
         const brandOptions = Array.from(
           new Map(subData.map((s: any) => [s.en_name, s])).values()
         ).map((s: any) => ({
-          id: String(s.id),
-          label: getLocalizedField(s, "name", locale),
+          id: String(s._id || s.id),
+          label: getLocalizedField(s, "name", locale) || s.en_name,
           count: 0,
         }));
         setSubcategories({
@@ -72,17 +76,29 @@ export function EcommerceSidebar() {
         // silent
       }
     })();
-  }, []);
+  }, [locale]);
+
+  useEffect(() => {
+    const sub = searchParams.get("subcategory");
+    const cat = searchParams.get("category");
+    const next: Record<string, string[]> = {};
+    if (sub) next.brand = [sub];
+    if (cat) next.category = [cat];
+    setCheckboxState(next);
+  }, [searchParams]);
 
   const sections = [categories, subcategories, SIZES];
 
   const activeFilters: ActiveFilter[] = [
     ...Object.entries(checkboxState).flatMap(([sectionId, ids]) =>
-      ids.map((optionId) => {
-        const section = sections.find((s) => s.id === sectionId);
-        const option = section?.options.find((o) => o.id === optionId);
-        return { sectionId, optionId, label: option?.label ?? optionId };
-      }),
+      ids
+        .map((optionId) => {
+          const section = sections.find((s) => s.id === sectionId);
+          const option = section?.options.find((o) => o.id === optionId);
+          if (!option?.label) return null;
+          return { sectionId, optionId, label: option.label };
+        })
+        .filter((item): item is ActiveFilter => item !== null),
     ),
     ...colorState.map((id) => ({
       sectionId: "color",
@@ -110,6 +126,16 @@ export function EcommerceSidebar() {
         }
         router.replace(`${pathname}?${params}`, { scroll: false });
       }
+      if (sectionId === "category") {
+        const params = new URLSearchParams(searchParams.toString());
+        const selected = next.category ?? [];
+        if (selected.length > 0) {
+          params.set("category", selected[selected.length - 1]);
+        } else {
+          params.delete("category");
+        }
+        router.replace(`${pathname}?${params}`, { scroll: false });
+      }
       return next;
     });
   }
@@ -134,6 +160,11 @@ export function EcommerceSidebar() {
           params.delete("subcategory");
           router.replace(`${pathname}?${params}`, { scroll: false });
         }
+        if (sectionId === "category") {
+          const params = new URLSearchParams(searchParams.toString());
+          params.delete("category");
+          router.replace(`${pathname}?${params}`, { scroll: false });
+        }
         return next;
       });
     }
@@ -145,6 +176,7 @@ export function EcommerceSidebar() {
     setPriceState([0, 500]);
     const params = new URLSearchParams(searchParams.toString());
     params.delete("subcategory");
+    params.delete("category");
     router.replace(`${pathname}?${params}`, { scroll: false });
   }
 

@@ -22,16 +22,47 @@ export function getLocalizedField(obj: any, field: string, locale: Locale): stri
   return "";
 }
 
-export function parseImageURLs(product: {
-  imageURLs?: string;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function parseImageURLs(product?: {
+  imageURLs?: string | string[];
   images?: string[];
-}): string[] {
-  try {
-    const parsed = JSON.parse(product.imageURLs || "[]");
-    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-  } catch {}
-  if (Array.isArray(product.images) && product.images.length > 0)
-    return product.images;
+  imageURL?: string;
+} | any): string[] {
+  if (!product) return ["/placeholder.svg"];
+
+  // 1. If imageURLs is already an array of strings
+  if (Array.isArray(product.imageURLs) && product.imageURLs.length > 0) {
+    const valid = product.imageURLs.filter((u: any) => typeof u === "string" && u.trim().length > 0);
+    if (valid.length > 0) return valid;
+  }
+
+  // 2. If imageURLs is a string
+  if (typeof product.imageURLs === "string" && product.imageURLs.trim().length > 0) {
+    const trimmed = product.imageURLs.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const valid = parsed.filter((u: any) => typeof u === "string" && u.trim().length > 0);
+          if (valid.length > 0) return valid;
+        }
+      } catch {}
+    } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("/")) {
+      return [trimmed];
+    }
+  }
+
+  // 3. If images array
+  if (Array.isArray(product.images) && product.images.length > 0) {
+    const valid = product.images.filter((u: any) => typeof u === "string" && u.trim().length > 0);
+    if (valid.length > 0) return valid;
+  }
+
+  // 4. If single imageURL property
+  if (typeof product.imageURL === "string" && product.imageURL.trim().length > 0) {
+    return [product.imageURL.trim()];
+  }
+
   return ["/placeholder.svg"];
 }
 

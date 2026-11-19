@@ -62,7 +62,7 @@ const VariantsEditor = () => {
             return;
         }
         let parsedVariants: { color: string; size: string; stock: number }[] = [];
-        let parsedColorImages: { color: string; imageURL?: string }[] = [];
+        let parsedColorImages: any = null;
         try {
             parsedVariants = typeof existingVariants === 'string' ? JSON.parse(existingVariants) : existingVariants;
             if (existingColorImages) {
@@ -73,11 +73,23 @@ const VariantsEditor = () => {
             syncForm(entries);
             return;
         }
+
+        const getColorImage = (color: string): string => {
+            if (!parsedColorImages) return '';
+            if (Array.isArray(parsedColorImages)) {
+                const ci = parsedColorImages.find((c: any) => c && c.color === color);
+                return ci?.imageURL || ci?.imageUrl || '';
+            }
+            if (typeof parsedColorImages === 'object') {
+                return (parsedColorImages as Record<string, string>)[color] || '';
+            }
+            return '';
+        };
+
         const grouped: Record<string, { color: string; sizes: Record<string, string>; imageUrl: string }> = {};
         parsedVariants.forEach((v) => {
             if (!grouped[v.color]) {
-                const ci = parsedColorImages.find((c) => c.color === v.color);
-                grouped[v.color] = { color: v.color, sizes: {}, imageUrl: ci?.imageURL || '' };
+                grouped[v.color] = { color: v.color, sizes: {}, imageUrl: getColorImage(v.color) };
             }
             grouped[v.color].sizes[v.size] = String(v.stock);
         });

@@ -66,12 +66,19 @@ export default function ProductsPage() {
       if (sort) params.set("sort", sort);
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
+      const cat = searchParams.get("category");
       const sub = searchParams.get("subcategory");
-      if (sub) params.set("subcategory", sub);
       const search = searchParams.get("search");
       if (search) params.set("search", search);
 
-      const res = await api.get(`/products?${params}`);
+      let url = `/products?${params}`;
+      if (cat) {
+        url = `/products/category/${cat}?${params}`;
+      } else if (sub) {
+        url = `/products/subcategory/${sub}?${params}`;
+      }
+
+      const res = await api.get(url);
       const data = res.data?.data;
       const list = data?.products || data;
       setProducts(Array.isArray(list) ? list : []);
@@ -158,8 +165,9 @@ export default function ProductsPage() {
           >
             <AnimatePresence mode="popLayout">
               {products.map((product) => {
-                const salePrice = product.discount
-                  ? product.price - (product.price * product.discount) / 100
+                const hasDiscount = typeof product.discount === "number" && product.discount > 0;
+                const salePrice = hasDiscount
+                  ? product.price - (product.price * (product.discount as number)) / 100
                   : null;
                 return (
                   <motion.div
@@ -184,7 +192,7 @@ export default function ProductsPage() {
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
                               />
                             </AspectRatio>
-                            {product.discount && (
+                            {hasDiscount && (
                               <Badge className="absolute left-3 top-3">-{product.discount}%</Badge>
                             )}
                           </CardHeader>

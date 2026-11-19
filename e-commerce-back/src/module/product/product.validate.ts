@@ -48,7 +48,7 @@ export const updateProductValidate = z
     discount: z.coerce.number().min(0).max(100).optional(),
     brand: brand.nullable().optional(),
     subcategoryId: objectIdSchema.optional(),
-    imageURLs: z.string().nullable().optional(),
+    imageURLs: z.union([z.string(), z.array(z.string())]).nullable().optional(),
     variants: variants.optional(),
     specifications: specificationsSchema.optional(),
     colorImages: colorImages.optional(),

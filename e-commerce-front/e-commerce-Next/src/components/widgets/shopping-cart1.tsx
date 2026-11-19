@@ -1,7 +1,7 @@
 "use client";
 
 import { Minus, Plus, Trash2, XCircle } from "lucide-react";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import Image from "next/image";
@@ -22,6 +22,11 @@ const ShoppingCart1 = () => {
   const { items, removeItem, updateQuantity, clearCart, subtotal, shippingCost, total, currency, fetchFromApi } = useCart();
   const { userToken, userRole } = useContext(User)!;
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (userToken && userRole) {
@@ -51,6 +56,20 @@ const ShoppingCart1 = () => {
   };
 
   const formatPrice = useFormatPrice(locale);
+
+  if (!mounted) {
+    return (
+      <section className="py-24 container mx-auto">
+        <div className="container max-w-2xl space-y-6">
+          <div className="h-8 w-44 bg-muted rounded-md animate-pulse" />
+          <div className="space-y-4">
+            <div className="h-24 bg-muted/60 rounded-xl animate-pulse" />
+            <div className="h-24 bg-muted/60 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   if (items.length === 0) {
     return (

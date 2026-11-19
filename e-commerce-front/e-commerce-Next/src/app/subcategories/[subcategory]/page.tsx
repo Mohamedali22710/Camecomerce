@@ -148,8 +148,9 @@ export default function SubcategoryProducts() {
               variants={stagger}
             >
               {products.map((product) => {
-                const salePrice = product.discount
-                  ? product.price - (product.price * product.discount) / 100
+                const hasDiscount = typeof product.discount === "number" && product.discount > 0;
+                const salePrice = hasDiscount
+                  ? product.price - (product.price * (product.discount as number)) / 100
                   : null;
                 return (
                   <motion.div key={product._id} variants={fadeInUp}>
@@ -169,7 +170,7 @@ export default function SubcategoryProducts() {
                                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                               />
                             </AspectRatio>
-                            {product.discount && (
+                            {hasDiscount && (
                               <Badge className="absolute left-3 top-3">-{product.discount}%</Badge>
                             )}
                           </CardHeader>

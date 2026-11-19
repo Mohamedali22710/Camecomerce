@@ -136,7 +136,7 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     throw new HttpError(404, "Category not found");
   }
 
-  const { en_name, ar_name, fr_name, imageURL } = req.body;
+  const { en_name, ar_name, fr_name, imageURL, isActive } = req.body;
 
   if (en_name !== undefined && en_name !== category.en_name) {
     if (await categoryModel.exists({ en_name, _id: { $ne: category._id } })) {
@@ -159,6 +159,10 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     category.fr_name = fr_name || null;
   }
 
+  if (isActive !== undefined) {
+    category.isActive = isActive === true || isActive === "true";
+  }
+
   if (req.file) {
     try {
       if (category.imageURL) {
@@ -170,7 +174,25 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
       throw new HttpError(400, error?.message || "Image upload failed");
     }
   } else if (imageURL !== undefined) {
-    category.imageURL = imageURL || null;
+    const isClearing = !imageURL || imageURL === "null" || imageURL === "";
+    if (isClearing && category.imageURL) {
+      try {
+        await deleteImageByUrl(category.imageURL, "categories");
+      } catch {}
+    }
+    category.imageURL = isClearing ? null : imageURL;
+  } else if (req.body.image !== undefined) {
+    const imgVal = req.body.image;
+    if (typeof imgVal === "string" && imgVal.trim() && imgVal !== "null") {
+      category.imageURL = imgVal;
+    } else {
+      if (category.imageURL) {
+        try {
+          await deleteImageByUrl(category.imageURL, "categories");
+        } catch {}
+      }
+      category.imageURL = null;
+    }
   }
 
   await category.save();

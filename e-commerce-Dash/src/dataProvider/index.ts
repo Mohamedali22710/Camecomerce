@@ -41,6 +41,73 @@ const extractList = (data: any, resource: string) => {
   return { records: [], total: 0 };
 };
 
+const isFileOrBlob = (val: any): boolean =>
+  val instanceof File || val instanceof Blob;
+
+const extractRawFile = (val: any): File | Blob | null => {
+  if (isFileOrBlob(val)) return val;
+  if (val && typeof val === 'object' && isFileOrBlob(val.rawFile)) {
+    return val.rawFile;
+  }
+  return null;
+};
+
+const hasAnyFileUpload = (data: Record<string, any>): boolean => {
+  if (!data || typeof data !== 'object') return false;
+  return Object.values(data).some(v => {
+    if (extractRawFile(v)) return true;
+    if (Array.isArray(v) && v.some(item => extractRawFile(item))) return true;
+    return false;
+  });
+};
+
+const buildFormData = (data: Record<string, any>, excludeId = false): FormData => {
+  const fd = new FormData();
+  for (const [k, v] of Object.entries(data)) {
+    if (excludeId && k === 'id') continue;
+    if (v === undefined || v === null) continue;
+
+    // 1. Single file: direct File or { rawFile: File }
+    const singleFile = extractRawFile(v);
+    if (singleFile) {
+      fd.append(k, singleFile);
+      continue;
+    }
+
+    // 2. Array
+    if (Array.isArray(v)) {
+      const hasFiles = v.some(item => extractRawFile(item));
+      if (hasFiles) {
+        v.forEach(item => {
+          const f = extractRawFile(item);
+          if (f) {
+            fd.append(k, f);
+          }
+        });
+      } else {
+        fd.append(k, JSON.stringify(v));
+      }
+      continue;
+    }
+
+    // 3. Object (that is not a file wrapper)
+    if (typeof v === 'object') {
+      if ('src' in v && typeof (v as any).src === 'string' && !(v as any).rawFile) {
+        if (k === 'image') {
+          fd.append('imageURL', (v as any).src);
+        }
+        continue;
+      }
+      fd.append(k, JSON.stringify(v));
+      continue;
+    }
+
+    // 4. Primitive
+    fd.append(k, String(v));
+  }
+  return fd;
+};
+
 const createProvider = (): DataProvider => ({
   getList: async (resource, params) => {
     const { page = 1, perPage = 10 } = params.pagination || {};
@@ -107,22 +174,12 @@ const createProvider = (): DataProvider => ({
   },
 
   create: async (resource, params) => {
-    const isUpload = Object.values(params.data).some(v => v instanceof File || v instanceof Blob);
+    const isUpload = hasAnyFileUpload(params.data);
     let body: FormData | string;
     const headers: Record<string, string> = { ...getAuthHeaders() };
 
     if (isUpload) {
-      const fd = new FormData();
-      for (const [k, v] of Object.entries(params.data)) {
-        if (v instanceof File || v instanceof Blob) {
-          fd.append(k, v);
-        } else if (Array.isArray(v)) {
-          fd.append(k, JSON.stringify(v));
-        } else if (v !== undefined && v !== null) {
-          fd.append(k, String(v));
-        }
-      }
-      body = fd;
+      body = buildFormData(params.data, false);
     } else {
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify(params.data);
@@ -136,23 +193,12 @@ const createProvider = (): DataProvider => ({
   },
 
   update: async (resource, params) => {
-    const isUpload = Object.values(params.data).some(v => v instanceof File || v instanceof Blob);
+    const isUpload = hasAnyFileUpload(params.data);
     let body: FormData | string;
     const headers: Record<string, string> = { ...getAuthHeaders() };
 
     if (isUpload) {
-      const fd = new FormData();
-      for (const [k, v] of Object.entries(params.data)) {
-        if (k === 'id') continue;
-        if (v instanceof File || v instanceof Blob) {
-          fd.append(k, v);
-        } else if (Array.isArray(v)) {
-          fd.append(k, JSON.stringify(v));
-        } else if (v !== undefined && v !== null) {
-          fd.append(k, String(v));
-        }
-      }
-      body = fd;
+      body = buildFormData(params.data, true);
     } else {
       headers['Content-Type'] = 'application/json';
       const { id, ...rest } = params.data;

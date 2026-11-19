@@ -48,24 +48,28 @@ function computeShipping(subtotal: number): number {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        return stored ? JSON.parse(stored) : []
-      } catch {
-        return []
-      }
-    }
-    return []
-  })
-
+  const [items, setItems] = useState<CartItem[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [shippingCost, setShippingCost] = useState<number | null>(null)
   const [currency, setCurrency] = useState<string>("SAR")
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  }, [items])
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      if (stored) {
+        setItems(JSON.parse(stored))
+      }
+    } catch {
+      // ignore
+    }
+    setLoaded(true)
+  }, [])
+
+  useEffect(() => {
+    if (loaded) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    }
+  }, [items, loaded])
 
   const addItem = (newItem: Omit<CartItem, "quantity"> & { quantity?: number }) => {
     setItems((prev) => {

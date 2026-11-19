@@ -1,7 +1,7 @@
 "use client";
 
 import { Heart, House, ShoppingCart, Trash2, TrendingDown } from "lucide-react";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
@@ -25,6 +25,11 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
   const { items: wishlistItems, removeItem, fetchFromApi } = useWishlist();
   const { addItem } = useCart();
   const { userToken, userRole } = useContext(User)!;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (userToken && userRole) {
@@ -61,6 +66,21 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
       }
     }
   };
+
+  if (!mounted) {
+    return (
+      <section className={cn("py-16 md:py-24", className)}>
+        <div className="container mx-auto max-w-6xl space-y-8">
+          <div className="h-8 w-44 bg-muted rounded-md animate-pulse" />
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="h-48 bg-muted/60 rounded-xl animate-pulse" />
+            <div className="h-48 bg-muted/60 rounded-xl animate-pulse" />
+            <div className="h-48 bg-muted/60 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <motion.section

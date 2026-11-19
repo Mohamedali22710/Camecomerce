@@ -39,7 +39,14 @@ const ContactSection = ({ links }: ContactSectionProps) => {
           {socialMedia.map(({ icon, link }, i) => (
             <li key={i}>
               <Button size="icon-lg" variant="outline" render={<a href={link} />} nativeButton={false}>
-                <Image className={cn(icon.className)} alt={icon.title} src={icon.src} width={20} height={20} />
+                <Image
+                  className={cn(icon.className)}
+                  alt={icon.title}
+                  src={icon.src}
+                  width={20}
+                  height={20}
+                  style={{ width: "auto", height: "auto" }}
+                />
               </Button>
             </li>
           ))}
