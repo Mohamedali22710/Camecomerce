@@ -128,7 +128,7 @@ const Navbar1 = ({
   const { userToken, userData, setUserToken, setUserData, setUserRole } = useContext(User)!;
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -138,10 +138,10 @@ const Navbar1 = ({
 
   useEffect(() => {
     api
-      .get("/subcategory")
+      .get("/category")
       .then((res) => {
         const data = res.data?.data || res.data;
-        setSubcategories(Array.isArray(data) ? data : []);
+        setCategories(Array.isArray(data) ? data : []);
       })
       .catch(() => {});
   }, []);
@@ -157,7 +157,8 @@ const Navbar1 = ({
     }
   };
 
-  const getLocaleName = (item: any) => item[`${locale}_name`] || item.en_name;
+  const getLocaleName = (item: any) =>
+    item[`${locale}_name`] || item.ar_name || item.en_name || item.name || "";
 
   const menu = menuProp ?? [
     { title: t("home"), url: "/" },
@@ -165,13 +166,13 @@ const Navbar1 = ({
       title: t("shop"),
       url: "/products",
       items: [
-        { title: t("all"), url: "/products" },
-        ...new Map(subcategories.map((sub: any) => [sub.en_name, sub])).values(),
-      ].map((sub: any) => ({
-        title: sub._id ? getLocaleName(sub) : sub.title,
-        url: sub._id ? `/products?subcategory=${sub._id}` : sub.url,
-        isAll: !sub._id,
-      })),
+        { title: t("all"), url: "/products", isAll: true },
+        ...categories.map((cat: any) => ({
+          title: getLocaleName(cat),
+          url: `/products?category=${cat._id || cat.id}`,
+          isAll: false,
+        })),
+      ],
     },
     { title: t("contactUs"), url: "/contact" },
   ];
