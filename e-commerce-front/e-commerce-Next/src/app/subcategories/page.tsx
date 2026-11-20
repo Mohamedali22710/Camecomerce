@@ -15,7 +15,6 @@ interface Subcategory {
   id: number;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
   category?: { en_name: string };
 }
 

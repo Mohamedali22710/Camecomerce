@@ -10,7 +10,6 @@ const name = z.string().trim().max(200);
 export const createSubcategoryValidate = z.looseObject({
   en_name: name,
   ar_name: name.optional().nullable(),
-  fr_name: name.optional().nullable(),
   categoryId: objectIdSchema,
 });
 
@@ -19,7 +18,6 @@ export const updateSubcategoryValidate = z
   .looseObject({
     en_name: name.optional(),
     ar_name: name.optional().nullable(),
-    fr_name: name.optional().nullable(),
     categoryId: objectIdSchema.optional(),
     isActive: booleanFromInput.optional(),
   })

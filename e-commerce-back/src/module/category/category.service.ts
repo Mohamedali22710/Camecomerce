@@ -9,7 +9,7 @@ import { productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
 import { userModel } from "../../database/model/user.model.js";
 
-const SORTABLE_FIELDS = ["en_name", "ar_name", "fr_name", "isActive", "createdAt", "updatedAt", "id", "_id"];
+const SORTABLE_FIELDS = ["en_name", "ar_name", "isActive", "createdAt", "updatedAt", "id", "_id"];
 
 /** Parses `field_asc|desc` while restricting the field to a known allow-list. */
 const parseSort = (raw: unknown): Record<string, 1 | -1> => {
@@ -46,16 +46,13 @@ const currentAdminEmail = async (req: Request): Promise<string> => {
 
 export const createCategory = async (req: Request, res: Response): Promise<void> => {
   const adminEmail = await currentAdminEmail(req);
-  const { en_name, ar_name, fr_name } = req.body;
+  const { en_name, ar_name } = req.body;
 
   if (await categoryModel.exists({ en_name })) {
     throw new HttpError(409, "Category already exists");
   }
   if (ar_name && (await categoryModel.exists({ ar_name }))) {
     throw new HttpError(409, "Arabic category name already exists");
-  }
-  if (fr_name && (await categoryModel.exists({ fr_name }))) {
-    throw new HttpError(409, "French category name already exists");
   }
 
   let imageURL: string | null = null;
@@ -71,7 +68,6 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
   const category = await categoryModel.create({
     en_name,
     ar_name: ar_name || null,
-    fr_name: fr_name || null,
     imageURL,
     addedByEmail: adminEmail,
     isActive: true,
@@ -136,7 +132,7 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     throw new HttpError(404, "Category not found");
   }
 
-  const { en_name, ar_name, fr_name, imageURL, isActive } = req.body;
+  const { en_name, ar_name, imageURL, isActive } = req.body;
 
   if (en_name !== undefined && en_name !== category.en_name) {
     if (await categoryModel.exists({ en_name, _id: { $ne: category._id } })) {
@@ -150,13 +146,6 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
       throw new HttpError(409, "Arabic category name already exists");
     }
     category.ar_name = ar_name || null;
-  }
-
-  if (fr_name !== undefined) {
-    if (fr_name && (await categoryModel.exists({ fr_name, _id: { $ne: category._id } }))) {
-      throw new HttpError(409, "French category name already exists");
-    }
-    category.fr_name = fr_name || null;
   }
 
   if (isActive !== undefined) {

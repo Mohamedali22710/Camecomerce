@@ -26,7 +26,7 @@ import { themes, ThemeName } from "./themes/themes";
 const getInitialLocale = (): string => {
   try {
     const saved = localStorage.getItem("ECommerce.locale") || localStorage.getItem("locale");
-    if (saved && ["ar", "en", "fr"].includes(saved)) {
+    if (saved && ["ar", "en"].includes(saved)) {
       return saved;
     }
   } catch {}
@@ -42,9 +42,6 @@ const messagesMap: Record<string, any> = {
 
 const baseI18nProvider = polyglotI18nProvider(
   (locale) => {
-    if (locale === "fr") {
-      return import("./i18n/fr").then((messages) => messages.default);
-    }
     if (messagesMap[locale]) {
       return messagesMap[locale];
     }
@@ -54,7 +51,6 @@ const baseI18nProvider = polyglotI18nProvider(
   [
     { locale: "ar", name: "العربية" },
     { locale: "en", name: "English" },
-    { locale: "fr", name: "Français" },
   ],
 );
 

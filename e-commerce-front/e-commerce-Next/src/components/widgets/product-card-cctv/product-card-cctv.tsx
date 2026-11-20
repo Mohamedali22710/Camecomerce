@@ -49,7 +49,6 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
       name,
       en_name: product.en_name,
       ar_name: product.ar_name,
-      fr_name: product.fr_name,
       image: imageSrc,
       price: finalPrice,
       originalPrice: hasDiscount ? product.price : undefined,

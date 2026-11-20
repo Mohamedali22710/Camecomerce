@@ -45,7 +45,6 @@ const CategoryShow = () => {
         <TextField source="en_name" label={translate("pos.categories.columns.name_en")} />
         <CategoryImageField source="imageURL" />
         <TextField source="ar_name" label={translate("pos.categories.columns.name_ar")} />
-        <TextField source="fr_name" label={translate("pos.categories.columns.name_fr")} />
         <BooleanField source="isActive" label={translate("pos.categories.columns.active")} />
         <FunctionField
           label={translate("resources.subcategories.name", { smart_count: 2, _: "الأقسام الفرعية" })}

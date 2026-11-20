@@ -255,7 +255,6 @@ const buildComponentSummaries = (cameras: IBundleComponent[], productsById: Map<
       quantity: camera.quantity,
       en_name: product?.en_name ?? null,
       ar_name: product?.ar_name ?? null,
-      fr_name: product?.fr_name ?? null,
       isActive: product?.isActive ?? null,
     };
   });

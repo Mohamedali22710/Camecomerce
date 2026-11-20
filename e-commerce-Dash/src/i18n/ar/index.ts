@@ -37,10 +37,8 @@ const arabicMessages = {
       choose_files: "اختيار ملفات",
       name_en: "الاسم (EN)",
       name_ar: "الاسم (AR)",
-      name_fr: "الاسم (FR)",
       description_en: "الوصف (EN)",
       description_ar: "الوصف (AR)",
-      description_fr: "الوصف (FR)",
     },
     subcategories: {
       search: "بحث عن الفئات الفرعية...",
@@ -52,7 +50,7 @@ const arabicMessages = {
       restore_confirm: "هل أنت متأكد من استعادة (%{count}) من عناصر الفئة الفرعية؟",
       columns: {
         name_en: "الاسم (EN)",
-        name_ar_fr: "الاسم (AR) / الاسم (FR)",
+        name_ar: "الاسم (AR)",
         categories: "الفئات",
         status: "الحالة",
         actions: "الإجراءات",
@@ -84,7 +82,6 @@ const arabicMessages = {
         image: "الصورة",
         name_en: "الاسم (EN)",
         name_ar: "الاسم (AR)",
-        name_fr: "الاسم (FR)",
         active: "نشط",
       },
       form: {
@@ -103,10 +100,8 @@ const arabicMessages = {
       form: {
         name_en: "الاسم (EN)",
         name_ar: "الاسم (AR)",
-        name_fr: "الاسم (FR)",
         description_en: "الوصف (EN)",
         description_ar: "الوصف (AR)",
-        description_fr: "الوصف (FR)",
         discount_percent: "الخصم (%)",
         price: "السعر",
         width: "العرض",

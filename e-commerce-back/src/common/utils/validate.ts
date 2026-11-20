@@ -22,6 +22,8 @@ export const validateInput = <Schema extends z.ZodType>(schema: Schema) => {
 
     const result = schema.safeParse(req.body);
     if (!result.success) {
+      console.error("❌ VALIDATION ERROR ON", req.method, req.originalUrl, ":", JSON.stringify(result.error.issues, null, 2));
+      console.error("❌ REQ.BODY KEYS:", Object.keys(req.body));
       res.status(400).json({
         message: "validation error",
         error: result.error.issues.map(formatIssue),

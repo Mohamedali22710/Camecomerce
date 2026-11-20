@@ -7,13 +7,13 @@ const COOKIE_LOCALE_NAME = "NEXT_LOCALE";
 
 function negotiateLocale(request: NextRequest): string {
   const cookie = request.cookies.get(COOKIE_LOCALE_NAME)?.value;
-  if (cookie && routing.locales.includes(cookie as "en" | "fr" | "ar")) return cookie;
+  if (cookie && routing.locales.includes(cookie as "en" | "ar")) return cookie;
 
   const acceptLang = request.headers.get("Accept-Language");
   if (acceptLang) {
     const parsed = acceptLang.split(",").map((l) => l.split(";")[0].trim().split("-")[0]);
     for (const lang of parsed) {
-      if (routing.locales.includes(lang as "en" | "fr" | "ar")) return lang;
+      if (routing.locales.includes(lang as "en" | "ar")) return lang;
     }
   }
 

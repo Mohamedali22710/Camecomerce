@@ -9,7 +9,6 @@ export interface CartItem {
   productId?: string
   name: string
   en_name?: string
-  fr_name?: string
   ar_name?: string
   image: string
   price: number
@@ -112,7 +111,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
             productId: String(ci.product?._id || ci.productId || ci.product_id || ci._id),
             name: ci.product?.en_name || ci.name || "",
             en_name: ci.product?.en_name || "",
-            fr_name: ci.product?.fr_name || "",
             ar_name: ci.product?.ar_name || "",
             image: images[0] || ci.image || "",
             price: discountedPrice ?? 0,

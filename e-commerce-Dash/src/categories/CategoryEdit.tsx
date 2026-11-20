@@ -97,7 +97,6 @@ const CategoryFormFields = () => {
 
         <TextInput source="en_name" label={translate("pos.common.name_en")} validate={required()} fullWidth />
         <TextInput source="ar_name" label={translate("pos.common.name_ar")} fullWidth />
-        <TextInput source="fr_name" label={translate("pos.common.name_fr")} fullWidth />
 
         {currentImageUrl && !markedForDelete && (
           <Box sx={{ mt: 2.5, mb: 1, p: 2, bgcolor: "rgba(16, 29, 53, 0.02)", borderRadius: "12px", border: "1px dashed", borderColor: "divider", display: "inline-flex", flexDirection: "column" }}>

@@ -1,4 +1,4 @@
-export type Locale = "en" | "fr" | "ar";
+export type Locale = "en" | "ar";
 
 export function slugify(text: string): string {
   return text
@@ -15,8 +15,6 @@ export function getLocalizedField(obj: any, field: string, locale: Locale): stri
   if (typeof localized === "string" && localized.trim()) return localized;
   const en = obj[`en_${field}`];
   if (typeof en === "string") return en;
-  const fr = obj[`fr_${field}`];
-  if (typeof fr === "string") return fr;
   const ar = obj[`ar_${field}`];
   if (typeof ar === "string") return ar;
   return "";
@@ -68,13 +66,11 @@ export function parseImageURLs(product?: {
 
 export const localeFlags: Record<Locale, string> = {
   en: "EN",
-  fr: "FR",
   ar: "AR",
 };
 
 export const localeNames: Record<Locale, string> = {
   en: "English",
-  fr: "Français",
   ar: "العربية",
 };
 
@@ -82,7 +78,7 @@ export const dir = (locale: string): "ltr" | "rtl" =>
   locale === "ar" ? "rtl" : "ltr";
 
 export function useFormatPrice(locale: string): (price: number) => string {
-  const intlLocale = locale === "ar" ? "ar-SA" : locale === "fr" ? "fr-FR" : "en-US";
+  const intlLocale = locale === "ar" ? "ar-SA" : "en-US";
   const currency = "SAR";
   return (price: number) =>
     new Intl.NumberFormat(intlLocale, {

@@ -37,10 +37,8 @@ interface Product {
   _id: string;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
   en_description: string;
   ar_description?: string;
-  fr_description?: string;
   price: number;
   discount: number | null;
   images?: string[];

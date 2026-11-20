@@ -95,7 +95,6 @@ const SubcategoryCreate = () => {
     const [saving, setSaving] = React.useState(false);
     const [enName, setEnName] = React.useState('');
     const [arName, setArName] = React.useState('');
-    const [frName, setFrName] = React.useState('');
     const [categoryIds, setCategoryIds] = React.useState<string[]>([]);
 
     const handleSave = async () => {
@@ -107,7 +106,7 @@ const SubcategoryCreate = () => {
         for (const cid of categoryIds) {
             try {
                 await create('subcategories', {
-                    data: { en_name: enName, ar_name: arName, fr_name: frName, categoryId: cid },
+                    data: { en_name: enName, ar_name: arName, categoryId: cid },
                 });
                 successCount++;
             } catch {
@@ -120,7 +119,6 @@ const SubcategoryCreate = () => {
             notify(translate("pos.subcategories.notification.created"), { type: 'success' });
             setEnName('');
             setArName('');
-            setFrName('');
             setCategoryIds([]);
         }
     };
@@ -140,7 +138,6 @@ const SubcategoryCreate = () => {
 
                         <TextInput source="en_name" label={translate("pos.common.name_en")} validate={required()} fullWidth onChange={(e: any) => setEnName(e.target.value)} />
                         <TextInput source="ar_name" label={translate("pos.common.name_ar")} fullWidth onChange={(e: any) => setArName(e.target.value)} />
-                        <TextInput source="fr_name" label={translate("pos.common.name_fr")} fullWidth onChange={(e: any) => setFrName(e.target.value)} />
 
                         <Box sx={{ mt: 2 }}>
                             <CategoryCheckboxGroup value={categoryIds} onChange={setCategoryIds} />

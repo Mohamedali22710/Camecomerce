@@ -17,7 +17,7 @@ export function LocaleSwitcher() {
   const locale = useLocale() as Locale;
   const router = useRouter();
 
-  const handleChange = (newLocale: "en" | "fr" | "ar" | null) => {
+  const handleChange = (newLocale: Locale | null) => {
     if (!newLocale) return;
     Cookies.set("NEXT_LOCALE", newLocale, { path: "/", expires: 365 });
     router.refresh();

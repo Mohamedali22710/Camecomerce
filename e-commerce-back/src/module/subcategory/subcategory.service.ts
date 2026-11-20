@@ -9,7 +9,7 @@ import { productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
 import { userModel } from "../../database/model/user.model.js";
 
-const SORTABLE_FIELDS = ["en_name", "ar_name", "fr_name", "isActive", "createdAt", "updatedAt", "id", "_id"];
+const SORTABLE_FIELDS = ["en_name", "ar_name", "isActive", "createdAt", "updatedAt", "id", "_id"];
 
 const parseSort = (raw: unknown): Record<string, 1 | -1> => {
   if (typeof raw !== "string" || !raw) {
@@ -41,7 +41,7 @@ const currentAdminEmail = async (req: Request): Promise<string> => {
 
 export const createSubcategory = async (req: Request, res: Response): Promise<void> => {
   const adminEmail = await currentAdminEmail(req);
-  const { en_name, ar_name, fr_name, categoryId } = req.body;
+  const { en_name, ar_name, categoryId } = req.body;
 
   const category = await categoryModel.findById(categoryId);
   if (!category) {
@@ -54,14 +54,10 @@ export const createSubcategory = async (req: Request, res: Response): Promise<vo
   if (ar_name && (await subcategoryModel.exists({ ar_name, categoryId }))) {
     throw new HttpError(409, "Arabic subcategory name already exists");
   }
-  if (fr_name && (await subcategoryModel.exists({ fr_name, categoryId }))) {
-    throw new HttpError(409, "French subcategory name already exists");
-  }
 
   const subcategory = await subcategoryModel.create({
     en_name,
     ar_name: ar_name || null,
-    fr_name: fr_name || null,
     categoryId,
     addedByEmail: adminEmail,
     isActive: true,
@@ -138,7 +134,7 @@ export const updateSubcategory = async (req: Request, res: Response): Promise<vo
     throw new HttpError(404, "Subcategory not found");
   }
 
-  const { en_name, ar_name, fr_name, categoryId, isActive } = req.body;
+  const { en_name, ar_name, categoryId, isActive } = req.body;
   const targetCategoryId = categoryId ?? subcategory.categoryId;
 
   if (en_name !== undefined && en_name !== subcategory.en_name) {
@@ -166,20 +162,6 @@ export const updateSubcategory = async (req: Request, res: Response): Promise<vo
       throw new HttpError(409, "Arabic subcategory name already exists");
     }
     subcategory.ar_name = ar_name || null;
-  }
-
-  if (fr_name !== undefined) {
-    if (
-      fr_name &&
-      (await subcategoryModel.exists({
-        fr_name,
-        categoryId: targetCategoryId,
-        _id: { $ne: subcategory._id },
-      }))
-    ) {
-      throw new HttpError(409, "French subcategory name already exists");
-    }
-    subcategory.fr_name = fr_name || null;
   }
 
   if (categoryId !== undefined && String(categoryId) !== String(subcategory.categoryId)) {

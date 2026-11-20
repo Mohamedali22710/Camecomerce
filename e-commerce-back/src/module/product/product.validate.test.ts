@@ -66,4 +66,25 @@ describe("updateProductValidate", () => {
   it("rejects an empty update", () => {
     expect(updateProductValidate.safeParse({}).success).toBe(false);
   });
+
+  it("handles null, empty strings and omitted optional fields gracefully on update", () => {
+    const base = {
+      en_name: "Request a quotation for CCTV cameras",
+      price: "1",
+    };
+    expect(updateProductValidate.safeParse({ ...base, variants: null }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, variants: "" }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: null }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: "" }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: {} }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: "{}" }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: "[]" }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: { Default: "https://example.com/img.jpg" } }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, colorImages: [{ color: "Default", imageURL: "https://example.com/img.jpg" }] }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, specifications: null }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, specifications: "" }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, subcategoryId: "" }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, subcategoryId: null }).success).toBe(true);
+    expect(updateProductValidate.safeParse({ ...base, subcategoryId: "507f1f77bcf86cd799439011" }).success).toBe(true);
+  });
 });

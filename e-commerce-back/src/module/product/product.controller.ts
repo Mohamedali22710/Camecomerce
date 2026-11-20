@@ -28,7 +28,7 @@ const router = Router();
  * @route POST /products/admin
  * @desc Create a new product with multi-image upload
  * @access Admin | SuperAdmin
- * @body { en_name: string, en_description: string, ar_name?: string, fr_name?: string, ar_description?: string, fr_description?: string, price: number, discount?: number, stock?: number, subcategoryId: number, images?: file[] }
+ * @body { en_name: string, en_description: string, ar_name?: string, ar_description?: string, price: number, discount?: number, stock?: number, subcategoryId: number, images?: file[] }
  * @success { 201 } Product created
  * @throws { 400 } Product already exists or invalid file type
  * @throws { 401 } Unauthorized
@@ -47,7 +47,7 @@ router.post(
  * @route PUT /products/admin/:id
  * @desc Update a product with optional multi-image replacement
  * @access Admin | SuperAdmin
- * @body { en_name?: string, en_description?: string, ar_name?: string, fr_name?: string, ar_description?: string, fr_description?: string, price?: number, discount?: number, stock?: number, subcategoryId?: number, imageURLs?: string, images?: file[] }
+ * @body { en_name?: string, en_description?: string, ar_name?: string, ar_description?: string, price?: number, discount?: number, stock?: number, subcategoryId?: number, imageURLs?: string, images?: file[] }
  * @success { 200 } Product updated
  * @throws { 400 } Product name already exists or no fields to update
  * @throws { 404 } Product or subcategory not found

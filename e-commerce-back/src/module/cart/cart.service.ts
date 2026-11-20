@@ -232,7 +232,6 @@ const cartBundleSummary = (bundle: {
   code: string;
   en_name: string;
   ar_name?: string | null;
-  fr_name?: string | null;
   basePrice: number;
   discount: number;
   imageURLs?: string[];
@@ -240,7 +239,6 @@ const cartBundleSummary = (bundle: {
   code: bundle.code,
   en_name: bundle.en_name,
   ar_name: bundle.ar_name ?? null,
-  fr_name: null,
   basePrice: bundle.basePrice,
   discount: bundle.discount,
   imageURLs: bundle.imageURLs ?? [],
@@ -253,12 +251,12 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
   const items = await cartModel.find({ userId }).populate([
     {
       path: "productId",
-      select: "en_name ar_name fr_name price discount variants imageURLs isActive",
+      select: "en_name ar_name price discount variants imageURLs isActive",
     },
     {
       path: "bundleId",
       select:
-        "code en_name ar_name fr_name basePrice discount imageURLs hddOptions installationOptions cameras isActive",
+        "code en_name ar_name basePrice discount imageURLs hddOptions installationOptions cameras isActive",
     },
   ]);
 

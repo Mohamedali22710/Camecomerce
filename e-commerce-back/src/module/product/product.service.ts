@@ -71,13 +71,35 @@ const normalizeVariantsInput = (raw: unknown): ProductVariant[] => {
 const normalizeColorImagesInput = (raw: unknown): ColorImageInput[] => {
   let value = raw;
   if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "{}" || trimmed === "[]" || trimmed === "null") {
+      return [];
+    }
     try {
-      value = JSON.parse(value);
+      value = JSON.parse(trimmed);
     } catch {
       return [];
     }
   }
-  return Array.isArray(value) ? (value as ColorImageInput[]) : [];
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is ColorImageInput => Boolean(item) && typeof item === "object")
+      .map((item) => ({
+        color: String((item as any).color || "").trim(),
+        imageURL: (item as any).imageURL ? String((item as any).imageURL) : undefined,
+      }))
+      .filter((item) => item.color.length > 0);
+  }
+  return Object.entries(value as Record<string, unknown>)
+    .filter(([color, url]) => Boolean(color) && Boolean(url))
+    .map(([color, url]) => ({
+      color: String(color).trim(),
+      imageURL: typeof url === "string" ? url : (url as any)?.imageURL || undefined,
+    }))
+    .filter((item) => item.color.length > 0);
 };
 
 /** Trims an optional brand and stores blank input as `null`. */
@@ -142,10 +164,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   const {
     en_name,
     ar_name,
-    fr_name,
     en_description,
     ar_description,
-    fr_description,
     price,
     discount,
     brand,
@@ -180,10 +200,8 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   const product = await productModel.create({
     en_name,
     ar_name: ar_name || null,
-    fr_name: fr_name || null,
     en_description,
     ar_description: ar_description || null,
-    fr_description: fr_description || null,
     price: Number(price),
     discount: discount !== undefined ? Number(discount) : 0,
     brand: normalizeBrand(brand),
@@ -209,10 +227,8 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
   const {
     en_name,
     ar_name,
-    fr_name,
     en_description,
     ar_description,
-    fr_description,
     price,
     discount,
     brand,
@@ -227,17 +243,11 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
   if (ar_name !== undefined) {
     product.ar_name = ar_name || null;
   }
-  if (fr_name !== undefined) {
-    product.fr_name = fr_name || null;
-  }
   if (en_description !== undefined) {
     product.en_description = en_description;
   }
   if (ar_description !== undefined) {
     product.ar_description = ar_description || null;
-  }
-  if (fr_description !== undefined) {
-    product.fr_description = fr_description || null;
   }
   if (price !== undefined) {
     product.price = Number(price);

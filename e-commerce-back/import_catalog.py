@@ -11,10 +11,10 @@ Features:
 3. Automatically bypasses Windows 260-character path limit with `\\\\?\\`.
 4. Uploads unique images to Cloudinary in parallel (multithreaded).
 5. Cleans up old test data (Categories, Subcategories, Products).
-6. Creates 9 Main Categories with multilingual names (ar, en, fr).
+6. Creates 9 Main Categories with multilingual names (ar, en).
 7. Creates 34 Subcategories linked to actual MongoDB Category ObjectIds.
 8. Inserts 140 Products with:
-   - Multilingual names and descriptions (ar, en, fr)
+   - Multilingual names and descriptions (ar, en)
    - Strict zero-discount (`discount = 0`)
    - Original prices and brand metadata
    - Cloudinary image URLs in exact manifest order
@@ -140,20 +140,17 @@ def parse_catalog(filepath: Path) -> dict:
                     unique_top_cats.append({
                         "ar_name": name_ar,
                         "en_name": en_parts[0] if en_parts else name_ar,
-                        "fr_name": fr_parts[0] if fr_parts else name_ar,
                     })
             else:
                 parent_ar = ar_parts[0]
                 sub_ar = " / ".join(ar_parts[1:])
                 sub_en = " / ".join(en_parts[1:]) if len(en_parts) > 1 else full_en
-                sub_fr = " / ".join(fr_parts[1:]) if len(fr_parts) > 1 else full_fr
                 key = (parent_ar, sub_ar)
                 if key not in seen_sub:
                     seen_sub[key] = True
                     unique_subcats.append({
                         "ar_name": sub_ar,
                         "en_name": sub_en,
-                        "fr_name": sub_fr,
                         "parent_ar_name": parent_ar,
                     })
     else:
@@ -168,7 +165,7 @@ def parse_catalog(filepath: Path) -> dict:
                 name = parts[0]
                 if name not in seen_top:
                     seen_top[name] = True
-                    unique_top_cats.append({"ar_name": name, "en_name": name, "fr_name": name})
+                    unique_top_cats.append({"ar_name": name, "en_name": name})
             else:
                 parent_name = parts[0]
                 sub_name = " / ".join(parts[1:])
@@ -178,7 +175,6 @@ def parse_catalog(filepath: Path) -> dict:
                     unique_subcats.append({
                         "ar_name": sub_name,
                         "en_name": sub_name,
-                        "fr_name": sub_name,
                         "parent_ar_name": parent_name,
                     })
 
@@ -191,18 +187,14 @@ def parse_catalog(filepath: Path) -> dict:
 
         ar_name = ""
         en_name = ""
-        fr_name = ""
 
         if is_translated:
             ar_m = re.search(r'\*\*الاسم بالعربية:\*\* (.+)', block)
             en_m = re.search(r'\*\*English name:\*\* (.+)', block)
-            fr_m = re.search(r'\*\*Nom français:\*\* (.+)', block)
             if ar_m:
                 ar_name = ar_m.group(1).strip()
             if en_m:
                 en_name = en_m.group(1).strip()
-            if fr_m:
-                fr_name = fr_m.group(1).strip()
 
         if not ar_name:
             title_m = re.search(r"### \d+\. \[([^\]]+)\]\(([^)]+)\)", block)
@@ -212,8 +204,6 @@ def parse_catalog(filepath: Path) -> dict:
 
         if not en_name:
             en_name = ar_name
-        if not fr_name:
-            fr_name = ar_name
 
         brand_m = re.search(r"\*\*الماركة:\*\* (.+)", block)
         brand = brand_m.group(1).strip() if brand_m else None
@@ -238,34 +228,28 @@ def parse_catalog(filepath: Path) -> dict:
 
         ar_desc = ""
         en_desc = ""
-        fr_desc = ""
 
         if is_translated:
             ar_desc_m = re.search(r"\*\*الوصف والتفاصيل:\*\*\n+(.*?)(?=\n### Description and details|\n---|\Z)", block, re.DOTALL)
             en_desc_m = re.search(r"### Description and details \(English\)\n+(.*?)(?=\n### Description et détails|\n---|\Z)", block, re.DOTALL)
-            fr_desc_m = re.search(r"### Description et détails \(Français\)\n+(.*?)(?=\n### Options|\n---|\Z)", block, re.DOTALL)
 
             ar_desc = clean_markdown_desc(ar_desc_m.group(1)) if ar_desc_m else ar_name
             en_desc = clean_markdown_desc(en_desc_m.group(1)) if en_desc_m else en_name
-            fr_desc = clean_markdown_desc(fr_desc_m.group(1)) if fr_desc_m else fr_name
         else:
             desc_m = re.search(r"\*\*الوصف والتفاصيل:\*\*\n+(.*?)(?:\n---|\Z)", block, re.DOTALL)
             ar_desc = clean_markdown_desc(desc_m.group(1)) if desc_m else ar_name
             en_desc = ar_desc
-            fr_desc = ar_desc
 
         products.append({
             "source_id": pid,
             "ar_name": ar_name,
             "en_name": en_name,
-            "fr_name": fr_name,
             "brand": brand,
             "price": max(1.0, price),
             "top_cat": top_cat,
             "sub_cat": sub_cat,
             "ar_description": ar_desc or ar_name,
             "en_description": en_desc or en_name,
-            "fr_description": fr_desc or fr_name,
         })
 
     return {
@@ -450,10 +434,9 @@ def main():
             catalog["subcategories"].append({
                 "ar_name": "عام",
                 "en_name": "General",
-                "fr_name": "Général",
                 "parent_ar_name": top_name,
             })
-            log.info(f"  Added default subcategory 'عام' ('General' / 'Général') for category '{top_name}'")
+            log.info(f"  Added default subcategory 'عام' ('General') for category '{top_name}'")
 
     log.info(f"Parsed: {len(catalog['categories'])} Main Categories, {len(catalog['subcategories'])} Subcategories, {len(catalog['products'])} Products.")
 
@@ -502,11 +485,9 @@ def main():
     for cat in catalog["categories"]:
         name_ar = cat["ar_name"]
         name_en = cat.get("en_name") or name_ar
-        name_fr = cat.get("fr_name") or name_ar
         doc = {
             "en_name": name_en,
             "ar_name": name_ar,
-            "fr_name": name_fr,
             "imageURL": None,
             "addedByEmail": admin_email,
             "isActive": True,
@@ -523,7 +504,6 @@ def main():
     for sub in catalog["subcategories"]:
         sub_ar = sub["ar_name"]
         sub_en = sub.get("en_name") or sub_ar
-        sub_fr = sub.get("fr_name") or sub_ar
         parent_name = sub["parent_ar_name"]
         parent_id = cat_map.get(parent_name)
         if not parent_id:
@@ -533,7 +513,6 @@ def main():
         doc = {
             "en_name": sub_en,
             "ar_name": sub_ar,
-            "fr_name": sub_fr,
             "categoryId": parent_id,
             "addedByEmail": admin_email,
             "isActive": True,
@@ -590,10 +569,8 @@ def main():
         doc = {
             "en_name": en_name,
             "ar_name": ar_name,
-            "fr_name": fr_name,
             "en_description": p.get("en_description") or p.get("ar_description") or ar_name,
             "ar_description": p.get("ar_description") or ar_name,
-            "fr_description": p.get("fr_description") or p.get("ar_description") or ar_name,
             "price": float(p["price"]),
             "discount": 0,  # Strict: zero discount
             "brand": p.get("brand"),
@@ -649,7 +626,7 @@ def main():
 - **الصور المرفوعة على Cloudinary:** {len(url_cache)}
 - **إجمالي الصور المربوطة بالمنتجات:** {total_images_assigned}
 - **الخصومات:** 0% (بدون أي خصومات حسب المتطلبات)
-- **اللغات:** العربية، الإنجليزية، الفرنسية (AR, EN, FR)
+- **اللغات:** العربية، الإنجليزية (AR, EN)
 """
     REPORT_MD.write_text(md_report, encoding="utf-8")
 

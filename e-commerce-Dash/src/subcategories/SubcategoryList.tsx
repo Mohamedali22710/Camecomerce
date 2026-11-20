@@ -166,7 +166,7 @@ const SubcategoryGrid = () => {
                     color="text.secondary"
                     sx={{ fontWeight: 500 }}
                   >
-                    {record.ar_name} {record.fr_name ? `/ ${record.fr_name}` : ""}
+                    {record.ar_name}
                   </Typography>
                 )}
               </CardContent>
@@ -189,10 +189,10 @@ const GroupedTable = () => {
 
   const grouped = React.useMemo(() => {
     if (!data) return [];
-    const map = new Map<string, { en_name: string; ar_name: string; fr_name: string; categoryIds: string[]; ids: string[]; allActive: boolean; someActive: boolean }>();
+    const map = new Map<string, { en_name: string; ar_name: string; categoryIds: string[]; ids: string[]; allActive: boolean; someActive: boolean }>();
     data.forEach((r: any) => {
       if (!map.has(r.en_name)) {
-        map.set(r.en_name, { en_name: r.en_name, ar_name: r.ar_name, fr_name: r.fr_name, categoryIds: [], ids: [], allActive: true, someActive: false });
+        map.set(r.en_name, { en_name: r.en_name, ar_name: r.ar_name, categoryIds: [], ids: [], allActive: true, someActive: false });
       }
       const entry = map.get(r.en_name)!;
       if (!entry.categoryIds.includes(r.categoryId)) {
@@ -226,7 +226,7 @@ const GroupedTable = () => {
       <TableHead>
         <TableRow>
           <TableCell>{translate("pos.subcategories.columns.name_en")}</TableCell>
-          <TableCell>{translate("pos.subcategories.columns.name_ar_fr")}</TableCell>
+          <TableCell>{translate("pos.subcategories.columns.name_ar")}</TableCell>
           <TableCell>{translate("pos.subcategories.columns.categories")}</TableCell>
           <TableCell align="center">{translate("pos.subcategories.columns.status")}</TableCell>
           <TableCell align="center">{translate("pos.subcategories.columns.actions")}</TableCell>
@@ -268,7 +268,7 @@ const GroupedTable = () => {
       <TableHead>
         <TableRow>
           <TableCell>{translate("pos.subcategories.columns.name_en")}</TableCell>
-          <TableCell>{translate("pos.subcategories.columns.name_ar_fr")}</TableCell>
+          <TableCell>{translate("pos.subcategories.columns.name_ar")}</TableCell>
           <TableCell>{translate("pos.subcategories.columns.categories")}</TableCell>
           <TableCell align="center">{translate("pos.subcategories.columns.status")}</TableCell>
           <TableCell align="center">{translate("pos.subcategories.columns.actions")}</TableCell>
@@ -299,7 +299,7 @@ const GroupedTable = () => {
                 />
               )}
             </TableCell>
-            <TableCell sx={{ color: "text.secondary" }}>{g.ar_name} / {g.fr_name}</TableCell>
+            <TableCell sx={{ color: "text.secondary" }}>{g.ar_name}</TableCell>
             <TableCell>
               <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
                 {g.categoryIds.map(cid => (

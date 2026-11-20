@@ -15,7 +15,6 @@ interface Category {
   _id: string;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
   imageURL: string | null;
 }
 

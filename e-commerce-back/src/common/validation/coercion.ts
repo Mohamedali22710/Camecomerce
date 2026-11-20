@@ -18,16 +18,22 @@ export const booleanFromInput = z.preprocess((value) => {
 /**
  * Accepts either a real JSON array (application/json) or a JSON string
  * (multipart/form-data, where every field arrives as text).
+ * If null, undefined, or empty string is passed, pre-processes to undefined.
  */
 export const jsonArrayFromInput = <Item extends z.ZodTypeAny>(
   item: Item,
   minimum = 0,
-): z.ZodType<z.infer<Item>[]> =>
+): z.ZodType<z.infer<Item>[] | undefined> =>
   z.preprocess((value) => {
-    if (typeof value !== "string") {return value;}
+    if (value === null || value === undefined || value === "") {
+      return undefined;
+    }
+    if (typeof value !== "string") {
+      return value;
+    }
     try {
       return JSON.parse(value);
     } catch {
       return undefined;
     }
-  }, z.array(item).min(minimum));
+  }, z.array(item).min(minimum).optional());

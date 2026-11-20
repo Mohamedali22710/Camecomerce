@@ -4,10 +4,8 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export interface IProduct extends Document {
   en_name: string;
   ar_name?: string | null;
-  fr_name?: string | null;
   en_description: string;
   ar_description?: string | null;
-  fr_description?: string | null;
   price: number;
   discount: number;
   /** Brand label shown on the storefront; optional for legacy rows. */
@@ -27,10 +25,8 @@ const productSchema = new Schema<IProduct>(
   {
     en_name: { type: String, required: true, trim: true },
     ar_name: { type: String, default: null, trim: true },
-    fr_name: { type: String, default: null, trim: true },
     en_description: { type: String, required: true },
     ar_description: { type: String, default: null },
-    fr_description: { type: String, default: null },
     price: { type: Number, required: true, min: 1 },
     discount: { type: Number, default: 0, min: 0, max: 100 },
     brand: { type: String, default: null, trim: true, maxlength: 80 },

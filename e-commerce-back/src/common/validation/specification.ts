@@ -28,8 +28,11 @@ const specificationSchema = z.looseObject({
   unit: z.string().trim().max(MAX_SPECIFICATION_UNIT_LENGTH).nullable().optional(),
 });
 
-/** Accepts a real array or a JSON string (multipart form submissions). */
+/** Accepts a real array or a JSON string (multipart form submissions). Null, undefined, or empty string are coerced to undefined. */
 export const specificationsSchema = z.preprocess((value) => {
+  if (value === null || value === undefined || value === "") {
+    return undefined;
+  }
   if (typeof value !== "string") {
     return value;
   }
@@ -38,7 +41,7 @@ export const specificationsSchema = z.preprocess((value) => {
   } catch {
     return undefined;
   }
-}, z.array(specificationSchema).max(MAX_SPECIFICATIONS));
+}, z.array(specificationSchema).max(MAX_SPECIFICATIONS).optional());
 
 const optionalText = (value: string | null | undefined): string | null => {
   const trimmed = value?.trim();
@@ -56,7 +59,7 @@ const normalizeSpecification = (specification: z.infer<typeof specificationSchem
 /** Normalizes request input; invalid or non-array input yields an empty list. */
 export const normalizeSpecificationsInput = (raw: unknown): ProductSpecification[] => {
   const result = specificationsSchema.safeParse(raw);
-  return result.success ? result.data.map(normalizeSpecification) : [];
+  return result.success && result.data ? result.data.map(normalizeSpecification) : [];
 };
 
 /** Safely parses the JSON string stored on the product document. */

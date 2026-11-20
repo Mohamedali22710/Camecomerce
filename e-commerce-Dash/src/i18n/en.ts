@@ -36,10 +36,8 @@ const customEnglishMessages: TranslationMessages = {
       choose_files: "Choose files",
       name_en: "Name (EN)",
       name_ar: "Name (AR)",
-      name_fr: "Name (FR)",
       description_en: "Description (EN)",
       description_ar: "Description (AR)",
-      description_fr: "Description (FR)",
     },
     subcategories: {
       search: "Search subcategories...",
@@ -51,7 +49,7 @@ const customEnglishMessages: TranslationMessages = {
       restore_confirm: "Are you sure you want to restore (%{count}) subcategory items?",
       columns: {
         name_en: "Name (EN)",
-        name_ar_fr: "Name (AR) / Name (FR)",
+        name_ar: "Name (AR)",
         categories: "Categories",
         status: "Status",
         actions: "Actions",
@@ -83,7 +81,6 @@ const customEnglishMessages: TranslationMessages = {
         image: "Image",
         name_en: "Name (EN)",
         name_ar: "Name (AR)",
-        name_fr: "Name (FR)",
         active: "Active",
       },
       form: {
@@ -102,10 +99,8 @@ const customEnglishMessages: TranslationMessages = {
       form: {
         name_en: "Name (EN)",
         name_ar: "Name (AR)",
-        name_fr: "Name (FR)",
         description_en: "Description (EN)",
         description_ar: "Description (AR)",
-        description_fr: "Description (FR)",
         discount_percent: "Discount (%)",
         price: "Price",
         width: "Width",
@@ -372,7 +367,6 @@ const customEnglishMessages: TranslationMessages = {
       fields: {
         en_name: "Name (EN)",
         ar_name: "Name (AR)",
-        fr_name: "Name (FR)",
         categoryId: "Category",
       },
       notifications: {

@@ -159,7 +159,6 @@ const resourcesMessages = {
     fields: {
       en_name: "الاسم (EN)",
       ar_name: "الاسم (AR)",
-      fr_name: "الاسم (FR)",
       categoryId: "الفئة الرئيسية",
     },
     notifications: {

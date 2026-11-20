@@ -7,7 +7,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { motion, AnimatePresence } from "motion/react";
 import api from "@/lib/api";
-import { getLocalizedField, useFormatPrice } from "@/lib/locale";
+import { getLocalizedField, useFormatPrice, type Locale } from "@/lib/locale";
 
 import { AspectRatio } from "@/components/base/aspect-ratio";
 import { Button } from "@/components/base/button";
@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 
 const ShoppingCart1 = () => {
   const t = useTranslations("cart");
-  const locale = useLocale();
+  const locale = useLocale() as Locale;
   const { items, removeItem, updateQuantity, clearCart, subtotal, shippingCost, total, currency, fetchFromApi } = useCart();
   const { userToken, userRole } = useContext(User)!;
   const router = useRouter();
@@ -105,7 +105,7 @@ const ShoppingCart1 = () => {
                 <AspectRatio ratio={1} className="overflow-hidden rounded-md">
                   <Image
                     src={item.image}
-                    alt={getLocalizedField(item, "name", locale as "en" | "fr" | "ar") || item.name}
+                    alt={getLocalizedField(item, "name", locale) || item.name}
                     fill
                     className="object-cover"
                     sizes="80px"
@@ -115,7 +115,7 @@ const ShoppingCart1 = () => {
 
               <div className="min-w-0 flex-1">
                 <Link href={`/products/${item.productId || item._id}`} className="hover:underline">
-                  <h3 className="truncate font-medium">{getLocalizedField(item, "name", locale as "en" | "fr" | "ar") || item.name}</h3>
+                  <h3 className="truncate font-medium">{getLocalizedField(item, "name", locale) || item.name}</h3>
                 </Link>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {formatPrice(item.price)} {t("each")}

@@ -30,7 +30,7 @@ export const getWishlist = async (req: Request, res: Response): Promise<void> =>
   const userId = requireUserId(req);
   const items = await wishlistModel.find({ userId }).populate({
     path: "productId",
-    select: "_id en_name ar_name fr_name price discount imageURLs isActive",
+    select: "_id en_name ar_name price discount imageURLs isActive",
   });
   res.status(200).json({ message: "Wishlist", data: items });
 };

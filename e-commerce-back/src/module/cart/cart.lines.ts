@@ -67,7 +67,6 @@ export interface ProductOrderSnapshot {
   lineTotal: number;
   en_name: string;
   ar_name?: string | null;
-  fr_name?: string | null;
   color: string;
   size: string;
 }
@@ -78,7 +77,6 @@ export interface BundleOrderSnapshot {
   bundleCode: string;
   en_name: string;
   ar_name?: string | null;
-  fr_name?: string | null;
   quantity: number;
   unitPrice: number;
   lineTotal: number;
@@ -204,7 +202,6 @@ export const toProductSnapshot = (line: ResolvedProductLine): ProductOrderSnapsh
   lineTotal: line.lineTotal,
   en_name: line.product.en_name,
   ar_name: line.product.ar_name,
-  fr_name: line.product.fr_name,
   color: line.variant.color,
   size: line.variant.size,
 });
@@ -222,7 +219,6 @@ export const toBundleSnapshot = (line: ResolvedBundleLine): BundleOrderSnapshot 
   bundleCode: line.bundle.code,
   en_name: line.bundle.en_name,
   ar_name: line.bundle.ar_name,
-  fr_name: null,
   quantity: line.quantity,
   unitPrice: line.unitPrice,
   lineTotal: line.lineTotal,

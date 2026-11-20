@@ -92,7 +92,6 @@ const SubcategoryEditForm = () => {
 
     const [enName, setEnName] = React.useState('');
     const [arName, setArName] = React.useState('');
-    const [frName, setFrName] = React.useState('');
     const [categoryIds, setCategoryIds] = React.useState<string[]>([]);
     const [isActive, setIsActive] = React.useState(true);
     const [saving, setSaving] = React.useState(false);
@@ -108,7 +107,6 @@ const SubcategoryEditForm = () => {
         if (!record) return;
         setEnName(record.en_name || '');
         setArName(record.ar_name || '');
-        setFrName(record.fr_name || '');
         setIsActive(record.isActive ?? true);
     }, [record]);
 
@@ -131,7 +129,7 @@ const SubcategoryEditForm = () => {
         const toDelete = existingIds.filter((e) => !categoryIds.includes(e.cid));
 
         try {
-            await update('subcategories', { id: record.id, data: { en_name: enName, ar_name: arName || null, fr_name: frName || null, isActive } });
+            await update('subcategories', { id: record.id, data: { en_name: enName, ar_name: arName || null, isActive } });
 
             const siblingIds = (siblings || []).map((s: any) => s.id).filter((id: string) => id !== record.id);
             if (siblingIds.length > 0) {
@@ -139,7 +137,7 @@ const SubcategoryEditForm = () => {
             }
 
             for (const cid of toCreate) {
-                await create('subcategories', { data: { en_name: enName, ar_name: arName || null, fr_name: frName || null, categoryId: cid, isActive } });
+                await create('subcategories', { data: { en_name: enName, ar_name: arName || null, categoryId: cid, isActive } });
             }
             for (const item of toDelete) {
                 await del('subcategories', { id: item.id });
@@ -166,7 +164,6 @@ const SubcategoryEditForm = () => {
 
                 <TextInput source="en_name" label={translate("pos.common.name_en")} validate={required()} fullWidth onChange={(e: any) => setEnName(e.target.value)} />
                 <TextInput source="ar_name" label={translate("pos.common.name_ar")} fullWidth onChange={(e: any) => setArName(e.target.value)} />
-                <TextInput source="fr_name" label={translate("pos.common.name_fr")} fullWidth onChange={(e: any) => setFrName(e.target.value)} />
 
                 <Box sx={{ mt: 2 }}>
                     <CategoryCheckboxGroup value={categoryIds} onChange={setCategoryIds} />

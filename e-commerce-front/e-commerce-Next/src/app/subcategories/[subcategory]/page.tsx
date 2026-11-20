@@ -27,7 +27,6 @@ interface Product {
   _id: string;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
   price: number;
   discount: number | null;
   images?: string[];
@@ -38,7 +37,6 @@ interface SubcategoryInfo {
   _id: string;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
   categoryId: string;
 }
 
@@ -46,7 +44,6 @@ interface SidebarSubcategory {
   _id: string;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
 }
 
 export default function SubcategoryProducts() {

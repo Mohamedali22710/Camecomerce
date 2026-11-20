@@ -15,10 +15,11 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import { useFormContext } from 'react-hook-form';
-import { useTranslate } from 'react-admin';
+import { useTranslate, useRecordContext } from 'react-admin';
 
-const ALLOWED_COLORS = ['Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Pink', 'Navy', 'White', 'Purple', 'Black'];
+const ALLOWED_COLORS = ['Default', 'Blue', 'Green', 'Yellow', 'Orange', 'Red', 'Pink', 'Navy', 'White', 'Purple', 'Black'];
 const COLOR_HEX_MAP: Record<string, string> = {
+    Default: '#94A3B8',
     Blue: '#1B2BFF',
     Green: '#16A34A',
     Yellow: '#F59E0B',
@@ -50,15 +51,17 @@ const fileToBase64 = (file: File): Promise<string> =>
 
 const VariantsEditor = () => {
     const { setValue, getValues } = useFormContext();
+    const record = useRecordContext();
     const translate = useTranslate();
     const [entries, setEntries] = React.useState<VariantEntry[]>([]);
+    const initializedRef = React.useRef(false);
 
     React.useEffect(() => {
+        if (initializedRef.current) return;
         const formVals = getValues();
-        const existingVariants = formVals?.variants;
-        const existingColorImages = formVals?.colorImages;
+        const existingVariants = formVals?.variants || record?.variants;
+        const existingColorImages = formVals?.colorImages || record?.colorImages;
         if (!existingVariants) {
-            syncForm(entries);
             return;
         }
         let parsedVariants: { color: string; size: string; stock: number }[] = [];
@@ -68,9 +71,8 @@ const VariantsEditor = () => {
             if (existingColorImages) {
                 parsedColorImages = typeof existingColorImages === 'string' ? JSON.parse(existingColorImages) : existingColorImages;
             }
-        } catch { syncForm(entries); return; }
+        } catch { return; }
         if (!Array.isArray(parsedVariants) || parsedVariants.length === 0) {
-            syncForm(entries);
             return;
         }
 
@@ -95,8 +97,8 @@ const VariantsEditor = () => {
         });
         const loaded = Object.values(grouped);
         setEntries(loaded);
-        syncForm(loaded);
-    }, []);
+        initializedRef.current = true;
+    }, [record?.variants, record?.colorImages, getValues]);
 
     const syncForm = React.useCallback((current: VariantEntry[]) => {
         const variants: { color: string; size: string; stock: number }[] = [];
@@ -161,10 +163,6 @@ const VariantsEditor = () => {
         });
     };
 
-    React.useEffect(() => {
-        syncForm(entries);
-    }, []);
-
     return (
         <Box sx={{ my: 2 }}>
             <Typography variant="subtitle1" sx={{ mb: 1.5, fontWeight: 700, color: 'text.primary' }}>
@@ -224,7 +222,7 @@ const VariantsEditor = () => {
                             {translate("pos.products.variants.sizes")}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
-                            {SIZES.map((size) => {
+                            {Array.from(new Set([...SIZES, ...Object.keys(entry.sizes)])).map((size) => {
                                 const checked = entry.sizes[size] !== undefined;
                                 return (
                                     <Chip

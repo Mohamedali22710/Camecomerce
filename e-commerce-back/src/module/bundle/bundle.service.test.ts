@@ -9,7 +9,6 @@ const product = {
   _id: "p1",
   en_name: "Indoor camera",
   ar_name: "كاميرا داخلية",
-  fr_name: null,
   isActive: true,
 } as unknown as IProduct;
 

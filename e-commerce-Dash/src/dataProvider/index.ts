@@ -22,7 +22,12 @@ const toId = (record: any) => {
 const handleRes = async (res: Response) => {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    const err = new Error(body.message || `HTTP ${res.status}`) as any;
+    console.error('API Error Response:', res.status, body);
+    const detail = Array.isArray(body.error)
+      ? body.error.map((e: any) => `${e.path || 'field'}: ${e.message}`).join(', ')
+      : '';
+    const msg = detail ? `${body.message || 'Error'}: ${detail}` : (body.message || `HTTP ${res.status}`);
+    const err = new Error(msg) as any;
     err.status = res.status;
     throw err;
   }
@@ -64,8 +69,9 @@ const hasAnyFileUpload = (data: Record<string, any>): boolean => {
 const buildFormData = (data: Record<string, any>, excludeId = false): FormData => {
   const fd = new FormData();
   for (const [k, v] of Object.entries(data)) {
-    if (excludeId && k === 'id') continue;
+    if (excludeId && (k === 'id' || k === '_id')) continue;
     if (v === undefined || v === null) continue;
+    if (v === '' && (k === 'subcategoryId' || k === 'categoryId')) continue;
 
     // 1. Single file: direct File or { rawFile: File }
     const singleFile = extractRawFile(v);

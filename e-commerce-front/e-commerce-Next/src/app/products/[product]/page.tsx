@@ -10,7 +10,7 @@ import { Button } from "@/components/base/button";
 import { useCart } from "@/contexts/CartContext";
 import { useWishlist } from "@/contexts/WishlistContext";
 import { User } from "@/contexts/UserContext";
-import { getLocalizedField, parseImageURLs, slugify } from "@/lib/locale";
+import { getLocalizedField, parseImageURLs, slugify, type Locale } from "@/lib/locale";
 import { ProductDetail1 } from "@/components/widgets/product-detail1";
 import type { ProductDetailData } from "@/components/widgets/product-detail1/types";
 
@@ -18,10 +18,8 @@ interface Product {
   _id: string;
   en_name: string;
   ar_name?: string;
-  fr_name?: string;
   en_description: string;
   ar_description?: string;
-  fr_description?: string;
   price: number;
   discount: number | null;
   images?: string[];
@@ -41,7 +39,7 @@ async function resolveProduct(param: string): Promise<Product | null> {
 }
 
 export default function ProductDetail() {
-  const locale = useLocale();
+  const locale = useLocale() as Locale;
   const { product } = useParams<{ product: string }>();
   const [data, setData] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -71,7 +69,7 @@ export default function ProductDetail() {
     const alreadyIn = isInWishlist(String(data._id));
     toggleItem({
       _id: String(data._id),
-      name: getLocalizedField(data, "name", locale as "en" | "fr" | "ar"),
+      name: getLocalizedField(data, "name", locale),
       image: parseImageURLs(data)[0],
       price: salePrice ?? data.price,
       originalPrice: salePrice ? data.price : undefined,
@@ -88,8 +86,8 @@ export default function ProductDetail() {
 
   const productData: ProductDetailData = {
     _id: data._id,
-    name: getLocalizedField(data, "name", locale as "en" | "fr" | "ar"),
-    description: getLocalizedField(data, "description", locale as "en" | "fr" | "ar"),
+    name: getLocalizedField(data, "name", locale),
+    description: getLocalizedField(data, "description", locale),
     price: data.price,
     salePrice,
     originalPrice: data.price,

@@ -14,32 +14,31 @@ const SubcategoryInput = () => {
         sort: { field: 'createdAt', order: 'DESC' },
     });
 
-    const catFilter = useCategoryFilter(subcategoryId, categoryId);
-
-    React.useEffect(() => {
-        if (catFilter && !categoryId) {
-            setValue('_categoryFilter', catFilter);
-        }
-    }, [catFilter, categoryId, setValue]);
-
-    const prevCategoryRef = React.useRef(categoryId);
-    React.useEffect(() => {
-        if (prevCategoryRef.current !== undefined && prevCategoryRef.current !== categoryId) {
-            setValue('subcategoryId', undefined);
-        }
-        prevCategoryRef.current = categoryId;
-    }, [categoryId, setValue]);
-
-    const { data: subcategories } = useGetList('subcategories', {
-        pagination: { page: 1, perPage: 100 },
+    const { data: allSubcategories } = useGetList('subcategories', {
+        pagination: { page: 1, perPage: 200 },
         sort: { field: 'createdAt', order: 'DESC' },
-        filter: catFilter ? { categoryId: catFilter } : undefined,
     });
+
+    // Auto-detect category of the current subcategory on initial load if not set
+    React.useEffect(() => {
+        if (!categoryId && subcategoryId && allSubcategories) {
+            const currentSub = allSubcategories.find((s: any) => s.id === subcategoryId || s._id === subcategoryId);
+            if (currentSub?.categoryId) {
+                setValue('_categoryFilter', currentSub.categoryId);
+            }
+        }
+    }, [categoryId, subcategoryId, allSubcategories, setValue]);
+
+    const handleCategoryChange = (e: any) => {
+        const val = e?.target?.value;
+        setValue('_categoryFilter', val);
+        setValue('subcategoryId', undefined, { shouldDirty: true });
+    };
 
     const categoryChoices = React.useMemo(
         () =>
             (categories || []).map((c: any) => ({
-                id: c.id,
+                id: c.id || c._id,
                 name: locale === 'ar' ? (c.ar_name || c.en_name) : (c.en_name || c.ar_name),
             })),
         [categories, locale],
@@ -48,23 +47,30 @@ const SubcategoryInput = () => {
     const catNameMap = React.useMemo(() => {
         const map: Record<string, string> = {};
         (categories || []).forEach((c: any) => {
-            map[c.id] = locale === 'ar' ? (c.ar_name || c.en_name) : (c.en_name || c.ar_name);
+            map[c.id || c._id] = locale === 'ar' ? (c.ar_name || c.en_name) : (c.en_name || c.ar_name);
         });
         return map;
     }, [categories, locale]);
 
-    const subcategoryChoices = React.useMemo(
-        () =>
-            (subcategories || []).map((s: any) => {
-                const subName = locale === 'ar' ? (s.ar_name || s.en_name) : (s.en_name || s.ar_name);
-                const parentCatName = catNameMap[s.categoryId];
-                return {
-                    id: s.id,
-                    name: parentCatName ? `${subName} (${parentCatName})` : subName,
-                };
-            }),
-        [subcategories, catNameMap, locale],
-    );
+    const subcategoryChoices = React.useMemo(() => {
+        if (!allSubcategories) return [];
+        // Filter by category if selected, but always include the currently selected subcategory
+        const filtered = allSubcategories.filter((s: any) => {
+            const sid = s.id || s._id;
+            if (subcategoryId && sid === subcategoryId) return true;
+            if (categoryId) return s.categoryId === categoryId;
+            return true;
+        });
+
+        return filtered.map((s: any) => {
+            const subName = locale === 'ar' ? (s.ar_name || s.en_name) : (s.en_name || s.ar_name);
+            const parentCatName = catNameMap[s.categoryId];
+            return {
+                id: s.id || s._id,
+                name: parentCatName ? `${subName} (${parentCatName})` : subName,
+            };
+        });
+    }, [allSubcategories, categoryId, subcategoryId, catNameMap, locale]);
 
     return (
         <>
@@ -72,6 +78,7 @@ const SubcategoryInput = () => {
                 source="_categoryFilter"
                 label={translate("pos.products.form.category")}
                 choices={categoryChoices}
+                onChange={handleCategoryChange}
                 fullWidth
             />
             <SelectInput
@@ -83,26 +90,6 @@ const SubcategoryInput = () => {
             />
         </>
     );
-};
-
-const useCategoryFilter = (subcategoryId: string | undefined, categoryId: string | undefined) => {
-    const dp = useDataProvider();
-    const [filter, setFilter] = React.useState<string | undefined>(undefined);
-
-    React.useEffect(() => {
-        if (categoryId) {
-            setFilter(undefined);
-            return;
-        }
-        if (!subcategoryId) return;
-        let cancelled = false;
-        dp.getOne('subcategories', { id: subcategoryId }).then(({ data }) => {
-            if (!cancelled && data?.categoryId) setFilter(data.categoryId);
-        }).catch(() => {});
-        return () => { cancelled = true; };
-    }, [subcategoryId, categoryId, dp]);
-
-    return categoryId || filter;
 };
 
 export default SubcategoryInput;

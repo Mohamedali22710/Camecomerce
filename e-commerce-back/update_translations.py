@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Update MongoDB categories, subcategories, and products with English and French translations
+Update MongoDB categories, subcategories, and products with English translations
 from `silken_catalog_fully_translated.md`.
 """
 
@@ -47,36 +47,30 @@ def main():
     cat_matches = list(re.finditer(
         r'<a id="category-[^"]*"></a>\s*\n### ([^\n]+)\s*\n'
         r'- \*\*اسم القسم بالعربية:\*\* ([^\n]+)\s*\n'
-        r'- \*\*Category name \(English\):\*\* ([^\n]+)\s*\n'
-        r'- \*\*Nom de catégorie \(français\):\*\* ([^\n]+)',
+        r'- \*\*Category name \(English\):\*\* ([^\n]+)',
         text
     ))
 
-    categories_tr = {}     # ar_name -> {en, fr}
-    subcategories_tr = {}  # (parent_ar, sub_ar) -> {en, fr}
+    categories_tr = {}     # ar_name -> {en}
+    subcategories_tr = {}  # (parent_ar, sub_ar) -> {en}
 
     for m in cat_matches:
         full_ar = m.group(1).strip()
         full_en = m.group(3).strip()
-        full_fr = m.group(4).strip()
 
         ar_parts = [p.strip() for p in full_ar.split(" / ")]
         en_parts = [p.strip() for p in full_en.split(" / ")]
-        fr_parts = [p.strip() for p in full_fr.split(" / ")]
 
         if len(ar_parts) == 1:
             categories_tr[ar_parts[0]] = {
                 "en": en_parts[0],
-                "fr": fr_parts[0],
             }
         else:
             parent_ar = ar_parts[0]
             sub_ar = " / ".join(ar_parts[1:])
             sub_en = " / ".join(en_parts[1:]) if len(en_parts) > 1 else full_en
-            sub_fr = " / ".join(fr_parts[1:]) if len(fr_parts) > 1 else full_fr
             subcategories_tr[(parent_ar, sub_ar)] = {
                 "en": sub_en,
-                "fr": sub_fr,
             }
 
     print(f"Loaded translations for {len(categories_tr)} categories and {len(subcategories_tr)} subcategories.")
@@ -91,24 +85,18 @@ def main():
 
         ar_m = re.search(r'\*\*الاسم بالعربية:\*\* (.+)', block)
         en_m = re.search(r'\*\*English name:\*\* (.+)', block)
-        fr_m = re.search(r'\*\*Nom français:\*\* (.+)', block)
 
         en_desc_m = re.search(r'### Description and details \(English\)\n+(.*?)(?=\n### Description et détails|\n---|\Z)', block, re.DOTALL)
-        fr_desc_m = re.search(r'### Description et détails \(Français\)\n+(.*?)(?=\n### Options|\n---|\Z)', block, re.DOTALL)
 
-        if ar_m and en_m and fr_m:
+        if ar_m and en_m:
             ar_name = ar_m.group(1).strip()
             en_name = en_m.group(1).strip()
-            fr_name = fr_m.group(1).strip()
             en_desc = clean_markdown_desc(en_desc_m.group(1).strip()) if en_desc_m else en_name
-            fr_desc = clean_markdown_desc(fr_desc_m.group(1).strip()) if fr_desc_m else fr_name
 
             products_tr[ar_name] = {
                 "pid": pid,
                 "en_name": en_name,
-                "fr_name": fr_name,
                 "en_desc": en_desc,
-                "fr_desc": fr_desc,
             }
 
     print(f"Loaded translations for {len(products_tr)} products.")
@@ -128,10 +116,10 @@ def main():
         if tr:
             db.categories.update_one(
                 {"_id": c["_id"]},
-                {"$set": {"en_name": tr["en"], "fr_name": tr["fr"]}}
+                {"$set": {"en_name": tr["en"]}}
             )
             cat_updated += 1
-            print(f"  ✅ Updated Category: {ar_name} -> EN: '{tr['en']}' | FR: '{tr['fr']}'")
+            print(f"  ✅ Updated Category: {ar_name} -> EN: '{tr['en']}'")
 
     # 4. Update Subcategories in DB
     sub_updated = 0
@@ -142,10 +130,10 @@ def main():
         if sub_ar == "عام":
             db.subcategories.update_one(
                 {"_id": s["_id"]},
-                {"$set": {"en_name": "General", "fr_name": "Général"}}
+                {"$set": {"en_name": "General"}}
             )
             sub_updated += 1
-            print(f"  ✅ Updated Subcategory: عام -> EN: 'General' | FR: 'Général'")
+            print(f"  ✅ Updated Subcategory: عام -> EN: 'General'")
             continue
 
         tr = subcategories_tr.get((parent_ar, sub_ar))
@@ -159,10 +147,10 @@ def main():
         if tr:
             db.subcategories.update_one(
                 {"_id": s["_id"]},
-                {"$set": {"en_name": tr["en"], "fr_name": tr["fr"]}}
+                {"$set": {"en_name": tr["en"]}}
             )
             sub_updated += 1
-            print(f"  ✅ Updated Subcategory: '{sub_ar}' -> EN: '{tr['en']}' | FR: '{tr['fr']}'")
+            print(f"  ✅ Updated Subcategory: '{sub_ar}' -> EN: '{tr['en']}'")
         else:
             print(f"  ⚠️ Warning: Translation not found for subcategory '{sub_ar}' under '{parent_ar}'")
 
@@ -181,9 +169,7 @@ def main():
                     {"$set": {
                         "ar_name": ar_name,
                         "en_name": tr["en_name"],
-                        "fr_name": tr["fr_name"],
                         "en_description": tr["en_desc"],
-                        "fr_description": tr["fr_desc"],
                     }}
                 )
                 prod_updated += 1
@@ -196,9 +182,7 @@ def main():
                 {"_id": p["_id"]},
                 {"$set": {
                     "en_name": tr["en_name"],
-                    "fr_name": tr["fr_name"],
                     "en_description": tr["en_desc"],
-                    "fr_description": tr["fr_desc"],
                 }}
             )
             prod_updated += 1
@@ -218,4 +202,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

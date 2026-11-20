@@ -112,11 +112,6 @@ const CategoryGrid = () => {
                     {record.ar_name}
                   </Typography>
                 )}
-                {record.fr_name && (
-                  <Typography variant="caption" sx={{ color: "text.disabled", display: "block" }}>
-                    {record.fr_name}
-                  </Typography>
-                )}
                 {record.subcategories && record.subcategories.length > 0 && (
                   <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", justifyContent: "center", mt: 1 }}>
                     {record.subcategories.map((s: any) => (
@@ -197,7 +192,6 @@ const CategoryTable = () => {
       />
       <TextField source="en_name" label={translate("pos.categories.columns.name_en")} sx={{ fontWeight: 600 }} />
       <TextField source="ar_name" label={translate("pos.categories.columns.name_ar")} />
-      <TextField source="fr_name" label={translate("pos.categories.columns.name_fr")} />
       <FunctionField
         label={translate("resources.subcategories.name", { smart_count: 2, _: "الأقسام الفرعية" })}
         render={(record: any) => {

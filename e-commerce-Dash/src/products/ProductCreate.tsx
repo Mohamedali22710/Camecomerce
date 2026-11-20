@@ -34,17 +34,15 @@ const ProductCreate = () => {
                             معلومات المنتج الأساسية
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                            بيانات كاميرا المراقبة بجميع اللغات المدعومة (العربية، الإنجليزية، الفرنسية)
+                            بيانات كاميرا المراقبة باللغتين العربية والإنجليزية
                         </Typography>
                         <Divider sx={{ mb: 2.5 }} />
 
                         <TextInput source="en_name" validate={required()} fullWidth label={translate("pos.products.form.name_en")} />
                         <TextInput source="ar_name" fullWidth label={translate("pos.products.form.name_ar")} />
-                        <TextInput source="fr_name" fullWidth label={translate("pos.products.form.name_fr")} />
 
                         <TextInput source="en_description" validate={required()} fullWidth multiline rows={3} label={translate("pos.products.form.description_en")} />
                         <TextInput source="ar_description" fullWidth multiline rows={3} label={translate("pos.products.form.description_ar")} />
-                        <TextInput source="fr_description" fullWidth multiline rows={3} label={translate("pos.products.form.description_fr")} />
                     </CardContent>
                 </Card>
 

@@ -42,13 +42,12 @@ const CategoryCreate = () => {
               إضافة قسم رئيسي جديد
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              أدخل مسميات القسم باللغات الثلاث وأرفق صورة توضيحية
+              أدخل مسميات القسم باللغتين العربية والإنجليزية وأرفق صورة توضيحية
             </Typography>
             <Divider sx={{ mb: 2.5 }} />
 
             <TextInput source="en_name" label={translate("pos.common.name_en")} validate={required()} fullWidth />
             <TextInput source="ar_name" label={translate("pos.common.name_ar")} fullWidth />
-            <TextInput source="fr_name" label={translate("pos.common.name_fr")} fullWidth />
 
             <Box sx={{ mt: 2 }}>
               <ImageInput

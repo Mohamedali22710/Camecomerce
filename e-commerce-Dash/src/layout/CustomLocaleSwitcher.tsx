@@ -19,7 +19,6 @@ interface LanguageOption {
 const LANGUAGES: LanguageOption[] = [
     { locale: 'ar', name: 'العربية', code: 'AR' },
     { locale: 'en', name: 'English', code: 'EN' },
-    { locale: 'fr', name: 'Français', code: 'FR' },
 ];
 
 export const CustomLocaleSwitcher = () => {
