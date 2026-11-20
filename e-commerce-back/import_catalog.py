@@ -410,11 +410,11 @@ def main():
         env_file = PROJECT_ROOT / "e-commerce-back" / "config" / ".env"
     env_vars = load_env_file(env_file)
 
-    mongo_uri = args.mongo_uri or env_vars.get("MONGODB_URI") or "mongodb+srv://forgeminitest0_db_user:MfOtuy2MuPlk9jKq@cam-ecommerce.05yjpbo.mongodb.net/"
-    cloud_name = args.cloud_name or env_vars.get("CLOUDINARY_NAME") or "swdsn57m"
-    api_key = args.api_key or env_vars.get("CLOUDINARY_KEY") or "129326689147775"
-    api_secret = args.api_secret or env_vars.get("CLOUDINARY_SECRET") or "lO_8XrlkRLaMRSMHbLZw-XwCfXA"
-    admin_email = args.admin_email or env_vars.get("EMAIL") or "forgeminitest0@gmail.com"
+    mongo_uri = args.mongo_uri or env_vars.get("MONGODB_URI") 
+    cloud_name = args.cloud_name or env_vars.get("CLOUDINARY_NAME") 
+    api_key = args.api_key or env_vars.get("CLOUDINARY_KEY") 
+    api_secret = args.api_secret or env_vars.get("CLOUDINARY_SECRET")
+    admin_email = args.admin_email or env_vars.get("EMAIL")
 
     catalog_path = Path(args.catalog) if args.catalog else DEFAULT_CATALOG_FILE
 

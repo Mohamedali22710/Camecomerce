@@ -24,7 +24,7 @@ if ENV_FILE.exists():
             k, v = line.split("=", 1)
             env_vars[k.strip()] = v.strip().strip('"').strip("'")
 
-MONGO_URI = env_vars.get("MONGODB_URI", "mongodb+srv://forgeminitest0_db_user:MfOtuy2MuPlk9jKq@cam-ecommerce.05yjpbo.mongodb.net/")
+MONGO_URI = env_vars.get("MONGODB_URI", "Your MongoDB URL")
 DB_NAME = "test"
 
 
