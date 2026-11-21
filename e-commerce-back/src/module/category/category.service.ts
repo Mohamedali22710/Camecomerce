@@ -11,6 +11,21 @@ import { userModel } from "../../database/model/user.model.js";
 
 const SORTABLE_FIELDS = ["en_name", "ar_name", "isActive", "createdAt", "updatedAt", "id", "_id"];
 
+/**
+ * Removes a replaced category image as best-effort cleanup. The category update
+ * must still succeed when the old asset is already gone or storage is down.
+ */
+const deleteReplacedImage = async (url: string | null | undefined): Promise<void> => {
+  if (!url) {
+    return;
+  }
+  try {
+    await deleteImageByUrl(url, "categories");
+  } catch {
+    // Best-effort cleanup: keep the update successful and leave no failure path.
+  }
+};
+
 /** Parses `field_asc|desc` while restricting the field to a known allow-list. */
 const parseSort = (raw: unknown): Record<string, 1 | -1> => {
   if (typeof raw !== "string" || !raw) {
@@ -164,10 +179,8 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     }
   } else if (imageURL !== undefined) {
     const isClearing = !imageURL || imageURL === "null" || imageURL === "";
-    if (isClearing && category.imageURL) {
-      try {
-        await deleteImageByUrl(category.imageURL, "categories");
-      } catch {}
+    if (isClearing) {
+      await deleteReplacedImage(category.imageURL);
     }
     category.imageURL = isClearing ? null : imageURL;
   } else if (req.body.image !== undefined) {
@@ -175,11 +188,7 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
     if (typeof imgVal === "string" && imgVal.trim() && imgVal !== "null") {
       category.imageURL = imgVal;
     } else {
-      if (category.imageURL) {
-        try {
-          await deleteImageByUrl(category.imageURL, "categories");
-        } catch {}
-      }
+      await deleteReplacedImage(category.imageURL);
       category.imageURL = null;
     }
   }

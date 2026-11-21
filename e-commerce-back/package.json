@@ -12,6 +12,7 @@
     "dev": "tsx --watch ./src/index.ts",
     "build": "tsc",
     "seed:admin": "tsx ./src/seed-admin.ts",
+    "seed:e2e": "tsx ./src/seed-e2e.ts",
     "typecheck": "tsc --noEmit",
     "start": "node ./dist/src/index.js",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js",
