@@ -57,13 +57,10 @@ export const createProductValidate = z.looseObject({
   ar_description: description.nullable().optional(),
   price: z.coerce.number().min(1),
   discount: z.coerce.number().min(0).max(100).optional(),
+  stock: z.coerce.number().min(0).optional(),
   brand: brand.nullable().optional(),
   subcategoryId: objectIdSchema,
-  variants: variants.refine(
-    (val): val is z.infer<typeof variantSchema>[] =>
-      Array.isArray(val) && val.length >= 1,
-    { message: "At least one product variant is required" },
-  ),
+  variants: variants.optional(),
   specifications: specificationsSchema.optional(),
   colorImages: colorImages.optional(),
 });
@@ -77,6 +74,7 @@ export const updateProductValidate = z
     ar_description: description.nullable().optional(),
     price: z.coerce.number().min(1).optional(),
     discount: z.coerce.number().min(0).max(100).optional(),
+    stock: z.coerce.number().min(0).optional(),
     brand: brand.nullable().optional(),
     subcategoryId: z.preprocess(
       (val) => (val === "" || val === null ? undefined : val),

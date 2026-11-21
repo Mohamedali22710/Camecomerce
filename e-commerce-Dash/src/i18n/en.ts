@@ -93,7 +93,9 @@ const customEnglishMessages: TranslationMessages = {
       columns: {
         image: "Image",
         name: "Name",
+        price: "Price",
         discount: "Discount",
+        subcategory: "Subcategory",
         active: "Active",
       },
       form: {
@@ -103,6 +105,7 @@ const customEnglishMessages: TranslationMessages = {
         description_ar: "Description (AR)",
         discount_percent: "Discount (%)",
         price: "Price",
+        stock: "Stock",
         width: "Width",
         height: "Height",
         category: "Category",

@@ -99,7 +99,21 @@ export const getActiveCategories = async (_req: Request, res: Response): Promise
     match: { isActive: true },
     populate: { path: "products", match: { isActive: true } },
   });
-  res.status(200).json({ message: "Categories", data: toPublicJson(categories) });
+
+  const serialized = toPublicJson(categories) as any[];
+  for (const cat of serialized) {
+    let catProductCount = 0;
+    if (Array.isArray(cat.subcategories)) {
+      for (const sub of cat.subcategories) {
+        const subCount = Array.isArray(sub.products) ? sub.products.length : 0;
+        sub.productCount = subCount;
+        catProductCount += subCount;
+      }
+    }
+    cat.productCount = catProductCount;
+  }
+
+  res.status(200).json({ message: "Categories", data: serialized });
 };
 
 export const getSubcategoriesByCategory = async (req: Request, res: Response): Promise<void> => {
@@ -112,7 +126,12 @@ export const getSubcategoriesByCategory = async (req: Request, res: Response): P
     .find({ categoryId: category._id, isActive: true })
     .populate({ path: "products", match: { isActive: true } });
 
-  res.status(200).json({ message: "Subcategories", data: toPublicJson(subcategories) });
+  const serialized = toPublicJson(subcategories) as any[];
+  for (const sub of serialized) {
+    sub.productCount = Array.isArray(sub.products) ? sub.products.length : 0;
+  }
+
+  res.status(200).json({ message: "Subcategories", data: serialized });
 };
 
 export const getCategoryById = async (req: Request, res: Response): Promise<void> => {

@@ -17,9 +17,9 @@ type option = {
 };
 
 const formSchema = z.object({
-  color: z.string(),
   quantity: z.number().min(1),
-  size: z.string(),
+  color: z.string().optional(),
+  size: z.string().optional(),
 });
 
 type FormType = z.infer<typeof formSchema>;

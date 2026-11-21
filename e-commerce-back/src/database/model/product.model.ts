@@ -8,6 +8,7 @@ export interface IProduct extends Document {
   ar_description?: string | null;
   price: number;
   discount: number;
+  stock?: number;
   /** Brand label shown on the storefront; optional for legacy rows. */
   brand?: string | null;
   imageURLs?: string | null;
@@ -29,6 +30,7 @@ const productSchema = new Schema<IProduct>(
     ar_description: { type: String, default: null },
     price: { type: Number, required: true, min: 1 },
     discount: { type: Number, default: 0, min: 0, max: 100 },
+    stock: { type: Number, default: 100, min: 0 },
     brand: { type: String, default: null, trim: true, maxlength: 80 },
     imageURLs: { type: String, default: null },
     colorImages: { type: String, default: null },

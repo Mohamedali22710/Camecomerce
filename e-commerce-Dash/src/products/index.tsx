@@ -8,5 +8,5 @@ export default {
     create: ProductCreate,
     edit: ProductEdit,
     icon: ProductIcon,
-    recordRepresentation: (record: any) => record?.en_name || '',
+    recordRepresentation: (record: any) => (record?.ar_name || record?.en_name) || '',
 };

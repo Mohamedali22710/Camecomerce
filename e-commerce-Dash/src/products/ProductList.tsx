@@ -18,10 +18,12 @@ import {
     FunctionField,
     ReferenceField,
     useTranslate,
+    useLocale,
 } from 'react-admin';
 
 const ProductList = () => {
     const translate = useTranslate();
+    const locale = useLocale();
     return (
         <ListBase perPage={24} sort={{ field: 'createdAt', order: 'DESC' }}>
             <ProductTitle />
@@ -83,9 +85,19 @@ const ProductList = () => {
                                 );
                             }}
                         />
-                        <TextField source="en_name" label={translate("pos.products.columns.name")} sx={{ fontWeight: 600 }} />
                         <FunctionField
-                            label="Price"
+                            label={translate("pos.products.columns.name")}
+                            render={(record: any) => {
+                                const name = locale === 'ar' ? (record?.ar_name || record?.en_name) : (record?.en_name || record?.ar_name);
+                                return (
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                        {name || '—'}
+                                    </Typography>
+                                );
+                            }}
+                        />
+                        <FunctionField
+                            label={translate("pos.products.columns.price") || (locale === 'ar' ? 'السعر' : 'Price')}
                             render={record => {
                                 const price = Number(record.price) || 0;
                                 const discount = Number(record.discount) || 0;
@@ -93,7 +105,7 @@ const ProductList = () => {
                                 return (
                                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                                         <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                                            {discounted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {record.currency || 'EGP'}
+                                            {discounted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {record.currency || 'SAR'}
                                         </Typography>
                                         {discount > 0 && (
                                             <Typography
@@ -103,7 +115,7 @@ const ProductList = () => {
                                                     color: 'text.secondary',
                                                 }}
                                             >
-                                                {price.toLocaleString()} {record.currency || 'EGP'}
+                                                {price.toLocaleString()} {record.currency || 'SAR'}
                                             </Typography>
                                         )}
                                     </Box>
@@ -132,8 +144,20 @@ const ProductList = () => {
                                 return <Typography variant="caption" color="text.secondary">0%</Typography>;
                             }}
                         />
-                        <ReferenceField source="subcategoryId" reference="subcategories" link="show">
-                            <TextField source="en_name" sx={{ color: 'primary.main', fontWeight: 500 }} />
+                        <ReferenceField
+                            source="subcategoryId"
+                            reference="subcategories"
+                            link="show"
+                            label={translate("pos.products.columns.subcategory") || (locale === 'ar' ? 'الفئة الفرعية' : 'Subcategory')}
+                        >
+                            <FunctionField
+                                render={(record: any) =>
+                                    locale === 'ar'
+                                        ? (record?.ar_name || record?.en_name)
+                                        : (record?.en_name || record?.ar_name)
+                                }
+                                sx={{ color: 'primary.main', fontWeight: 500 }}
+                            />
                         </ReferenceField>
                         <FunctionField
                             label={translate("pos.products.columns.active")}
@@ -178,7 +202,7 @@ export const productFilters = [
         reference="subcategories"
         sort={{ field: 'en_name', order: 'ASC' }}
     >
-        <SelectInput optionText="en_name" />
+        <SelectInput optionText={(record: any) => record ? (record.ar_name || record.en_name) : ''} />
     </ReferenceInput>,
 ];
 

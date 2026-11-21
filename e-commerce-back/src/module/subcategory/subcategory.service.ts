@@ -71,7 +71,11 @@ export const getActiveSubcategories = async (_req: Request, res: Response): Prom
     path: "products",
     match: { isActive: true },
   });
-  res.status(200).json({ message: "Subcategories", data: toPublicJson(subcategories) });
+  const serialized = toPublicJson(subcategories) as any[];
+  for (const sub of serialized) {
+    sub.productCount = Array.isArray(sub.products) ? sub.products.length : 0;
+  }
+  res.status(200).json({ message: "Subcategories", data: serialized });
 };
 
 export const getActiveSubcategoryById = async (req: Request, res: Response): Promise<void> => {

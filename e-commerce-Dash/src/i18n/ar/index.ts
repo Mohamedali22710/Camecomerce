@@ -94,7 +94,9 @@ const arabicMessages = {
       columns: {
         image: "الصورة",
         name: "الاسم",
+        price: "السعر",
         discount: "الخصم",
+        subcategory: "الفئة الفرعية",
         active: "نشط",
       },
       form: {
@@ -104,6 +106,7 @@ const arabicMessages = {
         description_ar: "الوصف (AR)",
         discount_percent: "الخصم (%)",
         price: "السعر",
+        stock: "المخزون",
         width: "العرض",
         height: "الارتفاع",
         category: "الفئة",

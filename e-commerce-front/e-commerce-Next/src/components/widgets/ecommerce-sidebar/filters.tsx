@@ -4,12 +4,12 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/base/badge";
+import { Button } from "@/components/base/button";
 import { Checkbox } from "@/components/base/checkbox";
 import { Separator } from "@/components/base/separator";
 import { cn } from "@/lib/utils";
 
 import { Collapsible } from "./collapsible";
-import { COLORS, SIZES } from "./types";
 import type { ActiveFilter, FilterSection } from "./types";
 
 function FilterSectionBlock({
@@ -22,8 +22,16 @@ function FilterSectionBlock({
   onToggle: (sectionId: string, optionId: string, label: string) => void;
 }) {
   const t = useTranslations("sidebar");
+  const title =
+    section.title ||
+    (section.id === "category"
+      ? t("category")
+      : section.id === "subcategory"
+      ? t("subcategory")
+      : section.id);
+
   return (
-    <Collapsible title={t(section.id as "category" | "brand" | "size")}>
+    <Collapsible title={title}>
       <div className="space-y-2.5">
         {section.options.map((opt) => (
           <label
@@ -48,91 +56,70 @@ function FilterSectionBlock({
   );
 }
 
-function ColorPicker({
-  selected,
-  onToggle,
-}: {
-  selected: string[];
-  onToggle: (id: string) => void;
-}) {
-  const t = useTranslations("sidebar");
-  return (
-    <Collapsible title={t("color")}>
-      <div className="flex flex-wrap gap-2">
-        {COLORS.map((color) => {
-          const isSelected = selected.includes(color.id);
-          return (
-            <button
-              key={color.id}
-              type="button"
-              title={color.label}
-              onClick={() => onToggle(color.id)}
-              className={cn(
-                "size-7 rounded-full border-2 transition-all duration-150",
-                isSelected
-                  ? "scale-110 border-foreground shadow-md"
-                  : "border-transparent hover:scale-105 hover:border-muted-foreground/40",
-              )}
-              style={{ backgroundColor: color.hex }}
-            />
-          );
-        })}
-      </div>
-    </Collapsible>
-  );
-}
-
 function PriceRange({
-  value,
-  onChange,
+  minPrice,
+  maxPrice,
+  onMinPriceChange,
+  onMaxPriceChange,
+  onApply,
 }: {
-  value: [number, number];
-  onChange: (v: [number, number]) => void;
+  minPrice: string;
+  maxPrice: string;
+  onMinPriceChange: (v: string) => void;
+  onMaxPriceChange: (v: string) => void;
+  onApply: () => void;
 }) {
   const t = useTranslations("sidebar");
+  const currency = t("currency");
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      onApply();
+    }
+  };
+
   return (
     <Collapsible title={t("priceRange")}>
-      <div className="space-y-4">
-        <div className="flex items-center gap-3">
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted-foreground">{t("min")}</label>
+      <div className="space-y-3 pt-1">
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t("min")} ({currency})
+            </label>
             <input
               type="number"
               min={0}
-              max={value[1]}
-              value={value[0]}
-              onChange={(e) => {
-                const v = Math.min(Number(e.target.value), value[1]);
-                onChange([v, value[1]]);
-              }}
-              className="w-full rounded-md border border-border bg-transparent px-2 py-1 text-sm text-muted-foreground"
+              placeholder="0"
+              value={minPrice}
+              onChange={(e) => onMinPriceChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
             />
           </div>
-          <span className="mt-5 text-muted-foreground/40">—</span>
-          <div className="flex-1">
-            <label className="mb-1 block text-xs text-muted-foreground">{t("max")}</label>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {t("max")} ({currency})
+            </label>
             <input
               type="number"
-              min={value[0]}
-              max={500}
-              value={value[1]}
-              onChange={(e) => {
-                const v = Math.max(Number(e.target.value), value[0]);
-                onChange([value[0], v]);
-              }}
-              className="w-full rounded-md border border-border bg-transparent px-2 py-1 text-sm text-muted-foreground"
+              min={0}
+              placeholder="1000"
+              value={maxPrice}
+              onChange={(e) => onMaxPriceChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-colors"
             />
           </div>
         </div>
-        <div className="flex items-center justify-between text-sm">
-          <span className="rounded-md border border-border px-2 py-1 text-muted-foreground">
-            ${value[0]}
-          </span>
-          <span className="text-muted-foreground/40">—</span>
-          <span className="rounded-md border border-border px-2 py-1 text-muted-foreground">
-            ${value[1]}
-          </span>
-        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={onApply}
+          className="w-full h-8 text-xs font-medium border-primary/30 hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer"
+        >
+          {t("filter")}
+        </Button>
       </div>
     </Collapsible>
   );
@@ -188,30 +175,34 @@ function ActiveFilters({
 
 function SidebarContent({
   checkboxState,
-  colorState,
-  priceState,
+  minPrice,
+  maxPrice,
   activeFilters,
   categorySection,
-  brandSection,
+  subcategorySection,
   onCheckboxToggle,
-  onColorToggle,
-  onPriceChange,
+  onMinPriceChange,
+  onMaxPriceChange,
+  onApplyPrice,
   onRemoveFilter,
   onClearAll,
 }: {
   checkboxState: Record<string, string[]>;
-  colorState: string[];
-  priceState: [number, number];
+  minPrice: string;
+  maxPrice: string;
   activeFilters: ActiveFilter[];
   categorySection?: FilterSection;
-  brandSection?: FilterSection;
+  subcategorySection?: FilterSection | null;
   onCheckboxToggle: (sectionId: string, optionId: string, label: string) => void;
-  onColorToggle: (id: string) => void;
-  onPriceChange: (v: [number, number]) => void;
+  onMinPriceChange: (v: string) => void;
+  onMaxPriceChange: (v: string) => void;
+  onApplyPrice: () => void;
   onRemoveFilter: (sectionId: string, optionId: string) => void;
   onClearAll: () => void;
 }) {
   const t = useTranslations("sidebar");
+  const isCategoryActive = (checkboxState["category"] ?? []).length > 0;
+
   return (
     <div className="space-y-1">
       <ActiveFilters
@@ -226,22 +217,24 @@ function SidebarContent({
           selected={checkboxState["category"] ?? []}
           onToggle={onCheckboxToggle}
         />
+        {isCategoryActive && subcategorySection && subcategorySection.options.length > 0 && (
+          <>
+            <Separator />
+            <FilterSectionBlock
+              section={subcategorySection}
+              selected={checkboxState["subcategory"] ?? []}
+              onToggle={onCheckboxToggle}
+            />
+          </>
+        )}
         <Separator />
-        <FilterSectionBlock
-          section={brandSection ?? { id: "brand", title: t("brand"), options: [] }}
-          selected={checkboxState["brand"] ?? []}
-          onToggle={onCheckboxToggle}
+        <PriceRange
+          minPrice={minPrice}
+          maxPrice={maxPrice}
+          onMinPriceChange={onMinPriceChange}
+          onMaxPriceChange={onMaxPriceChange}
+          onApply={onApplyPrice}
         />
-        <Separator />
-        <FilterSectionBlock
-          section={SIZES}
-          selected={checkboxState["size"] ?? []}
-          onToggle={onCheckboxToggle}
-        />
-        <Separator />
-        <ColorPicker selected={colorState} onToggle={onColorToggle} />
-        <Separator />
-        <PriceRange value={priceState} onChange={onPriceChange} />
       </div>
     </div>
   );

@@ -22,7 +22,6 @@ import CloseIcon from '@mui/icons-material/Close';
 import StarIcon from '@mui/icons-material/Star';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import CollectionsIcon from '@mui/icons-material/Collections';
-import VariantsEditor from './VariantsEditor';
 import SubcategoryInput from './SubcategoryInput';
 
 const ProductTitle = () => {
@@ -382,6 +381,9 @@ const ProductEdit = () => {
                 if (data.discount !== undefined && data.discount !== null && data.discount !== '') {
                     result.discount = Number(data.discount);
                 }
+                if (data.stock !== undefined && data.stock !== null && data.stock !== '') {
+                    result.stock = Number(data.stock);
+                }
                 if (data.isActive !== undefined) {
                     result.isActive = Boolean(data.isActive);
                 }
@@ -394,25 +396,6 @@ const ProductEdit = () => {
                         : rawSubcat;
                 if (typeof extractedSubcatId === 'string' && extractedSubcatId.trim().length > 0) {
                     result.subcategoryId = extractedSubcatId.trim();
-                }
-
-                // Handle variants: only send valid non-empty variants
-                if (variants && variants !== 'null' && variants !== '[]') {
-                    result.variants = typeof variants === 'string' ? variants : JSON.stringify(variants);
-                }
-
-                // Handle colorImages: only include if it actually has content
-                if (colorImages && colorImages !== 'null') {
-                    if (Array.isArray(colorImages) && colorImages.length > 0) {
-                        result.colorImages = JSON.stringify(colorImages);
-                    } else if (typeof colorImages === 'object' && Object.keys(colorImages).length > 0) {
-                        result.colorImages = JSON.stringify(colorImages);
-                    } else if (typeof colorImages === 'string') {
-                        const trimmed = colorImages.trim();
-                        if (trimmed && trimmed !== '{}' && trimmed !== '[]' && trimmed !== 'null') {
-                            result.colorImages = trimmed;
-                        }
-                    }
                 }
 
                 // Handle specifications
@@ -461,13 +444,14 @@ const ProductEdit = () => {
                 <Card sx={{ width: '100%', mb: 3, borderRadius: '14px', border: '1px solid', borderColor: 'divider' }}>
                     <CardContent>
                         <Typography variant="h6" sx={{ fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
-                            التسعير والتصنيف والحالة
+                            التسعير والتصنيف والحالة والمخزون
                         </Typography>
                         <Divider sx={{ mb: 2.5 }} />
 
-                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
-                            <NumberInput source="price" validate={required()} min={1} fullWidth />
+                        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' }, gap: 2 }}>
+                            <NumberInput source="price" validate={required()} min={1} fullWidth label={translate("pos.products.form.price")} />
                             <NumberInput source="discount" min={0} max={100} fullWidth label={translate("pos.products.form.discount_percent")} />
+                            <NumberInput source="stock" min={0} fullWidth label={translate("pos.products.form.stock")} />
                         </Box>
 
                         <SubcategoryInput />
@@ -475,12 +459,6 @@ const ProductEdit = () => {
                         <Box sx={{ mt: 2 }}>
                             <BooleanInput source="isActive" label={translate("pos.products.form.active")} />
                         </Box>
-                    </CardContent>
-                </Card>
-
-                <Card sx={{ width: '100%', mb: 3, borderRadius: '14px', border: '1px solid', borderColor: 'divider' }}>
-                    <CardContent>
-                        <VariantsEditor />
                     </CardContent>
                 </Card>
 

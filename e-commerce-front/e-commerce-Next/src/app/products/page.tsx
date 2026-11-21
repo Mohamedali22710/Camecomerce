@@ -8,10 +8,8 @@ import { useTranslations, useLocale } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 import api from "@/lib/api";
 import { Badge } from "@/components/base/badge";
-import { Button } from "@/components/base/button";
 import { ProductGridSkeleton } from "@/components/widgets/skeletons";
 import { Card, CardContent, CardHeader } from "@/components/base/card";
-import { Input } from "@/components/base/input";
 import {
   Select,
   SelectContent,
@@ -54,14 +52,19 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sort, setSort] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
+
+  const sortOptions: Record<string, string> = {
+    price_asc: t("priceLowHigh"),
+    price_desc: t("priceHighLow"),
+  };
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: "12" });
       if (sort) params.set("sort", sort);
+      const minPrice = searchParams.get("minPrice");
+      const maxPrice = searchParams.get("maxPrice");
       if (minPrice) params.set("minPrice", minPrice);
       if (maxPrice) params.set("maxPrice", maxPrice);
       const cat = searchParams.get("category");
@@ -70,10 +73,10 @@ export default function ProductsPage() {
       if (search) params.set("search", search);
 
       let url = `/products?${params}`;
-      if (cat) {
-        url = `/products/category/${cat}?${params}`;
-      } else if (sub) {
+      if (sub) {
         url = `/products/subcategory/${sub}?${params}`;
+      } else if (cat) {
+        url = `/products/category/${cat}?${params}`;
       }
 
       const res = await api.get(url);
@@ -87,16 +90,15 @@ export default function ProductsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, sort, minPrice, maxPrice, searchParams]);
+  }, [page, sort, searchParams]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchParams, sort]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
-
-  const handleFilter = () => {
-    setPage(1);
-    fetchProducts();
-  };
 
   const formatPrice = useFormatPrice(locale);
 
@@ -108,38 +110,24 @@ export default function ProductsPage() {
       transition={{ duration: 0.4 }}
     >
       <motion.div
-        className="mb-6 flex flex-wrap items-center gap-4"
+        className="mb-6 flex flex-wrap items-center justify-between gap-4"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
       >
-        <Select value={sort} onValueChange={(v) => v !== null && setSort(v)}>
-          <SelectTrigger className="w-40">
-            <SelectValue placeholder={t("sortBy")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="price_asc">{t("priceLowHigh")}</SelectItem>
-            <SelectItem value="price_desc">{t("priceHighLow")}</SelectItem>
-            <SelectItem value="name_asc">{t("nameAZ")}</SelectItem>
-            <SelectItem value="name_desc">{t("nameZA")}</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Input
-          type="number"
-          placeholder={t("minPrice")}
-          value={minPrice}
-          onChange={(e) => setMinPrice(e.target.value)}
-          className="w-28"
-        />
-        <Input
-          type="number"
-          placeholder={t("maxPrice")}
-          value={maxPrice}
-          onChange={(e) => setMaxPrice(e.target.value)}
-          className="w-28"
-        />
-        <Button variant="secondary" onClick={handleFilter}>{t("filter")}</Button>
+        <div className="flex items-center gap-2">
+          <Select value={sort} onValueChange={(v) => v !== null && setSort(v)}>
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder={t("sortBy")}>
+                {(val) => (val && sortOptions[val] ? sortOptions[val] : t("sortBy"))}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="price_asc">{t("priceLowHigh")}</SelectItem>
+              <SelectItem value="price_desc">{t("priceHighLow")}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </motion.div>
 
       {loading ? (
