@@ -11,7 +11,7 @@ import {
     Grid,
     Skeleton,
 } from '@mui/material';
-import { useCreatePath, useListContext } from 'react-admin';
+import { useCreatePath, useListContext, useLocale } from 'react-admin';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 
@@ -35,6 +35,7 @@ const LoadingGridList = () => {
 const LoadedGridList = () => {
     const { data } = useListContext();
     const createPath = useCreatePath();
+    const locale = useLocale();
 
     if (!data || data.length === 0) return null;
 
@@ -90,7 +91,7 @@ const LoadedGridList = () => {
                                         <CardMedia
                                             component="img"
                                             image={imageUrl}
-                                            alt={record.en_name || ''}
+                                            alt={(locale === 'ar' ? (record.ar_name || record.en_name) : (record.en_name || record.ar_name)) || ''}
                                             sx={{
                                                 position: 'absolute',
                                                 top: 0,
@@ -164,11 +165,11 @@ const LoadedGridList = () => {
                                             mb: 1,
                                         }}
                                     >
-                                        {record.en_name}
+                                        {locale === 'ar' ? (record.ar_name || record.en_name) : (record.en_name || record.ar_name)}
                                     </Typography>
                                     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
                                         <Typography variant="body1" sx={{ fontWeight: 700, color: 'primary.main' }}>
-                                            {effectivePrice.toLocaleString()} {record.currency || 'EGP'}
+                                            {effectivePrice.toLocaleString()} {record.currency || 'SAR'}
                                         </Typography>
                                         {discount > 0 && (
                                             <Typography

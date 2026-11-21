@@ -9,6 +9,7 @@ describe("signupValidate", () => {
       password: "strong-pass",
       confirmPassword: "strong-pass",
       role: "admin",
+      phone: "+966500000000",
     });
 
     expect(result.success).toBe(true);
@@ -22,6 +23,7 @@ describe("signupValidate", () => {
       email: "user@example.com",
       password: "strong-pass",
       confirmPassword: "different-pass",
+      phone: "+966500000000",
     });
 
     expect(result.success).toBe(false);
@@ -41,17 +43,29 @@ describe("signupValidate", () => {
       email: "user@example.com",
       password: "short",
       confirmPassword: "short",
+      phone: "+966500000000",
     });
 
     expect(result.success).toBe(false);
   });
 
-  it("accepts a blank optional phone number", () => {
+  it("rejects a missing or blank phone number", () => {
     const result = signupValidate.safeParse({
       email: "user@example.com",
       password: "strong-pass",
       confirmPassword: "strong-pass",
       phone: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts a valid international phone number", () => {
+    const result = signupValidate.safeParse({
+      email: "user@example.com",
+      password: "strong-pass",
+      confirmPassword: "strong-pass",
+      phone: "+966500000000",
     });
 
     expect(result.success).toBe(true);

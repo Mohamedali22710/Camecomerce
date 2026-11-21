@@ -17,9 +17,9 @@ type option = {
 };
 
 const formSchema = z.object({
-  color: z.string(),
   quantity: z.number().min(1),
-  size: z.string(),
+  color: z.string().optional(),
+  size: z.string().optional(),
 });
 
 type FormType = z.infer<typeof formSchema>;
@@ -56,6 +56,7 @@ interface PriceProps {
   regular: number;
   sale?: number;
   currency: string;
+  locale?: string;
   text?: string;
 }
 
@@ -87,6 +88,7 @@ interface ProductDetailData {
   currency: string;
   images: string[];
   locale: string;
+  stock?: number;
 }
 
 interface ProductDetail1Props {

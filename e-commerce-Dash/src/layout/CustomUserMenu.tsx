@@ -150,7 +150,7 @@ export const CustomUserMenu = () => {
 
                 <MenuItem
                     component={Link}
-                    to="/profile"
+                    to="/users"
                     onClick={handleClose}
                     sx={{
                         borderRadius: '8px',

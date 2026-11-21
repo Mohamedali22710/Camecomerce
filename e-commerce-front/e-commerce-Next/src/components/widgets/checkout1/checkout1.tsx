@@ -34,7 +34,7 @@ import type { Checkout1Props, CheckoutFormType, CartItem as CheckoutCartItem } f
 const Checkout1 = ({ cartItems: propCartItems, className }: Checkout1Props) => {
   const [activeAccordion, setActiveAccordion] = useState<string[]>(["item-1"]);
   const [submitting, setSubmitting] = useState(false);
-  const { items: ctxItems, clearCart } = useCart();
+  const { items: ctxItems, clearCart, hasOutOfStockItems } = useCart();
   const { userToken } = useContext(User)!;
   const router = useRouter();
 
@@ -47,8 +47,10 @@ const Checkout1 = ({ cartItems: propCartItems, className }: Checkout1Props) => {
   useEffect(() => {
     if (!propCartItems && ctxItems.length === 0) {
       router.replace("/cart");
+    } else if (hasOutOfStockItems) {
+      router.replace("/cart");
     }
-  }, [propCartItems, ctxItems, router]);
+  }, [propCartItems, ctxItems, hasOutOfStockItems, router]);
 
   const cartItems: CheckoutCartItem[] = useMemo(() => {
     if (propCartItems) return propCartItems;

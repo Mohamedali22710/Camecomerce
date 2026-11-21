@@ -38,10 +38,13 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
 
   const formatPrice = useFormatPrice(locale);
   const inWishlist = mounted && isInWishlist(product._id);
+  const isOutOfStock = product.stock !== undefined && product.stock !== null && Number(product.stock) <= 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    if (isOutOfStock) return;
 
     addItem({
       _id: product._id,
@@ -53,6 +56,8 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
       price: finalPrice,
       originalPrice: hasDiscount ? product.price : undefined,
       quantity: 1,
+      stock: product.stock,
+      inStock: !isOutOfStock,
       link: `/products/${product._id}`,
     });
 
@@ -70,7 +75,7 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
       image: imageSrc,
       price: finalPrice,
       originalPrice: hasDiscount ? product.price : undefined,
-      inStock: true,
+      inStock: !isOutOfStock,
       link: `/products/${product._id}`,
     });
   };
@@ -127,13 +132,21 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
           </h3>
 
           {/* Price Block */}
-          <div className="mt-auto pt-2 flex items-baseline gap-2">
-            <span className="text-base md:text-lg font-bold text-foreground tabular-nums">
-              {formatPrice(finalPrice)}
-            </span>
-            {hasDiscount && (
-              <span className="text-xs text-muted-foreground line-through tabular-nums">
-                {formatPrice(product.price)}
+          <div className="mt-auto pt-2 flex items-center justify-between gap-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-base md:text-lg font-bold text-foreground tabular-nums">
+                {formatPrice(finalPrice)}
+              </span>
+              {hasDiscount && (
+                <span className="text-xs text-muted-foreground line-through tabular-nums">
+                  {formatPrice(product.price)}
+                </span>
+              )}
+            </div>
+            {isOutOfStock && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                <span className="size-1.5 rounded-full bg-rose-500" />
+                {isAr ? "نفدت الكمية" : "Sold Out"}
               </span>
             )}
           </div>
@@ -145,14 +158,19 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
         <Button
           type="button"
           onClick={handleAddToCart}
+          disabled={isOutOfStock}
           className={cn(
             "w-full gap-2 text-xs md:text-sm font-medium transition-all h-9 rounded-lg shadow-xs",
-            isAdded
-              ? "bg-emerald-600 hover:bg-emerald-700 text-white"
-              : "bg-[#2563EB] hover:bg-blue-700 text-white"
+            isOutOfStock
+              ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 hover:bg-muted"
+              : isAdded
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                : "bg-[#2563EB] hover:bg-blue-700 text-white"
           )}
         >
-          {isAdded ? (
+          {isOutOfStock ? (
+            <span>{isAr ? "نفدت الكمية" : "Sold Out"}</span>
+          ) : isAdded ? (
             <>
               <Check className="size-4" />
               <span>{isAr ? "تمت الإضافة للسلة" : "Added to Cart"}</span>

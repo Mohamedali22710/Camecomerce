@@ -17,6 +17,8 @@ export interface CartItem {
   color?: string
   size?: string
   link?: string
+  stock?: number
+  inStock?: boolean
   details?: { label: string; value: string }[]
 }
 
@@ -32,6 +34,8 @@ interface CartContextType {
   total: number
   currency: string
   fetchFromApi: (token: string, role: string) => Promise<void>
+  refreshStock: () => Promise<void>
+  hasOutOfStockItems: boolean
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
@@ -71,6 +75,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [items, loaded])
 
   const addItem = (newItem: Omit<CartItem, "quantity"> & { quantity?: number }) => {
+    if (newItem.inStock === false) return
+    if (newItem.stock !== undefined && newItem.stock !== null && Number(newItem.stock) <= 0) return
+
     setItems((prev) => {
       const existing = prev.find((i) => i._id === newItem._id)
       if (existing) {
@@ -96,6 +103,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clearCart = () => setItems([])
 
+  const refreshStock = async () => {
+    if (items.length === 0) return;
+    try {
+      const updated = await Promise.all(
+        items.map(async (item) => {
+          const prodId = item.productId || item._id;
+          if (!prodId) return item;
+          try {
+            const res = await api.get(`/products/${prodId}`);
+            const prod = res.data?.data || res.data;
+            if (prod) {
+              const stock = prod.stock !== undefined && prod.stock !== null ? Number(prod.stock) : 100;
+              const isAvailable = Boolean(prod.isActive) && stock > 0;
+              return {
+                ...item,
+                stock,
+                inStock: isAvailable,
+              };
+            }
+          } catch {
+            // keep existing item if endpoint fails
+          }
+          return item;
+        })
+      );
+      setItems(updated);
+    } catch {
+      // silent
+    }
+  };
+
+  useEffect(() => {
+    if (loaded && items.length > 0) {
+      refreshStock();
+    }
+  }, [loaded]);
+
   const fetchFromApi = async (token: string, role: string) => {
     try {
       const res = await api.get("/cart")
@@ -106,6 +150,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
           const discountedPrice = ci.product?.discount
             ? ci.product.price - (ci.product.price * ci.product.discount) / 100
             : ci.product?.price
+
+          const stock =
+            ci.stock !== undefined && ci.stock !== null
+              ? Number(ci.stock)
+              : ci.product?.stock !== undefined && ci.product?.stock !== null
+                ? Number(ci.product.stock)
+                : 100;
+          const isAvailable = ci.available !== false && (ci.product ? Boolean(ci.product.isActive) : true) && stock > 0;
+
           return {
             _id: String(ci._id || ci.productId || ci.product_id),
             productId: String(ci.product?._id || ci.productId || ci.product_id || ci._id),
@@ -118,6 +171,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             quantity: ci.quantity ?? 1,
             color: ci.color,
             size: ci.size,
+            stock,
+            inStock: isAvailable,
           }
         })
         setItems(mapped)
@@ -132,9 +187,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
   const computedShipping = shippingCost !== null ? shippingCost : computeShipping(subtotal)
   const total = Math.round((subtotal + computedShipping) * 100) / 100
+  const hasOutOfStockItems = items.some(
+    (item) => item.inStock === false || (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0)
+  )
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, itemCount: items.reduce((sum, i) => sum + i.quantity, 0), subtotal, shippingCost: computedShipping, total, currency, fetchFromApi }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQuantity, clearCart, itemCount: items.reduce((sum, i) => sum + i.quantity, 0), subtotal, shippingCost: computedShipping, total, currency, fetchFromApi, refreshStock, hasOutOfStockItems }}>
       {children}
     </CartContext.Provider>
   )

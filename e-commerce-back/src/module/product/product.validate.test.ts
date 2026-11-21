@@ -52,6 +52,17 @@ describe("createProductValidate", () => {
 
     expect(result.success).toBe(false);
   });
+
+  it("accepts a product with stock and no variants", () => {
+    const { variants, ...withoutVariants } = validProduct;
+    const result = createProductValidate.safeParse({
+      ...withoutVariants,
+      stock: 50,
+    });
+    expect(result.success).toBe(true);
+    if (!result.success) {return;}
+    expect(result.data.stock).toBe(50);
+  });
 });
 
 describe("updateProductValidate", () => {

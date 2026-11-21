@@ -18,10 +18,12 @@ import {
     FunctionField,
     ReferenceField,
     useTranslate,
+    useLocale,
 } from 'react-admin';
 
 const ProductList = () => {
     const translate = useTranslate();
+    const locale = useLocale();
     return (
         <ListBase perPage={24} sort={{ field: 'createdAt', order: 'DESC' }}>
             <ProductTitle />
@@ -48,7 +50,7 @@ const ProductList = () => {
                         }}
                     >
                         <FunctionField
-                            label={translate("pos.products.columns.image")}
+                            label={locale === 'ar' ? 'الصورة' : 'Image'}
                             render={record => {
                                 let urls: string[] = [];
                                 if (record.imageURLs) {
@@ -83,9 +85,49 @@ const ProductList = () => {
                                 );
                             }}
                         />
-                        <TextField source="en_name" label={translate("pos.products.columns.name")} sx={{ fontWeight: 600 }} />
                         <FunctionField
-                            label="Price"
+                            label={locale === 'ar' ? 'الاسم' : 'Name'}
+                            render={(record: any) => {
+                                const name = locale === 'ar' ? (record?.ar_name || record?.en_name) : (record?.en_name || record?.ar_name);
+                                return (
+                                    <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }}>
+                                        {name || '—'}
+                                    </Typography>
+                                );
+                            }}
+                        />
+                        <FunctionField
+                            source="stock"
+                            sortBy="stock"
+                            label={locale === 'ar' ? 'الكمية الحالية' : 'Current Quantity'}
+                            render={(record: any) => {
+                                const stock = record.stock !== undefined && record.stock !== null ? Number(record.stock) : 0;
+                                const isOutOfStock = stock <= 0;
+                                return (
+                                    <Chip
+                                        label={isOutOfStock ? (locale === 'ar' ? '0 (نفدت الكمية)' : '0 (Out of Stock)') : `${stock}`}
+                                        size="small"
+                                        sx={{
+                                            fontWeight: 600,
+                                            fontSize: '0.75rem',
+                                            backgroundColor: isOutOfStock
+                                                ? 'rgba(220, 38, 38, 0.12)'
+                                                : stock < 10
+                                                ? 'rgba(245, 158, 11, 0.12)'
+                                                : 'rgba(37, 99, 235, 0.08)',
+                                            color: isOutOfStock
+                                                ? '#DC2626'
+                                                : stock < 10
+                                                ? '#D97706'
+                                                : '#2563EB',
+                                            borderRadius: '6px',
+                                        }}
+                                    />
+                                );
+                            }}
+                        />
+                        <FunctionField
+                            label={locale === 'ar' ? 'السعر' : 'Price'}
                             render={record => {
                                 const price = Number(record.price) || 0;
                                 const discount = Number(record.discount) || 0;
@@ -93,7 +135,7 @@ const ProductList = () => {
                                 return (
                                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                                         <Typography variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
-                                            {discounted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {record.currency || 'EGP'}
+                                            {discounted.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })} {record.currency || 'SAR'}
                                         </Typography>
                                         {discount > 0 && (
                                             <Typography
@@ -103,7 +145,7 @@ const ProductList = () => {
                                                     color: 'text.secondary',
                                                 }}
                                             >
-                                                {price.toLocaleString()} {record.currency || 'EGP'}
+                                                {price.toLocaleString()} {record.currency || 'SAR'}
                                             </Typography>
                                         )}
                                     </Box>
@@ -111,7 +153,7 @@ const ProductList = () => {
                             }}
                         />
                         <FunctionField
-                            label={translate("pos.products.columns.discount")}
+                            label={locale === 'ar' ? 'الخصم' : 'Discount'}
                             render={record => {
                                 const discount = Number(record.discount) || 0;
                                 if (discount > 0) {
@@ -132,11 +174,23 @@ const ProductList = () => {
                                 return <Typography variant="caption" color="text.secondary">0%</Typography>;
                             }}
                         />
-                        <ReferenceField source="subcategoryId" reference="subcategories" link="show">
-                            <TextField source="en_name" sx={{ color: 'primary.main', fontWeight: 500 }} />
+                        <ReferenceField
+                            source="subcategoryId"
+                            reference="subcategories"
+                            link="show"
+                            label={locale === 'ar' ? 'الفئة الفرعية' : 'Subcategory'}
+                        >
+                            <FunctionField
+                                render={(record: any) =>
+                                    locale === 'ar'
+                                        ? (record?.ar_name || record?.en_name)
+                                        : (record?.en_name || record?.ar_name)
+                                }
+                                sx={{ color: 'primary.main', fontWeight: 500 }}
+                            />
                         </ReferenceField>
                         <FunctionField
-                            label={translate("pos.products.columns.active")}
+                            label={locale === 'ar' ? 'الحالة' : 'Status'}
                             render={record => (
                                 <Chip
                                     label={record.isActive ? "نشط" : "معطل"}
@@ -178,7 +232,7 @@ export const productFilters = [
         reference="subcategories"
         sort={{ field: 'en_name', order: 'ASC' }}
     >
-        <SelectInput optionText="en_name" />
+        <SelectInput optionText={(record: any) => record ? (record.ar_name || record.en_name) : ''} />
     </ReferenceInput>,
 ];
 

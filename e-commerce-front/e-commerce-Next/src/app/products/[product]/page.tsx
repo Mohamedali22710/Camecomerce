@@ -22,6 +22,7 @@ interface Product {
   ar_description?: string;
   price: number;
   discount: number | null;
+  stock?: number;
   images?: string[];
   imageURLs?: string;
   subcategoryId: string;
@@ -67,13 +68,14 @@ export default function ProductDetail() {
   const handleToggleWishlist = async () => {
     if (!userToken) { router.push("/login"); return; }
     const alreadyIn = isInWishlist(String(data._id));
+    const inStock = data.stock === undefined || data.stock === null || Number(data.stock) > 0;
     toggleItem({
       _id: String(data._id),
       name: getLocalizedField(data, "name", locale),
       image: parseImageURLs(data)[0],
       price: salePrice ?? data.price,
       originalPrice: salePrice ? data.price : undefined,
-      inStock: true,
+      inStock,
     });
     try {
       if (alreadyIn) {
@@ -91,9 +93,10 @@ export default function ProductDetail() {
     price: data.price,
     salePrice,
     originalPrice: data.price,
-    currency: "EGP",
+    currency: "SAR",
     images: parseImageURLs(data),
     locale,
+    stock: data.stock,
   };
 
   return (

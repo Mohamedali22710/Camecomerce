@@ -1,6 +1,7 @@
 "use client";
 import { CircleCheck, CircleX } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Badge } from "@/components/base/badge";
 import { Button } from "@/components/base/button";
@@ -15,6 +16,10 @@ import { ProductForm } from "./product-form";
 import { ProductInfo } from "./product-info";
 
 const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
+  const t = useTranslations("productDetail");
+  const systemLocale = useLocale();
+  const locale = product?.locale || systemLocale;
+  const isAr = locale === "ar";
   const { addItem } = useCart();
   const router = useRouter();
   const data = product || PRODUCT_DETAILS;
@@ -33,12 +38,16 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
   const name = "name" in data ? data.name : PRODUCT_DETAILS.name;
   const description = "description" in data ? data.description : PRODUCT_DETAILS.description;
   const price = "price" in data ? data.price : PRODUCT_DETAILS.price;
-  const inStock = true;
+  const inStock =
+    product?.stock === undefined || product?.stock === null
+      ? true
+      : Number(product.stock) > 0;
   const priceRegular = typeof price === "number" ? price : price.regular;
   const priceSale = typeof price === "number" ? (product?.salePrice ?? undefined) : price.sale;
   const priceCurrency = typeof price === "number" ? "SAR" : (price.currency || "SAR");
 
   const handleBuyNow = () => {
+    if (!inStock) return;
     if (product) {
       addItem({
         _id: String(product._id),
@@ -47,6 +56,8 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
         price: product.salePrice ?? product.price,
         originalPrice: product.originalPrice,
         quantity: 1,
+        stock: product.stock,
+        inStock,
       });
       router.push("/checkout");
     } else {
@@ -82,17 +93,29 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
                         totalReviewers={(data as typeof PRODUCT_DETAILS).reviews.totalReviewers}
                       />
                     )}
-                    <Badge variant={inStock ? "secondary" : "destructive"}>
-                      {inStock ? <CircleCheck /> : <CircleX />}
-                      {inStock ? "In Stock" : "Out of Stock"}
+                    <Badge variant={inStock ? "secondary" : "destructive"} className="gap-1.5">
+                      {inStock ? <CircleCheck className="size-4" /> : <CircleX className="size-4" />}
+                      {inStock
+                        ? (product?.stock !== undefined ? (isAr ? `متوفر بالمخزون (${product.stock})` : `In Stock (${product.stock})`) : (isAr ? "متوفر بالمخزون" : "In Stock"))
+                        : (isAr ? "نفدت الكمية" : "Sold Out")}
                     </Badge>
                   </div>
                 </div>
-                <Price regular={priceRegular} sale={priceSale} currency={priceCurrency} />
+                <Price regular={priceRegular} sale={priceSale} currency={priceCurrency} locale={locale} />
               </div>
               <p className="text-muted-foreground">{description}</p>
             </div>
-            <Button size="lg" className="w-full" onClick={handleBuyNow}>Buy Now</Button>
+            <Button
+              size="lg"
+              className={cn(
+                "w-full font-medium transition-all",
+                !inStock && "cursor-not-allowed opacity-50 bg-muted text-muted-foreground hover:bg-muted"
+              )}
+              onClick={handleBuyNow}
+              disabled={!inStock}
+            >
+              {isAr ? "اشتري الآن" : "Buy Now"}
+            </Button>
             {data === PRODUCT_DETAILS ? (
               <ProductForm
                 hinges={PRODUCT_DETAILS.hinges}

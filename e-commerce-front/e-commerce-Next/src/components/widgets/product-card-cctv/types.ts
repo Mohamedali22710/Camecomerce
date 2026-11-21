@@ -6,6 +6,7 @@ export interface CCTVProduct {
   ar_description?: string;
   price: number;
   discount?: number | null;
+  stock?: number;
   imageURLs?: string;
   images?: string[];
   subcategoryId?: string;

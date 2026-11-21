@@ -29,6 +29,7 @@ interface Product {
   ar_name?: string;
   price: number;
   discount: number | null;
+  stock?: number;
   images?: string[];
   imageURLs?: string;
 }
@@ -149,6 +150,7 @@ export default function SubcategoryProducts() {
                 const salePrice = hasDiscount
                   ? product.price - (product.price * (product.discount as number)) / 100
                   : null;
+                const isOutOfStock = product.stock !== undefined && product.stock !== null && Number(product.stock) <= 0;
                 return (
                   <motion.div key={product._id} variants={fadeInUp}>
                     <Link href={`/products/${product._id}`}>
@@ -173,13 +175,21 @@ export default function SubcategoryProducts() {
                           </CardHeader>
                           <CardContent className="p-4">
                             <h3 className="truncate font-medium">{getLocalizedField(product, "name", locale)}</h3>
-                            <div className="mt-2 flex items-center gap-2">
-                              <span className="font-semibold">
-                                {formatPrice(salePrice ?? product.price)}
-                              </span>
-                              {salePrice && (
-                                <span className="text-sm text-muted-foreground line-through">
-                                  {formatPrice(product.price)}
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  {formatPrice(salePrice ?? product.price)}
+                                </span>
+                                {salePrice && (
+                                  <span className="text-sm text-muted-foreground line-through">
+                                    {formatPrice(product.price)}
+                                  </span>
+                                )}
+                              </div>
+                              {isOutOfStock && (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
+                                  <span className="size-1.5 rounded-full bg-rose-500" />
+                                  {locale === "ar" ? "نفدت الكمية" : "Sold Out"}
                                 </span>
                               )}
                             </div>

@@ -114,6 +114,18 @@ const buildFormData = (data: Record<string, any>, excludeId = false): FormData =
   return fd;
 };
 
+const formatSort = (resource: string, field: string, order?: string): string | null => {
+  if (resource === 'orders') {
+    // Backend order validation strictly accepts: ["createdAt", "-createdAt", "totalAmount", "-totalAmount"]
+    if (!['createdAt', 'totalAmount'].includes(field)) {
+      return '-createdAt';
+    }
+    const isDesc = order ? order.toUpperCase() === 'DESC' : true;
+    return isDesc ? `-${field}` : field;
+  }
+  return `${field}_${(order || 'asc').toLowerCase()}`;
+};
+
 const createProvider = (): DataProvider => ({
   getList: async (resource, params) => {
     const { page = 1, perPage = 10 } = params.pagination || {};
@@ -123,8 +135,11 @@ const createProvider = (): DataProvider => ({
     qs.set('page', String(page));
     qs.set('limit', String(perPage));
     // Never send sort=id_asc/desc because the backend only accepts specific allowed fields
-    if (field && order && field !== 'id') {
-      qs.set('sort', `${field}_${order.toLowerCase()}`);
+    if (field && field !== 'id') {
+      const sortParam = formatSort(resource, field, order);
+      if (sortParam) {
+        qs.set('sort', sortParam);
+      }
     }
     if (params.filter) {
       for (const [k, v] of Object.entries(params.filter)) {
@@ -167,8 +182,11 @@ const createProvider = (): DataProvider => ({
     const qs = new URLSearchParams();
     qs.set('page', String(page));
     qs.set('limit', String(perPage));
-    if (field && order && field !== 'id') {
-      qs.set('sort', `${field}_${order.toLowerCase()}`);
+    if (field && field !== 'id') {
+      const sortParam = formatSort(resource, field, order);
+      if (sortParam) {
+        qs.set('sort', sortParam);
+      }
     }
     if (params.target && params.id) {
       qs.set(params.target, String(params.id));

@@ -17,7 +17,12 @@ import {
   parseSpecifications,
   serializeSpecifications,
 } from "../../common/validation/specification.js";
-import { ProductVariant, normalizeVariant, parseVariants } from "../../common/validation/variant.js";
+import {
+  DEFAULT_VARIANT_VALUE,
+  ProductVariant,
+  normalizeVariant,
+  parseVariants,
+} from "../../common/validation/variant.js";
 import { IProduct, productModel } from "../../database/model/product.model.js";
 import { subcategoryModel } from "../../database/model/subcategory.model.js";
 
@@ -140,10 +145,17 @@ const buildColorImages = async (raw: unknown): Promise<Record<string, string>> =
 
 /** Public API representation of a product. Admin audit fields are opt-out. */
 const serializeProduct = (product: IProduct, options: { publicView?: boolean } = {}) => {
+  const parsedVariants = parseVariants(product.variants);
+  const stock =
+    typeof product.stock === "number"
+      ? product.stock
+      : parsedVariants.reduce((sum, v) => sum + (v.stock || 0), 0);
+
   const data = {
     ...product.toJSON(),
     brand: product.brand ?? null,
-    variants: parseVariants(product.variants),
+    stock,
+    variants: parsedVariants,
     specifications: parseSpecifications(product.specifications),
     imageURLs: parseJsonArray(product.imageURLs),
     colorImages: parseJsonObject(product.colorImages),
@@ -177,9 +189,10 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     throw new HttpError(404, "Subcategory not found");
   }
 
-  const variants = normalizeVariantsInput(req.body.variants);
+  const stock = req.body.stock !== undefined ? Math.max(0, Number(req.body.stock) || 0) : 100;
+  let variants = normalizeVariantsInput(req.body.variants);
   if (variants.length === 0) {
-    throw new HttpError(400, "At least one product variant is required");
+    variants = [{ color: DEFAULT_VARIANT_VALUE, size: DEFAULT_VARIANT_VALUE, stock }];
   }
 
   const specifications = normalizeSpecificationsInput(req.body.specifications);
@@ -204,6 +217,7 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
     ar_description: ar_description || null,
     price: Number(price),
     discount: discount !== undefined ? Number(discount) : 0,
+    stock,
     brand: normalizeBrand(brand),
     imageURLs,
     colorImages: Object.keys(colorImages).length > 0 ? JSON.stringify(colorImages) : null,
@@ -262,16 +276,26 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
     product.isActive = isActive;
   }
 
+  if (req.body.stock !== undefined) {
+    const stockVal = Math.max(0, Number(req.body.stock) || 0);
+    product.stock = stockVal;
+    const currentVariants = parseVariants(product.variants);
+    if (currentVariants.length <= 1) {
+      product.variants = JSON.stringify([
+        { color: DEFAULT_VARIANT_VALUE, size: DEFAULT_VARIANT_VALUE, stock: stockVal },
+      ]);
+    }
+  }
+
   if (req.body.specifications !== undefined) {
     product.specifications = serializeSpecifications(normalizeSpecificationsInput(req.body.specifications));
   }
 
   if (req.body.variants !== undefined) {
     const variants = normalizeVariantsInput(req.body.variants);
-    if (variants.length === 0) {
-      throw new HttpError(400, "At least one product variant is required");
+    if (variants.length > 0) {
+      product.variants = JSON.stringify(variants);
     }
-    product.variants = JSON.stringify(variants);
   }
 
   if (req.body.colorImages !== undefined) {

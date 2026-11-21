@@ -19,6 +19,7 @@ export interface Product {
     ar_description?: string;
     price: number;
     discount: number;
+    stock?: number;
     imageURLs?: string;
     colorImages?: string;
     variants?: string;

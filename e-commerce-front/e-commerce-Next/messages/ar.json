@@ -65,17 +65,19 @@
     "minPrice": "أقل سعر",
     "maxPrice": "أعلى سعر",
     "filter": "تصفية",
+    "soldOut": "نفدت الكمية",
     "noProducts": "لم يتم العثور على منتجات.",
     "previous": "السابق",
     "next": "التالي",
     "pageOf": "صفحة {page} من {totalPages}"
   },
   "productDetail": {
-    "inStock": "متوفر",
-    "outOfStock": "غير متوفر",
+    "inStock": "متوفر بالمخزون",
+    "outOfStock": "نفدت الكمية",
+    "soldOut": "نفدت الكمية",
     "units": "{n} وحدة",
     "addToCart": "أضف إلى السلة",
-    "buyNow": "اشتر الآن"
+    "buyNow": "اشتري الآن"
   },
   "cart": {
     "title": "سلة التسوق",
@@ -89,7 +91,9 @@
     "total": "الإجمالي",
     "remove": "إزالة",
     "quantity": "الكمية",
-    "each": "القطعة"
+    "each": "القطعة",
+    "itemOutOfStock": "نفدت الكمية - يرجى إزالة هذا المنتج للمتابعة",
+    "cartHasOutOfStock": "تنبيه: يوجد منتجات نفدت كميتها في السلة. يرجى إزالتها لتتمكن من إتمام الطلب."
   },
   "checkout": {
     "title": "إتمام الطلب",
@@ -162,6 +166,12 @@
     "loginSubtitle": "سجل الدخول إلى حسابك",
     "signupTitle": "إنشاء حساب",
     "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "phonePlaceholder": "+9665xxxxxxxx",
+    "phoneHint": "يرجى كتابة الرقم بالصيغة الدولية مع رمز الدولة (مثال: +966 أو +20)",
+    "passwordPlaceholder": "8 أحرف على الأقل، A-Z، 0-9",
+    "confirmPasswordPlaceholder": "أعد كتابة كلمة المرور",
+    "fixErrorsHint": "يرجى تصحيح الأخطاء الموضحة أدناه للمتابعة.",
     "password": "كلمة المرور",
     "confirmPassword": "تأكيد كلمة المرور",
     "forgotPassword": "نسيت كلمة المرور؟",
@@ -274,12 +284,13 @@
     "active": "نشط",
     "clearAll": "مسح الكل",
     "category": "الفئة",
-    "brand": "العلامة التجارية",
-    "size": "المقاس",
-    "color": "اللون",
+    "subcategory": "الفئات الفرعية",
     "priceRange": "نطاق السعر",
     "min": "الحد الأدنى",
     "max": "الحد الأقصى",
+    "filter": "تصفية",
+    "apply": "تصفية",
+    "currency": "ر.س",
     "rating": "التقييم",
     "andUp": "فأكثر"
   },

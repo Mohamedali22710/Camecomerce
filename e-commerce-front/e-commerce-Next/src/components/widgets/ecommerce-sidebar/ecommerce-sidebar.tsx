@@ -19,7 +19,6 @@ import type { Locale } from "@/lib/locale";
 import api from "@/lib/api";
 
 import { SidebarContent, type ActiveFilter, type FilterSection } from "./filters";
-import { COLORS, SIZES } from "./types";
 
 export function EcommerceSidebar() {
   const locale = useLocale() as Locale;
@@ -27,50 +26,60 @@ export function EcommerceSidebar() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
+
+  const [rawCategories, setRawCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<FilterSection>({
+    id: "category",
+    title: t("category"),
+    options: [],
+  });
+
   const [checkboxState, setCheckboxState] = useState<Record<string, string[]>>(() => {
     const sub = searchParams.get("subcategory");
     const cat = searchParams.get("category");
     const initial: Record<string, string[]> = {};
-    if (sub) initial.brand = [sub];
+    if (sub) initial.subcategory = [sub];
     if (cat) initial.category = [cat];
     return initial;
   });
-  const [colorState, setColorState] = useState<string[]>([]);
-  const [priceState, setPriceState] = useState<[number, number]>([0, 500]);
+
+  const [minPriceInput, setMinPriceInput] = useState(() => searchParams.get("minPrice") || "");
+  const [maxPriceInput, setMaxPriceInput] = useState(() => searchParams.get("maxPrice") || "");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [desktopOpen, setDesktopOpen] = useState(true);
-  const [categories, setCategories] = useState<FilterSection>({ id: "category", title: t("category"), options: [] });
-  const [subcategories, setSubcategories] = useState<FilterSection>({ id: "brand", title: t("brand"), options: [] });
 
   useEffect(() => {
     (async () => {
       try {
-        const [catRes, subRes] = await Promise.all([
-          api.get("/category"),
-          api.get("/subcategory"),
-        ]);
-        const catData = catRes.data?.data || catRes.data || [];
-        const subData = subRes.data?.data || subRes.data || [];
+        const catRes = await api.get("/category");
+        const catData: any[] = catRes.data?.data || catRes.data || [];
+        setRawCategories(catData);
+
+        const catOptions = catData.map((c: any) => {
+          const count =
+            typeof c.productCount === "number"
+              ? c.productCount
+              : (c.subcategories || []).reduce(
+                  (sum: number, s: any) =>
+                    sum +
+                    (typeof s.productCount === "number"
+                      ? s.productCount
+                      : Array.isArray(s.products)
+                      ? s.products.length
+                      : 0),
+                  0,
+                );
+          return {
+            id: String(c._id || c.id),
+            label: getLocalizedField(c, "name", locale) || c.en_name,
+            count,
+          };
+        });
+
         setCategories({
           id: "category",
           title: t("category"),
-          options: catData.map((c: any) => ({
-            id: String(c._id || c.id),
-            label: getLocalizedField(c, "name", locale) || c.en_name,
-            count: 0,
-          })),
-        });
-        const brandOptions = Array.from(
-          new Map(subData.map((s: any) => [s.en_name, s])).values()
-        ).map((s: any) => ({
-          id: String(s._id || s.id),
-          label: getLocalizedField(s, "name", locale) || s.en_name,
-          count: 0,
-        }));
-        setSubcategories({
-          id: "brand",
-          title: t("brand"),
-          options: brandOptions,
+          options: catOptions,
         });
       } catch {
         // silent
@@ -82,15 +91,72 @@ export function EcommerceSidebar() {
     const sub = searchParams.get("subcategory");
     const cat = searchParams.get("category");
     const next: Record<string, string[]> = {};
-    if (sub) next.brand = [sub];
-    if (cat) next.category = [cat];
+    if (cat) {
+      next.category = [cat];
+    } else if (sub && rawCategories.length > 0) {
+      const parent = rawCategories.find((c: any) =>
+        (c.subcategories || []).some(
+          (s: any) => String(s._id || s.id) === String(sub),
+        ),
+      );
+      if (parent) {
+        next.category = [String(parent._id || parent.id)];
+      }
+    }
+    if (sub) {
+      next.subcategory = [sub];
+    }
     setCheckboxState(next);
+  }, [searchParams, rawCategories]);
+
+  useEffect(() => {
+    setMinPriceInput(searchParams.get("minPrice") || "");
+    setMaxPriceInput(searchParams.get("maxPrice") || "");
   }, [searchParams]);
 
-  const sections = [categories, subcategories, SIZES];
+  // Compute active category and its subcategories dynamically
+  const selectedCategoryId =
+    checkboxState["category"]?.[0] || searchParams.get("category");
 
-  const activeFilters: ActiveFilter[] = [
-    ...Object.entries(checkboxState).flatMap(([sectionId, ids]) =>
+  const subcategorySection: FilterSection | null = (() => {
+    if (!selectedCategoryId) return null;
+    const selectedCat = rawCategories.find(
+      (c: any) => String(c._id || c.id) === String(selectedCategoryId),
+    );
+    if (!selectedCat) return null;
+
+    const options = (selectedCat.subcategories || [])
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => {
+        const count =
+          typeof s.productCount === "number"
+            ? s.productCount
+            : Array.isArray(s.products)
+            ? s.products.length
+            : 0;
+        return {
+          id: String(s._id || s.id),
+          label: getLocalizedField(s, "name", locale) || s.en_name,
+          count,
+        };
+      });
+
+    return {
+      id: "subcategory",
+      title: t("subcategory"),
+      options,
+    };
+  })();
+
+  const sections: FilterSection[] = subcategorySection
+    ? [categories, subcategorySection]
+    : [categories];
+
+  const minPriceParam = searchParams.get("minPrice");
+  const maxPriceParam = searchParams.get("maxPrice");
+
+  const checkboxActiveFilters: ActiveFilter[] = Object.entries(checkboxState).flatMap(
+    ([sectionId, ids]) =>
       ids
         .map((optionId) => {
           const section = sections.find((s) => s.id === sectionId);
@@ -99,97 +165,164 @@ export function EcommerceSidebar() {
           return { sectionId, optionId, label: option.label };
         })
         .filter((item): item is ActiveFilter => item !== null),
-    ),
-    ...colorState.map((id) => ({
-      sectionId: "color",
-      optionId: id,
-      label: COLORS.find((c) => c.id === id)?.label ?? id,
-    })),
-  ];
+  );
 
-  function handleCheckboxToggle(sectionId: string, optionId: string, _label: string) {
-    setCheckboxState((prev) => {
-      const current = prev[sectionId] ?? [];
-      const next = {
-        ...prev,
-        [sectionId]: current.includes(optionId)
-          ? current.filter((id) => id !== optionId)
-          : [...current, optionId],
-      };
-      if (sectionId === "brand") {
-        const params = new URLSearchParams(searchParams.toString());
-        const selected = next.brand ?? [];
-        if (selected.length > 0) {
-          params.set("subcategory", selected[selected.length - 1]);
-        } else {
-          params.delete("subcategory");
-        }
-        router.replace(`${pathname}?${params}`, { scroll: false });
-      }
-      if (sectionId === "category") {
-        const params = new URLSearchParams(searchParams.toString());
-        const selected = next.category ?? [];
-        if (selected.length > 0) {
-          params.set("category", selected[selected.length - 1]);
-        } else {
-          params.delete("category");
-        }
-        router.replace(`${pathname}?${params}`, { scroll: false });
-      }
-      return next;
+  const priceActiveFilters: ActiveFilter[] = [];
+  if (minPriceParam && maxPriceParam) {
+    priceActiveFilters.push({
+      sectionId: "price",
+      optionId: "range",
+      label: `${minPriceParam} - ${maxPriceParam} ${t("currency")}`,
+    });
+  } else if (minPriceParam) {
+    priceActiveFilters.push({
+      sectionId: "price",
+      optionId: "min",
+      label: `≥ ${minPriceParam} ${t("currency")}`,
+    });
+  } else if (maxPriceParam) {
+    priceActiveFilters.push({
+      sectionId: "price",
+      optionId: "max",
+      label: `≤ ${maxPriceParam} ${t("currency")}`,
     });
   }
 
-  function handleColorToggle(id: string) {
-    setColorState((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id],
-    );
+  const activeFilters: ActiveFilter[] = [
+    ...checkboxActiveFilters,
+    ...priceActiveFilters,
+  ];
+
+  function handleCheckboxToggle(
+    sectionId: string,
+    optionId: string,
+    _label: string,
+  ) {
+    if (sectionId === "category") {
+      const current = checkboxState["category"] ?? [];
+      const isAlready = current.includes(optionId);
+      const nextCat = isAlready ? [] : [optionId];
+
+      setCheckboxState((prev) => ({
+        ...prev,
+        category: nextCat,
+        subcategory: [], // reset subcategory on category change/toggle
+      }));
+
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextCat.length > 0) {
+        params.set("category", nextCat[0]);
+      } else {
+        params.delete("category");
+      }
+      params.delete("subcategory");
+      params.delete("page");
+      router.replace(`${pathname}?${params}`, { scroll: false });
+      return;
+    }
+
+    if (sectionId === "subcategory") {
+      const current = checkboxState["subcategory"] ?? [];
+      const isAlready = current.includes(optionId);
+      const nextSub = isAlready ? [] : [optionId];
+
+      setCheckboxState((prev) => ({
+        ...prev,
+        subcategory: nextSub,
+      }));
+
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextSub.length > 0) {
+        params.set("subcategory", nextSub[0]);
+      } else {
+        params.delete("subcategory");
+      }
+      params.delete("page");
+      router.replace(`${pathname}?${params}`, { scroll: false });
+      return;
+    }
+  }
+
+  function handleApplyPrice() {
+    const params = new URLSearchParams(searchParams.toString());
+    const min = minPriceInput.trim();
+    const max = maxPriceInput.trim();
+
+    if (min !== "" && !isNaN(Number(min)) && Number(min) >= 0) {
+      params.set("minPrice", min);
+    } else {
+      params.delete("minPrice");
+    }
+
+    if (max !== "" && !isNaN(Number(max)) && Number(max) >= 0) {
+      params.set("maxPrice", max);
+    } else {
+      params.delete("maxPrice");
+    }
+
+    params.delete("page");
+    router.replace(`${pathname}?${params}`, { scroll: false });
   }
 
   function handleRemoveFilter(sectionId: string, optionId: string) {
-    if (sectionId === "color") {
-      setColorState((prev) => prev.filter((c) => c !== optionId));
-    } else {
-      setCheckboxState((prev) => {
-        const next = {
-          ...prev,
-          [sectionId]: (prev[sectionId] ?? []).filter((id) => id !== optionId),
-        };
-        if (sectionId === "brand") {
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("subcategory");
-          router.replace(`${pathname}?${params}`, { scroll: false });
-        }
-        if (sectionId === "category") {
-          const params = new URLSearchParams(searchParams.toString());
-          params.delete("category");
-          router.replace(`${pathname}?${params}`, { scroll: false });
-        }
-        return next;
-      });
+    if (sectionId === "price") {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("minPrice");
+      params.delete("maxPrice");
+      params.delete("page");
+      setMinPriceInput("");
+      setMaxPriceInput("");
+      router.replace(`${pathname}?${params}`, { scroll: false });
+      return;
+    }
+
+    if (sectionId === "category") {
+      setCheckboxState((prev) => ({
+        ...prev,
+        category: [],
+        subcategory: [],
+      }));
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("category");
+      params.delete("subcategory");
+      params.delete("page");
+      router.replace(`${pathname}?${params}`, { scroll: false });
+    } else if (sectionId === "subcategory") {
+      setCheckboxState((prev) => ({
+        ...prev,
+        subcategory: [],
+      }));
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("subcategory");
+      params.delete("page");
+      router.replace(`${pathname}?${params}`, { scroll: false });
     }
   }
 
   function handleClearAll() {
     setCheckboxState({});
-    setColorState([]);
-    setPriceState([0, 500]);
+    setMinPriceInput("");
+    setMaxPriceInput("");
     const params = new URLSearchParams(searchParams.toString());
     params.delete("subcategory");
     params.delete("category");
+    params.delete("minPrice");
+    params.delete("maxPrice");
+    params.delete("page");
     router.replace(`${pathname}?${params}`, { scroll: false });
   }
 
   const sharedProps = {
     checkboxState,
-    colorState,
-    priceState,
+    minPrice: minPriceInput,
+    maxPrice: maxPriceInput,
     activeFilters,
     categorySection: categories,
-    brandSection: subcategories,
+    subcategorySection,
     onCheckboxToggle: handleCheckboxToggle,
-    onColorToggle: handleColorToggle,
-    onPriceChange: setPriceState,
+    onMinPriceChange: setMinPriceInput,
+    onMaxPriceChange: setMaxPriceInput,
+    onApplyPrice: handleApplyPrice,
     onRemoveFilter: handleRemoveFilter,
     onClearAll: handleClearAll,
   };
@@ -232,7 +365,7 @@ export function EcommerceSidebar() {
       <div className="hidden md:flex gap-0">
         <aside
           className={`transition-all duration-300 ease-in-out overflow-hidden shrink-0 ${
-            desktopOpen ? 'max-w-60' : 'max-w-0'
+            desktopOpen ? "max-w-60" : "max-w-0"
           }`}
         >
           <div className="w-60">
@@ -259,7 +392,7 @@ export function EcommerceSidebar() {
           type="button"
           onClick={() => setDesktopOpen(true)}
           className={`sticky top-6 self-start mt-1 shrink-0 cursor-pointer text-muted-foreground hover:text-foreground transition-all duration-300 p-0.5 ${
-            desktopOpen ? 'opacity-0 pointer-events-none w-0' : 'opacity-100 w-auto'
+            desktopOpen ? "opacity-0 pointer-events-none w-0" : "opacity-100 w-auto"
           }`}
           title={t("showFilters")}
         >
