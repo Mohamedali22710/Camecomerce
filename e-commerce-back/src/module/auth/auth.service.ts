@@ -132,6 +132,14 @@ export const signupHandler = async (req: Request, res: Response): Promise<void> 
     throw new HttpError(409, "Email already exists");
   }
 
+  const phone = req.body.phone ? String(req.body.phone).trim() : null;
+  if (phone) {
+    const existingPhone = await userModel.findOne({ phone });
+    if (existingPhone) {
+      throw new HttpError(409, "Phone number already in use");
+    }
+  }
+
   const hashedPassword = await bcrypt.hash(password, hashRounds());
   const isPrivileged = targetRole === "admin" || targetRole === "superAdmin";
 
@@ -143,7 +151,7 @@ export const signupHandler = async (req: Request, res: Response): Promise<void> 
     // Admin accounts created by a super admin are usable immediately; public
     // signups must verify their email first.
     isActive: isPrivileged,
-    phone: req.body.phone || null,
+    phone,
   });
 
   const emailSent = isPrivileged

@@ -36,7 +36,7 @@ const userSchema = new Schema<IUser>(
       enum: ["admin", "user", "superAdmin"],
       default: "user",
     },
-    phone: { type: String, default: null },
+    phone: { type: String, default: null, sparse: true, index: true },
     googleId: { type: String, default: null },
     isBlocked: { type: Boolean, default: false },
   },

@@ -4,6 +4,7 @@ import { Heart, House, ShoppingCart, Trash2, TrendingDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useLocale } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 import api from "@/lib/api";
 
@@ -22,6 +23,8 @@ interface Wishlist1Props {
 }
 
 const Wishlist1 = ({ className }: Wishlist1Props) => {
+  const locale = useLocale();
+  const isAr = locale === "ar";
   const { items: wishlistItems, removeItem, fetchFromApi } = useWishlist();
   const { addItem } = useCart();
   const { userToken, userRole } = useContext(User)!;
@@ -149,7 +152,9 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
                       </Badge>
                     )}
                     {!item.inStock && (
-                      <Badge variant="secondary">Out of Stock</Badge>
+                      <Badge variant="destructive" className="bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                        {isAr ? "نفدت الكمية" : "Sold Out"}
+                      </Badge>
                     )}
                   </div>
 

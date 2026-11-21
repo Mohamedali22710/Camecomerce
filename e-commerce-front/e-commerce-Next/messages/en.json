@@ -65,6 +65,7 @@
     "minPrice": "Min price",
     "maxPrice": "Max price",
     "filter": "Filter",
+    "soldOut": "Sold Out",
     "noProducts": "No products found.",
     "previous": "Previous",
     "next": "Next",
@@ -73,6 +74,7 @@
   "productDetail": {
     "inStock": "In Stock",
     "outOfStock": "Out of Stock",
+    "soldOut": "Sold Out",
     "units": "{n} units",
     "addToCart": "Add to Cart",
     "buyNow": "Buy Now"
@@ -89,7 +91,9 @@
     "total": "Total",
     "remove": "Remove",
     "quantity": "Qty",
-    "each": "each"
+    "each": "each",
+    "itemOutOfStock": "Sold Out - Please remove this item to proceed",
+    "cartHasOutOfStock": "Warning: Some items in your cart are sold out. Please remove them to proceed."
   },
   "checkout": {
     "title": "Checkout",
@@ -162,6 +166,12 @@
     "loginSubtitle": "Sign in to your account",
     "signupTitle": "Create Account",
     "email": "Email",
+    "phone": "Phone Number",
+    "phonePlaceholder": "+9665xxxxxxxx",
+    "phoneHint": "Enter number in international format with country code (e.g. +966 or +20)",
+    "passwordPlaceholder": "Min 8 chars, A-Z, 0-9",
+    "confirmPasswordPlaceholder": "Repeat password",
+    "fixErrorsHint": "Please fix the errors shown below to proceed.",
     "password": "Password",
     "confirmPassword": "Confirm Password",
     "forgotPassword": "Forgot password?",

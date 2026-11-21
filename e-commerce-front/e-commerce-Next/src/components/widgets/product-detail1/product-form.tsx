@@ -14,8 +14,14 @@ const ProductForm = ({ product }: ProductFormProps) => {
   });
 
   const { addItem } = useCart();
+  const inStock =
+    product?.stock === undefined || product?.stock === null
+      ? true
+      : Number(product.stock) > 0;
+  const isAr = product?.locale === "ar";
 
   function onSubmit(values: FormType) {
+    if (!inStock) return;
     if (product) {
       addItem({
         _id: String(product._id),
@@ -24,14 +30,23 @@ const ProductForm = ({ product }: ProductFormProps) => {
         price: product.salePrice ?? product.price,
         originalPrice: product.originalPrice,
         quantity: values.quantity || 1,
+        stock: product.stock,
+        inStock,
       });
     }
   }
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-      <Button type="submit" size="lg" className="w-full">
-        {product?.locale === "ar" ? "أضف إلى السلة" : "Add to Cart"}
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full"
+        disabled={!inStock}
+      >
+        {!inStock
+          ? (isAr ? "نفدت الكمية" : "Sold Out")
+          : (isAr ? "أضف إلى السلة" : "Add to Cart")}
       </Button>
     </form>
   );

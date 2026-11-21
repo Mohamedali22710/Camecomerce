@@ -1,6 +1,6 @@
 # سجل التعديلات الشامل على الباك إند (Backend Modifications Log)
 
-تم إعداد هذا الملف لتوثيق كافة التعديلات والتطويرات التي تم إجراؤها على الباك إند (`e-commerce-back`)، بما في ذلك التعديلات في منطق الـ API، والتحقق (Validation)، والتعامل مع التخزين السحابي (Cloudinary)، وسكريبتات استيراد ونقل البيانات.
+تم إعداد هذا الملف لتوثيق كافة التعديلات والتطويرات التي تم إجراؤها على الباك إند (`e-commerce-back`)، بما في ذلك التعديلات في منطق الـ API، والتحقق (Validation)، والتعامل مع التخزين السحابي (Cloudinary)، وإدارة حسابات المشرفين، وإلغاء قيود المتغيرات، وتحديثات استعلامات الأقسام، وسكريبتات استيراد ونقل البيانات.
 
 ---
 
@@ -168,19 +168,50 @@
 
 ---
 
-## 7. ملخص الملفات المعدلة في الباك إند:
+## 7. إدارة حسابات المشرفين والملف الشخصي للسوبر أدمن (Admin Management & Super Admin Profile)
+
+### خلفية ومبررات التعديل:
+- كانت صفحة الملف الشخصي تعرض بيانات الحساب فقط، دون إمكانية قيام السوبر أدمن بمراجعة المشرفين الآخرين الذين يملكون صلاحيات الوصول إلى الداش بورد أو حذف أي حساب مشرف.
+- تم توفير نقاط نهاية (Endpoints) محصورة بصلاحية السوبر أدمن حصراً، مع تعزيز أمان عدم إمكانية حذف الحساب الشخصي أو حسابات السوبر أدمن الأخرى.
+
+### التعديلات المنفذة في الباك إند:
+
+1. **تحديث مسارات المستخدمين (`src/module/user/user.controller.ts`):**
+   - إضافة نقطة نهاية لجلب قائمة المشرفين:
+     `GET /v1/user/admins` — محمي بـ `auth` و `allowRoles("superAdmin")`.
+   - إضافة نقطة نهاية لحذف حساب المشرف:
+     `DELETE /v1/user/admins/:id` — محمي بـ `auth` و `allowRoles("superAdmin")`.
+
+2. **تحديث منطق الخدمة (`src/module/user/user.service.ts`):**
+   - **`getAdminsList`:** يستعلم عن الحسابات التي دورها `admin` مع استثناء صاحب الحساب الحالي (`_id !== req.user._id`) وإخفاء حقول كلمات المرور والبيانات الحساسة.
+   - **`deleteAdmin`:** يتأكد من أن صاحب الطلب لا يحذف نفسه، وأن الحساب المستهدف ليس `superAdmin`، ويقوم بتنظيف الصورة الشخصية التابعة له من السحابة قبل الحذف.
+   - **`updateProfile`:** إضافة دعم تعديل اسم المستخدم `name` وتغيير كلمة المرور مباشرة بتشفير bcrypt دون اشتراط كلمة المرور القديمة، بجانب الهاتف `phone` والصورة `image`، ومعالجة تفريغ حقل الهاتف عند إرساله كنص فارغ.
+
+3. **تحديث قواعد التحقق (`src/module/user/user.validate.ts`):**
+   - تحديث `updateProfileValidate` لقبول الاسم `name` وقبول كلمة المرور `password` اختيارياً (بحد أدنى 6 أحرف) وقبول الهاتف كقيمة فارغة `""` عند الرغبة في إزالته:
+     ```typescript
+     password: z.union([z.string().min(6).max(128), z.literal("")]).optional()
+     ```
+     ```typescript
+     phone: z.union([phoneSchema, z.literal("")]).optional()
+     ```
+
+---
+
+## 8. ملخص الملفات المعدلة والجديدة في الباك إند:
 
 | المسار | نوع التعديل | الهدف من التعديل |
 | :--- | :--- | :--- |
 | `src/database/model/product.model.ts` | تعديل في النموذج | إضافة حقل `stock` المباشر للمنتج في مخطط Mongoose |
-| `src/module/product/product.validate.ts` | تعديل التحقق | جعل `variants` و `colorImages` اختيارية وقبول حقل `stock` والتحقق منه |
+| `src/module/product/product.validate.ts` | تعديل التحقق | جعل `variants` و `colorImages` اختيارية وقبول حقل `stock` وقبول `imageURLs` كمصفوفة أو نص |
 | `src/module/product/product.service.ts` | تعديل الخدمة | إدارة `stock` المباشر وتوليد المتغير الافتراضي للتوافق مع السلة والطلبات وحذف الصور الانتقائي |
-| `src/module/category/category.service.ts` | تعديل الخدمة | حساب `productCount` الفعلي للمنتجات النشطة فقط (`isActive: true`) وحذف الصور عند مسحها |
-| `src/module/subcategory/subcategory.service.ts` | تعديل الخدمة | إضافة `productCount` للفئات الفرعية النشطة |
 | `src/module/product/product.validate.test.ts` | اختبارات آلية | إضافة اختبار إنشاء منتج بمخزون مباشر وبدون متغيرات، ونجاح كافة الاختبارات |
+| `src/module/category/category.service.ts` | تعديل الخدمة | دعم تحديث `isActive` وحساب `productCount` الفعلي للمنتجات النشطة فقط وحذف الصور عند مسحها |
+| `src/module/subcategory/subcategory.service.ts` | تعديل الخدمة | إضافة `productCount` للفئات الفرعية النشطة |
+| `src/module/user/user.controller.ts` | تعديل المسارات | إضافة مسارات `GET /v1/user/admins` و `DELETE /v1/user/admins/:id` المحمية بصلاحية السوبر أدمن |
+| `src/module/user/user.service.ts` | تعديل الخدمة | إضافة دوال `getAdminsList` و `deleteAdmin` وتحديث `updateProfile` لدعم الاسم والهاتف |
+| `src/module/user/user.validate.ts` | تعديل التحقق | دعم حقل `name` وحقل `phone` كقيمة فارغة اختيارية |
 | `import_catalog.py` | سكريبت مساند | سكريبت استيراد الكتالوج الكامل باللغات الثلاث ورفع الصور لـ Cloudinary |
 | `update_translations.py` | سكريبت مساند | سكريبت تحديث الترجمات (EN / FR) في قاعدة البيانات مباشرة |
 | `IMPORT_REPORT.md` | ملف توثيقي | دليل توثيق وتشغيل سكريبت الاستيراد لنقل المشروع للعميل |
-| `BACKEND_CHANGES.md` | ملف توثيقي | هذا الملف التوثيقي الشامل لجميع التعديلات في الباك إند |
-
-
+| `BACKEND_CHANGES.md` | ملف توثيقي | هذا الملف التوثيقي الشامل والنهائي لكافة التعديلات في الباك إند |

@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useState } from "react";
 import { Title, useDefaultTitle, useNotify, useTranslate } from "react-admin";
+import { useNavigate } from "react-router-dom";
 import {
   Card,
   CardContent,
@@ -16,6 +17,7 @@ import {
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { fetchWithRefresh, getAuthHeaders } from "../auth";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3007/v1";
@@ -31,6 +33,7 @@ const AdminCreate = () => {
   const appTitle = useDefaultTitle();
   const notify = useNotify();
   const translate = useTranslate();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,11 +54,8 @@ const AdminCreate = () => {
         throw new Error(err.message || "Failed to create admin");
       }
 
-      notify("Admin created", { type: "success" });
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
-      setPhone("");
+      notify(translate("pos.users.notification.admin_created", { _: "تم إنشاء حساب المشرف بنجاح" }), { type: "success" });
+      navigate("/users");
     } catch (e: any) {
       notify(e.message, { type: "warning" });
     }
@@ -68,16 +68,28 @@ const AdminCreate = () => {
       <Title title="Create Admin" />
       <Card sx={{ borderRadius: "16px", border: "1px solid", borderColor: "divider", boxShadow: "0 2px 6px rgba(16, 29, 53, 0.05)" }}>
         <CardContent sx={{ p: 3.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, mb: 2 }}>
-            <PersonAddOutlinedIcon sx={{ color: "primary.main", fontSize: 26 }} />
-            <Box>
-              <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
-                إنشاء حساب مشرف جديد
-              </Typography>
-              <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                منح صلاحيات إدارة المنتجات والطلبات والتصنيفات
-              </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+              <PersonAddOutlinedIcon sx={{ color: "primary.main", fontSize: 26 }} />
+              <Box>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "text.primary" }}>
+                  إنشاء حساب مشرف جديد
+                </Typography>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  منح صلاحيات إدارة المنتجات والطلبات والتصنيفات
+                </Typography>
+              </Box>
             </Box>
+
+            <Button
+              size="small"
+              variant="text"
+              startIcon={<ArrowBackIcon sx={{ fontSize: 18 }} />}
+              onClick={() => navigate("/users")}
+              sx={{ borderRadius: "8px", textTransform: "none", color: "text.secondary" }}
+            >
+              العودة
+            </Button>
           </Box>
           <Divider sx={{ mb: 3 }} />
 
@@ -157,6 +169,14 @@ const AdminCreate = () => {
               >
                 {saving ? <CircularProgress size={18} sx={{ mr: 1, color: "white" }} /> : null}
                 Create Admin
+              </Button>
+              <Button
+                variant="outlined"
+                onClick={() => navigate("/users")}
+                disabled={saving}
+                sx={{ borderRadius: "8px", fontWeight: 600 }}
+              >
+                {translate("pos.common.cancel", { _: "إلغاء" })}
               </Button>
             </Box>
           </Box>

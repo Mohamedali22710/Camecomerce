@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
 import { Cctv, Eye, EyeOff, Loader2, Lock, Mail, Phone } from "lucide-react";
-import { useContext, useState } from "react";
+import { useContext, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -22,30 +22,51 @@ import { Input } from "@/components/base/input";
 import { cn } from "@/lib/utils";
 import { User } from "@/contexts/UserContext";
 
-const signupSchema = z
-  .object({
-    email: z
-      .string()
-      .min(1, "Email is required")
-      .email("Invalid email address")
-      .max(255, "Email is too long"),
-    phone: z.string().optional().or(z.literal("")),
-    password: z
-      .string()
-      .min(1, "Password is required")
-      .min(6, "Password must be at least 6 characters")
-      .max(20, "Password must not exceed 20 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
-    confirmPassword: z.string().min(1, "Please confirm your password"),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
 
-type SignupFormData = z.infer<typeof signupSchema>;
+const getSignupSchema = (isAr: boolean) =>
+  z
+    .object({
+      email: z
+        .string()
+        .min(1, isAr ? "البريد الإلكتروني مطلوب" : "Email is required")
+        .email(isAr ? "صيغة البريد الإلكتروني غير صحيحة" : "Invalid email address")
+        .max(255, isAr ? "البريد الإلكتروني طويل جداً" : "Email is too long"),
+      phone: z
+        .string()
+        .trim()
+        .min(1, isAr ? "رقم الهاتف مطلوب" : "Phone number is required")
+        .refine(
+          (val) => PHONE_REGEX.test(val.replace(/[\s()-]/g, "")),
+          {
+            message: isAr
+              ? "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية (مثال: +9665xxxxxxxx أو +201xxxxxxxx)"
+              : "Phone number must be in international format (e.g. +9665xxxxxxxx)",
+          }
+        ),
+      password: z
+        .string()
+        .min(1, isAr ? "كلمة المرور مطلوبة" : "Password is required")
+        .min(8, isAr ? "كلمة المرور يجب ألا تقل عن 8 أحرف" : "Password must be at least 8 characters")
+        .max(128, isAr ? "كلمة المرور يجب ألا تتجاوز 128 حرفاً" : "Password must not exceed 128 characters")
+        .regex(/[A-Z]/, isAr ? "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل" : "Password must contain at least one uppercase letter")
+        .regex(/[a-z]/, isAr ? "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل" : "Password must contain at least one lowercase letter")
+        .regex(/[0-9]/, isAr ? "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل" : "Password must contain at least one number"),
+      confirmPassword: z
+        .string()
+        .min(1, isAr ? "يرجى تأكيد كلمة المرور" : "Please confirm your password"),
+    })
+    .refine((data) => data.password === data.confirmPassword, {
+      message: isAr ? "كلمتا المرور غير متطابقتين" : "Passwords do not match",
+      path: ["confirmPassword"],
+    });
+
+type SignupFormData = {
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+};
 
 interface Signup1Props {
   className?: string;
@@ -65,8 +86,10 @@ const Signup1 = ({ className }: Signup1Props) => {
   const router = useRouter();
   const { setUserToken, setUserData, setUserRole } = useContext(User)!;
 
+  const schema = useMemo(() => getSignupSchema(isAr), [isAr]);
+
   const form = useForm<SignupFormData>({
-    resolver: zodResolver(signupSchema),
+    resolver: zodResolver(schema),
     defaultValues: { email: "", phone: "", password: "", confirmPassword: "" },
   });
 
@@ -93,22 +116,86 @@ const Signup1 = ({ className }: Signup1Props) => {
     setIsSubmitting(true);
     setServerError(null);
 
+    const cleanPhone = data.phone.trim().replace(/[\s()-]/g, "");
+
     try {
       const res = await axios.post("http://localhost:3007/v1/auth/signup", {
-        email: data.email,
+        email: data.email.trim(),
         password: data.password,
         confirmPassword: data.confirmPassword,
-        phone: data.phone || undefined,
+        phone: cleanPhone,
       });
 
       setIsSuccess(true);
       setTimeout(() => router.push("/login"), 3500);
     } catch (err: unknown) {
-      if (axios.isAxiosError(err) && err.response?.data?.message) {
-        setServerError(err.response.data.message);
-      } else {
-        setServerError(isAr ? "حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى." : "Network error. Please try again.");
+      if (axios.isAxiosError(err)) {
+        const resData = err.response?.data;
+        const status = err.response?.status;
+
+        // 1) Backend validation errors: { message: "validation error", error: [ { path, message } ] }
+        if (Array.isArray(resData?.error) && resData.error.length > 0) {
+          for (const item of resData.error) {
+            const field = item.path as keyof SignupFormData;
+            if (["email", "phone", "password", "confirmPassword"].includes(field)) {
+              let msg = item.message;
+              if (field === "phone") {
+                msg = isAr
+                  ? "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية (مثال: +9665xxxxxxxx أو +201xxxxxxxx)"
+                  : item.message;
+              } else if (field === "email") {
+                msg = isAr ? "البريد الإلكتروني غير صحيح" : item.message;
+              } else if (field === "password") {
+                msg = isAr ? "كلمة المرور يجب ألا تقل عن 8 أحرف" : item.message;
+              }
+              form.setError(field, { type: "server", message: msg });
+            }
+          }
+          setServerError(
+            isAr
+              ? "يرجى تصحيح الأخطاء الموضحة أدناه في النموذج."
+              : "Please fix the errors indicated below."
+          );
+          return;
+        }
+
+        // 2) 409 Conflict: Duplicate email or phone
+        const rawMsg = String(resData?.message || "");
+        if (
+          status === 409 ||
+          rawMsg.toLowerCase().includes("already exists") ||
+          rawMsg.toLowerCase().includes("already in use")
+        ) {
+          if (rawMsg.toLowerCase().includes("phone")) {
+            const phoneMsg = isAr
+              ? "رقم الهاتف مستخدم بالفعل بحساب آخر، يرجى استخدام رقم آخر أو تسجيل الدخول."
+              : "Phone number is already registered to another account.";
+            form.setError("phone", { type: "server", message: phoneMsg });
+            setServerError(phoneMsg);
+            return;
+          }
+          if (rawMsg.toLowerCase().includes("email")) {
+            const emailMsg = isAr
+              ? "البريد الإلكتروني مسجل بالفعل، يرجى تسجيل الدخول أو استخدام بريد آخر."
+              : "Email already exists. Please log in or use another email.";
+            form.setError("email", { type: "server", message: emailMsg });
+            setServerError(emailMsg);
+            return;
+          }
+        }
+
+        // 3) General fallback for backend message
+        if (rawMsg && rawMsg !== "validation error") {
+          setServerError(rawMsg);
+          return;
+        }
       }
+
+      setServerError(
+        isAr
+          ? "حدث خطأ أثناء إنشاء الحساب، يرجى المحاولة مرة أخرى."
+          : "An error occurred during signup. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -224,26 +311,24 @@ const Signup1 = ({ className }: Signup1Props) => {
                     control={form.control}
                     render={({ field, fieldState }) => (
                       <Field data-invalid={fieldState.invalid}>
-                        <div className="flex items-center justify-between">
-                          <FieldLabel className="text-xs font-semibold text-foreground" htmlFor="signup-phone">
-                            {isAr ? "رقم الهاتف" : "Phone Number"}
-                          </FieldLabel>
-                          <span className="text-[11px] text-muted-foreground">
-                            {isAr ? "(اختياري)" : "(Optional)"}
-                          </span>
-                        </div>
+                        <FieldLabel className="text-xs font-semibold text-foreground" htmlFor="signup-phone">
+                          {t("phone")}
+                        </FieldLabel>
                         <div className="relative">
                           <Phone className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                           <Input
                             {...field}
                             id="signup-phone"
                             type="tel"
-                            placeholder="05XXXXXXXX"
+                            placeholder={t("phonePlaceholder")}
                             dir="ltr"
                             className="ps-9 h-11 rounded-xl text-start"
                             aria-invalid={fieldState.invalid}
                           />
                         </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          {t("phoneHint")}
+                        </p>
                         {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                       </Field>
                     )}
@@ -263,7 +348,7 @@ const Signup1 = ({ className }: Signup1Props) => {
                             {...field}
                             id="signup-password"
                             type={showPassword ? "text" : "password"}
-                            placeholder="Min 6 chars, A-Z, 0-9"
+                            placeholder={t("passwordPlaceholder")}
                             className="ps-9 pe-9 h-11 rounded-xl"
                             aria-invalid={fieldState.invalid}
                           />
@@ -295,7 +380,7 @@ const Signup1 = ({ className }: Signup1Props) => {
                             {...field}
                             id="signup-confirm"
                             type={showConfirmPassword ? "text" : "password"}
-                            placeholder="Repeat password"
+                            placeholder={t("confirmPasswordPlaceholder")}
                             className="ps-9 pe-9 h-11 rounded-xl"
                             aria-invalid={fieldState.invalid}
                           />

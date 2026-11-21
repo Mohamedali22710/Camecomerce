@@ -23,7 +23,7 @@ export const signupValidate = z
     password: passwordSchema,
     confirmPassword: passwordSchema,
     role: z.enum(["admin", "user", "superAdmin"]).optional(),
-    phone: phoneSchema.optional().or(z.literal("")),
+    phone: phoneSchema,
   })
   .refine(passwordsMatch, passwordMismatch);
 

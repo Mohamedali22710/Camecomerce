@@ -56,6 +56,7 @@ interface PriceProps {
   regular: number;
   sale?: number;
   currency: string;
+  locale?: string;
   text?: string;
 }
 
@@ -87,6 +88,7 @@ interface ProductDetailData {
   currency: string;
   images: string[];
   locale: string;
+  stock?: number;
 }
 
 interface ProductDetail1Props {

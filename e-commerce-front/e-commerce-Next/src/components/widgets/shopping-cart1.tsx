@@ -1,6 +1,6 @@
 "use client";
 
-import { Minus, Plus, Trash2, XCircle } from "lucide-react";
+import { AlertCircle, Minus, Plus, Trash2, XCircle } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
@@ -13,19 +13,21 @@ import { AspectRatio } from "@/components/base/aspect-ratio";
 import { Button } from "@/components/base/button";
 import { Separator } from "@/components/base/separator";
 import { useCart } from "@/contexts/CartContext";
+import { cn } from "@/lib/utils";
 import { User } from "@/contexts/UserContext";
 import { useRouter } from "next/navigation";
 
 const ShoppingCart1 = () => {
   const t = useTranslations("cart");
   const locale = useLocale() as Locale;
-  const { items, removeItem, updateQuantity, clearCart, subtotal, shippingCost, total, currency, fetchFromApi } = useCart();
+  const { items, removeItem, updateQuantity, clearCart, subtotal, shippingCost, total, currency, fetchFromApi, refreshStock, hasOutOfStockItems } = useCart();
   const { userToken, userRole } = useContext(User)!;
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    refreshStock();
   }, []);
 
   useEffect(() => {
@@ -91,75 +93,92 @@ const ShoppingCart1 = () => {
         <h1 className="mb-8 text-3xl font-semibold">{t("title")}</h1>
 
         <AnimatePresence mode="popLayout">
-          {items.map((item) => (
-            <motion.div
-              key={item._id}
-              layout
-              initial={{ opacity: 0, x: -20, height: 0 }}
-              animate={{ opacity: 1, x: 0, height: "auto" }}
-              exit={{ opacity: 0, x: 20, height: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 28 }}
-              className="flex items-center gap-4 rounded-lg border p-4"
-            >
-              <Link href={`/products/${item.productId || item._id}`} className="w-20 shrink-0">
-                <AspectRatio ratio={1} className="overflow-hidden rounded-md">
-                  <Image
-                    src={item.image}
-                    alt={getLocalizedField(item, "name", locale) || item.name}
-                    fill
-                    className="object-cover"
-                    sizes="80px"
-                  />
-                </AspectRatio>
-              </Link>
-
-              <div className="min-w-0 flex-1">
-                <Link href={`/products/${item.productId || item._id}`} className="hover:underline">
-                  <h3 className="truncate font-medium">{getLocalizedField(item, "name", locale) || item.name}</h3>
-                </Link>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {formatPrice(item.price)} {t("each")}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-8"
-                  onClick={() => handleQtyChange(item._id, item.quantity - 1, item.color, item.size)}
-                >
-                  <Minus className="size-3" />
-                </Button>
-                <span className="w-8 text-center text-sm font-medium">
-                  {item.quantity}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="size-8"
-                  onClick={() => handleQtyChange(item._id, item.quantity + 1, item.color, item.size)}
-                >
-                  <Plus className="size-3" />
-                </Button>
-              </div>
-
-              <div className="w-20 text-right">
-                <p className="font-semibold">
-                  {formatPrice(item.price * item.quantity)}
-                </p>
-              </div>
-
-              <Button
-                variant="ghost"
-                size="icon"
-                className="shrink-0 text-muted-foreground"
-                onClick={() => handleRemove(item._id, item.color, item.size)}
+          {items.map((item) => {
+            const isItemOutOfStock = item.inStock === false || (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0);
+            return (
+              <motion.div
+                key={item._id}
+                layout
+                initial={{ opacity: 0, x: -20, height: 0 }}
+                animate={{ opacity: 1, x: 0, height: "auto" }}
+                exit={{ opacity: 0, x: 20, height: 0 }}
+                transition={{ type: "spring", stiffness: 300, damping: 28 }}
+                className={cn(
+                  "flex items-center gap-4 rounded-lg border p-4 transition-colors",
+                  isItemOutOfStock
+                    ? "border-rose-300/80 bg-rose-50/40 dark:border-rose-900/50 dark:bg-rose-950/20"
+                    : "border-border"
+                )}
               >
-                <Trash2 className="size-4" />
-              </Button>
-            </motion.div>
-          ))}
+                <Link href={`/products/${item.productId || item._id}`} className="w-20 shrink-0">
+                  <AspectRatio ratio={1} className="overflow-hidden rounded-md">
+                    <Image
+                      src={item.image}
+                      alt={getLocalizedField(item, "name", locale) || item.name}
+                      fill
+                      className="object-cover"
+                      sizes="80px"
+                    />
+                  </AspectRatio>
+                </Link>
+
+                <div className="min-w-0 flex-1">
+                  <Link href={`/products/${item.productId || item._id}`} className="hover:underline">
+                    <h3 className="truncate font-medium">{getLocalizedField(item, "name", locale) || item.name}</h3>
+                  </Link>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {formatPrice(item.price)} {t("each")}
+                  </p>
+                  {isItemOutOfStock && (
+                    <div className="mt-1.5">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full">
+                        <span className="size-1.5 rounded-full bg-rose-500" />
+                        {t("itemOutOfStock")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8"
+                    onClick={() => handleQtyChange(item._id, item.quantity - 1, item.color, item.size)}
+                  >
+                    <Minus className="size-3" />
+                  </Button>
+                  <span className="w-8 text-center text-sm font-medium">
+                    {item.quantity}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8"
+                    disabled={isItemOutOfStock || (item.stock !== undefined && item.quantity >= item.stock)}
+                    onClick={() => handleQtyChange(item._id, item.quantity + 1, item.color, item.size)}
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                </div>
+
+                <div className="w-20 text-right">
+                  <p className="font-semibold">
+                    {formatPrice(item.price * item.quantity)}
+                  </p>
+                </div>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-rose-600"
+                  onClick={() => handleRemove(item._id, item.color, item.size)}
+                >
+                  <Trash2 className="size-4" />
+                </Button>
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
 
         <motion.div
@@ -182,6 +201,15 @@ const ShoppingCart1 = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
+          {hasOutOfStockItems && (
+            <div className="flex items-start gap-2.5 rounded-lg border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 p-3.5 text-xs md:text-sm text-rose-700 dark:text-rose-300">
+              <AlertCircle className="size-5 shrink-0 text-rose-600 dark:text-rose-400 mt-0.5" />
+              <p className="leading-snug">
+                {t("cartHasOutOfStock")}
+              </p>
+            </div>
+          )}
+
           <div className="flex justify-between">
             <span className="text-muted-foreground">{t("subtotal")}</span>
             <span>{formatPrice(subtotal)}</span>
@@ -196,8 +224,17 @@ const ShoppingCart1 = () => {
             <span>{formatPrice(total)}</span>
           </div>
 
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button size="lg" className="w-full" onClick={() => router.push("/checkout")}>
+          <motion.div whileHover={hasOutOfStockItems ? {} : { scale: 1.02 }} whileTap={hasOutOfStockItems ? {} : { scale: 0.98 }}>
+            <Button
+              size="lg"
+              className={cn("w-full", hasOutOfStockItems && "cursor-not-allowed opacity-50 bg-muted text-muted-foreground hover:bg-muted")}
+              disabled={hasOutOfStockItems}
+              onClick={() => {
+                if (!hasOutOfStockItems) {
+                  router.push("/checkout");
+                }
+              }}
+            >
               {t("checkout")}
             </Button>
           </motion.div>
