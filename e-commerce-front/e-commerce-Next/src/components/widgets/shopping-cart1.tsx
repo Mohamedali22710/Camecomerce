@@ -36,25 +36,16 @@ const ShoppingCart1 = () => {
     }
   }, [userToken, userRole]);
 
-  const handleRemove = async (_id: string, color?: string, size?: string) => {
-    removeItem(_id);
-    if (userToken && color && size) {
-      try { await api.delete(`/cart/${_id}/${color}/${size}`); } catch {}
-    }
+  const handleRemove = (idOrKey: string) => {
+    removeItem(idOrKey);
   };
 
-  const handleClearCart = async () => {
+  const handleClearCart = () => {
     clearCart();
-    if (userToken) {
-      try { await api.delete("/cart"); } catch {}
-    }
   };
 
-  const handleQtyChange = async (_id: string, qty: number, color?: string, size?: string) => {
-    updateQuantity(_id, qty);
-    if (userToken && qty > 0 && color && size) {
-      try { await api.put(`/cart/${_id}/${color}/${size}`, { quantity: qty }); } catch {}
-    }
+  const handleQtyChange = (idOrKey: string, qty: number) => {
+    updateQuantity(idOrKey, qty);
   };
 
   const formatPrice = useFormatPrice(locale);
@@ -95,9 +86,10 @@ const ShoppingCart1 = () => {
         <AnimatePresence mode="popLayout">
           {items.map((item) => {
             const isItemOutOfStock = item.inStock === false || (item.stock !== undefined && item.stock !== null && Number(item.stock) <= 0);
+            const itemKey = item.productId || item._id;
             return (
               <motion.div
-                key={item._id}
+                key={itemKey}
                 layout
                 initial={{ opacity: 0, x: -20, height: 0 }}
                 animate={{ opacity: 1, x: 0, height: "auto" }}
@@ -144,7 +136,7 @@ const ShoppingCart1 = () => {
                     variant="outline"
                     size="icon"
                     className="size-8"
-                    onClick={() => handleQtyChange(item._id, item.quantity - 1, item.color, item.size)}
+                    onClick={() => handleQtyChange(item.productId || item._id, item.quantity - 1)}
                   >
                     <Minus className="size-3" />
                   </Button>
@@ -156,7 +148,7 @@ const ShoppingCart1 = () => {
                     size="icon"
                     className="size-8"
                     disabled={isItemOutOfStock || (item.stock !== undefined && item.quantity >= item.stock)}
-                    onClick={() => handleQtyChange(item._id, item.quantity + 1, item.color, item.size)}
+                    onClick={() => handleQtyChange(item.productId || item._id, item.quantity + 1)}
                   >
                     <Plus className="size-3" />
                   </Button>
@@ -172,7 +164,7 @@ const ShoppingCart1 = () => {
                   variant="ghost"
                   size="icon"
                   className="shrink-0 text-muted-foreground hover:text-rose-600"
-                  onClick={() => handleRemove(item._id, item.color, item.size)}
+                  onClick={() => handleRemove(item.productId || item._id)}
                 >
                   <Trash2 className="size-4" />
                 </Button>

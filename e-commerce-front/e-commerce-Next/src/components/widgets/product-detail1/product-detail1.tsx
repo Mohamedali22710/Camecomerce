@@ -51,6 +51,7 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
     if (product) {
       addItem({
         _id: String(product._id),
+        productId: String(product._id),
         name: product.name,
         image: product.images[0] || "/placeholder.svg",
         price: product.salePrice ?? product.price,
@@ -62,7 +63,8 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
       router.push("/checkout");
     } else {
       addItem({
-        _id: `${PRODUCT_DETAILS.name}-${PRODUCT_DETAILS.color}-${PRODUCT_DETAILS.size}`,
+        _id: String(PRODUCT_DETAILS.name),
+        productId: String(PRODUCT_DETAILS.name),
         name: PRODUCT_DETAILS.name,
         image: PRODUCT_DETAILS.images[0].src,
         price: PRODUCT_DETAILS.price.sale ?? PRODUCT_DETAILS.price.regular,

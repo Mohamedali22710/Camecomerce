@@ -44,7 +44,7 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
     e.preventDefault();
     e.stopPropagation();
 
-    if (isOutOfStock) return;
+    if (isOutOfStock || isAdded) return;
 
     addItem({
       _id: product._id,
@@ -158,13 +158,13 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
         <Button
           type="button"
           onClick={handleAddToCart}
-          disabled={isOutOfStock}
+          disabled={isOutOfStock || isAdded}
           className={cn(
             "w-full gap-2 text-xs md:text-sm font-medium transition-all h-9 rounded-lg shadow-xs",
             isOutOfStock
               ? "bg-muted text-muted-foreground cursor-not-allowed opacity-60 hover:bg-muted"
               : isAdded
-                ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white cursor-default pointer-events-none"
                 : "bg-[#2563EB] hover:bg-blue-700 text-white"
           )}
         >

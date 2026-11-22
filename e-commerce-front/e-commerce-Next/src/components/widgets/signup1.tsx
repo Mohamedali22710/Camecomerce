@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import axios from "axios";
-import { Cctv, Eye, EyeOff, Loader2, Lock, Mail, Phone } from "lucide-react";
+import { Cctv, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, Phone } from "lucide-react";
 import { useContext, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import Link from "next/link";
@@ -93,6 +93,7 @@ const Signup1 = ({ className }: Signup1Props) => {
     defaultValues: { email: "", phone: "", password: "", confirmPassword: "" },
   });
 
+  // Email verification is temporarily disabled; handleResend preserved for future re-activation.
   const handleResend = async () => {
     setResending(true);
     setResendMsg(null);
@@ -119,7 +120,7 @@ const Signup1 = ({ className }: Signup1Props) => {
     const cleanPhone = data.phone.trim().replace(/[\s()-]/g, "");
 
     try {
-      const res = await axios.post("http://localhost:3007/v1/auth/signup", {
+      await axios.post("http://localhost:3007/v1/auth/signup", {
         email: data.email.trim(),
         password: data.password,
         confirmPassword: data.confirmPassword,
@@ -127,7 +128,7 @@ const Signup1 = ({ className }: Signup1Props) => {
       });
 
       setIsSuccess(true);
-      setTimeout(() => router.push("/login"), 3500);
+      setTimeout(() => router.push("/login"), 2500);
     } catch (err: unknown) {
       if (axios.isAxiosError(err)) {
         const resData = err.response?.data;
@@ -144,9 +145,27 @@ const Signup1 = ({ className }: Signup1Props) => {
                   ? "رقم الهاتف غير صحيح، يرجى كتابته بالصيغة الدولية (مثال: +9665xxxxxxxx أو +201xxxxxxxx)"
                   : item.message;
               } else if (field === "email") {
-                msg = isAr ? "البريد الإلكتروني غير صحيح" : item.message;
+                if (item.message.toLowerCase().includes("too long")) {
+                  msg = isAr ? "البريد الإلكتروني طويل جداً" : item.message;
+                } else {
+                  msg = isAr ? "صيغة البريد الإلكتروني غير صحيحة" : item.message;
+                }
               } else if (field === "password") {
-                msg = isAr ? "كلمة المرور يجب ألا تقل عن 8 أحرف" : item.message;
+                if (item.message.includes("uppercase")) {
+                  msg = isAr ? "يجب أن تحتوي كلمة المرور على حرف كبير واحد على الأقل" : item.message;
+                } else if (item.message.includes("lowercase")) {
+                  msg = isAr ? "يجب أن تحتوي كلمة المرور على حرف صغير واحد على الأقل" : item.message;
+                } else if (item.message.includes("number")) {
+                  msg = isAr ? "يجب أن تحتوي كلمة المرور على رقم واحد على الأقل" : item.message;
+                } else if (item.message.includes("128")) {
+                  msg = isAr ? "كلمة المرور يجب ألا تتجاوز 128 حرفاً" : item.message;
+                } else if (item.message.includes("8")) {
+                  msg = isAr ? "كلمة المرور يجب ألا تقل عن 8 أحرف" : item.message;
+                } else {
+                  msg = item.message;
+                }
+              } else if (field === "confirmPassword") {
+                msg = isAr ? "كلمتا المرور غير متطابقتين" : item.message;
               }
               form.setError(field, { type: "server", message: msg });
             }
@@ -184,9 +203,28 @@ const Signup1 = ({ className }: Signup1Props) => {
           }
         }
 
-        // 3) General fallback for backend message
+        // 3) 429 Rate Limited
+        if (status === 429) {
+          const rateMsg = isAr
+            ? "تم تجاوز الحد المسموح من المحاولات، يرجى الانتظار دقيقة ثم المحاولة مجدداً."
+            : "Too many attempts. Please wait a minute and try again.";
+          setServerError(rateMsg);
+          return;
+        }
+
+        // 4) General fallback for backend message
         if (rawMsg && rawMsg !== "validation error") {
           setServerError(rawMsg);
+          return;
+        }
+
+        // 5) Network error without response
+        if (!err.response) {
+          setServerError(
+            isAr
+              ? "تعذر الاتصال بالخادم، يرجى التحقق من اتصالك بالإنترنت والمحاولة مجدداً."
+              : "Unable to connect to the server. Please check your connection and try again."
+          );
           return;
         }
       }
@@ -243,31 +281,28 @@ const Signup1 = ({ className }: Signup1Props) => {
         {/* Auth Card */}
         <div className="rounded-2xl border border-border bg-card p-6 sm:p-8 shadow-sm">
           {isSuccess ? (
-            <div className="text-center py-4">
-              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-950/50 text-[#2563EB] border border-blue-100 dark:border-blue-900/50">
-                <Mail className="size-7" />
+            <div className="text-center py-6">
+              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 border border-emerald-100 dark:border-emerald-900/50">
+                <CheckCircle2 className="size-7" />
               </div>
-              <h2 className="mb-2 text-xl font-bold text-foreground">{t("checkEmail")}</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                {t.rich("verificationSent", {
-                  email: () => <strong className="text-foreground">{form.getValues("email")}</strong>,
-                })}
+              <h2 className="mb-2 text-xl font-bold text-foreground">
+                {isAr ? "تم إنشاء الحساب بنجاح!" : "Account created successfully!"}
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
+                {isAr
+                  ? "تم تسجيل وتفعيل حسابك، ويمكنك الآن تسجيل الدخول مباشرة."
+                  : "Your account has been registered and activated. You can now log in directly."}
               </p>
-              {resendMsg && (
-                <p className={`mt-3 text-xs font-medium ${resendMsg.includes("فشل") || resendMsg.includes("Failed") ? "text-rose-600" : "text-emerald-600"}`}>
-                  {resendMsg}
-                </p>
-              )}
               <Button
-                variant="link"
-                size="sm"
-                className="mt-3 text-xs text-[#2563EB] hover:underline"
-                disabled={resending}
-                onClick={handleResend}
+                type="button"
+                className="h-10 px-6 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-medium text-xs shadow-xs transition-colors"
+                onClick={() => router.push("/login")}
               >
-                {resending ? (isAr ? "جاري الإرسال..." : "Sending...") : (isAr ? "إعادة إرسال بريد التفعيل" : "Resend verification email")}
+                {isAr ? "تسجيل الدخول الآن" : "Go to Login"}
               </Button>
-              <p className="mt-4 text-xs text-muted-foreground">{t("redirecting")}</p>
+              <p className="mt-4 text-[11px] text-muted-foreground">
+                {isAr ? "جاري تحويلك تلقائياً..." : "Redirecting automatically..."}
+              </p>
             </div>
           ) : (
             <>

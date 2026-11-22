@@ -143,27 +143,28 @@ export const signupHandler = async (req: Request, res: Response): Promise<void> 
   const hashedPassword = await bcrypt.hash(password, hashRounds());
   const isPrivileged = targetRole === "admin" || targetRole === "superAdmin";
 
+  // NOTE: Email verification is temporarily disabled per requirements.
+  // All accounts (public and staff) are created active (isActive: true)
+  // so users can register and log in immediately without email verification.
+  // The email verification sending code and endpoints are preserved for future re-enabling.
   const user = await userModel.create({
     name: email.split("@")[0] || email,
     email,
     password: hashedPassword,
     role: targetRole,
-    // Admin accounts created by a super admin are usable immediately; public
-    // signups must verify their email first.
-    isActive: isPrivileged,
+    isActive: true, // Temporarily active immediately (was: isPrivileged)
     phone,
   });
 
-  const emailSent = isPrivileged
-    ? false
-    : await trySendVerificationEmail(user.email, String(user._id));
+  // Temporarily disabled: sending verification email
+  // const emailSent = isPrivileged
+  //   ? false
+  //   : await trySendVerificationEmail(user.email, String(user._id));
 
   res.status(201).json({
     message: isPrivileged
       ? "Staff account created"
-      : emailSent
-        ? "Signup successful — verification email sent"
-        : "Signup successful, but the verification email could not be sent. Use the resend endpoint.",
+      : "Signup successful",
     data: { email: user.email },
   });
 };
@@ -184,9 +185,11 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
     throw new HttpError(403, "This account has been blocked");
   }
 
-  if (!user.isActive) {
-    throw new HttpError(403, "Please verify your email first");
-  }
+  // NOTE: Email verification is temporarily disabled per requirements.
+  // Preserved for future re-enabling:
+  // if (!user.isActive) {
+  //   throw new HttpError(403, "Please verify your email first");
+  // }
 
   const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) {

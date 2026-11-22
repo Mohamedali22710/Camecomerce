@@ -25,6 +25,7 @@ const ProductForm = ({ product }: ProductFormProps) => {
     if (product) {
       addItem({
         _id: String(product._id),
+        productId: String(product._id),
         name: product.name,
         image: product.images[0] || "/placeholder.svg",
         price: product.salePrice ?? product.price,

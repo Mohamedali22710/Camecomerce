@@ -141,16 +141,17 @@ Public, rate-limited. A super admin access token may create staff accounts.
 
 - `role` is optional (`user`, `admin`, `superAdmin`); privileged roles require a
   super admin token.
-- Public signups are created inactive until email verification. Staff accounts
-  created by a super admin are active immediately.
-- `name` and the Arabic/French profile fields are not accepted here; `phone` is
-  optional and must use international format.
+- Password requirements: 8 to 128 characters, at least one uppercase letter (`[A-Z]`), at least one lowercase letter (`[a-z]`), at least one number (`[0-9]`). `confirmPassword` must match `password`.
+- Email requirements: valid email format, max 255 characters.
+- `phone` is required and must use international format (e.g. `+966500000000`).
+- **Email verification is temporarily disabled**: all signups are created active (`isActive: true`) and can log in immediately. (Verification endpoints `/v1/auth/verify-email/:token` and `/v1/auth/resend-verify-email` are preserved for future re-enabling).
+- `name` and the Arabic/French profile fields are not accepted here.
 
 `201` response:
 
 ```json
 {
-  "message": "Signup successful — verification email sent",
+  "message": "Signup successful",
   "data": { "email": "user@example.com" }
 }
 ```
@@ -187,7 +188,8 @@ Public, rate-limited.
 
 Unknown email, Google-only account, wrong password, unverified account, and
 blocked account return `401` or `403` as appropriate without revealing which
-emails exist (except the explicit verification/blocked messages).
+emails exist (except the explicit verification/blocked messages; note that the
+unverified account requirement is temporarily disabled while email verification is suspended).
 
 ### `GET /v1/auth/google/signup`
 

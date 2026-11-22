@@ -59,6 +59,7 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
       if (item.inStock) {
         addItem({
           _id: item._id,
+          productId: item._id,
           name: item.name,
           image: item.image,
           price: item.price,
@@ -188,6 +189,7 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
                       if (item.inStock) {
                         addItem({
                           _id: item._id,
+                          productId: item._id,
                           name: item.name,
                           image: item.image,
                           price: item.price,

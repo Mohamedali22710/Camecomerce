@@ -127,19 +127,18 @@ const addProductToCart = async (userId: string, body: AddProductBody, res: Respo
     quantity: body.quantity,
   });
 
+  // Find existing product line in cart by userId and productId (unifying by productId)
   const existing = await cartModel.findOne({
     userId,
     itemType: "product",
     productId: product._id,
-    color: resolved.variant.color,
-    size: resolved.variant.size,
   });
 
   const requestedTotal = (existing?.quantity ?? 0) + body.quantity;
   if (requestedTotal > resolved.stock) {
     throw new HttpError(
       400,
-      `Requested quantity exceeds stock. Available: ${resolved.stock} for ${resolved.variant.color}/${resolved.variant.size}`,
+      `Requested quantity exceeds stock. Available: ${resolved.stock}, requested: ${requestedTotal}`,
     );
   }
 
@@ -453,7 +452,10 @@ export const updateCartLineQuantity = async (req: Request, res: Response): Promi
   const lineId = String(req.params.lineId ?? "");
   const { quantity } = req.body;
 
-  const item = await cartModel.findOne({ _id: lineId, userId });
+  const item = await cartModel.findOne({
+    userId,
+    $or: [{ _id: lineId }, { productId: lineId }],
+  });
   if (!item) {
     throw new HttpError(404, "Item not found in cart");
   }
@@ -516,7 +518,11 @@ export const updateCartQuantity = async (req: Request, res: Response): Promise<v
   const size = String(req.params.size ?? "");
   const { quantity } = req.body;
 
-  const item = await cartModel.findOne({ userId, itemType: "product", productId, color, size });
+  const item = await cartModel.findOne({
+    userId,
+    itemType: "product",
+    $or: [{ productId }, { _id: productId }],
+  });
   if (!item) {
     throw new HttpError(404, "Item not found in cart");
   }
@@ -542,7 +548,10 @@ export const removeCartLine = async (req: Request, res: Response): Promise<void>
   const userId = requireUserId(req);
   const lineId = String(req.params.lineId ?? "");
 
-  const item = await cartModel.findOne({ _id: lineId, userId });
+  const item = await cartModel.findOne({
+    userId,
+    $or: [{ _id: lineId }, { productId: lineId }],
+  });
   if (!item) {
     throw new HttpError(404, "Item not found in cart");
   }
@@ -558,7 +567,11 @@ export const removeCartItem = async (req: Request, res: Response): Promise<void>
   const color = String(req.params.color ?? "");
   const size = String(req.params.size ?? "");
 
-  const item = await cartModel.findOne({ userId, itemType: "product", productId, color, size });
+  const item = await cartModel.findOne({
+    userId,
+    itemType: "product",
+    $or: [{ productId }, { _id: productId }],
+  });
   if (!item) {
     throw new HttpError(404, "Item not found in cart");
   }

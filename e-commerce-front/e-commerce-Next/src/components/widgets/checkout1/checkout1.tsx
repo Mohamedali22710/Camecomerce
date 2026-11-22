@@ -55,7 +55,7 @@ const Checkout1 = ({ cartItems: propCartItems, className }: Checkout1Props) => {
   const cartItems: CheckoutCartItem[] = useMemo(() => {
     if (propCartItems) return propCartItems;
     return ctxItems.map((item) => ({
-      product_id: item._id,
+      product_id: item.productId || item._id,
       link: item.link || "#",
       name: item.name,
       image: item.image,
@@ -91,7 +91,7 @@ const Checkout1 = ({ cartItems: propCartItems, className }: Checkout1Props) => {
       const paymentMethod = data.payment.method === "creditCard" ? "card" : "cod";
       const payload = {
         items: data.products.map((p) => ({
-          productId: Number(p.product_id),
+          productId: String(p.product_id),
           quantity: p.quantity,
         })),
         paymentMethod,

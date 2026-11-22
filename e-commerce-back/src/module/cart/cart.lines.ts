@@ -134,21 +134,27 @@ export const resolveProductLine = (
 ): ResolvedProductLine => {
   const quantity = readQuantity(input.quantity);
   const variants = parseVariants(product.variants);
-  const variant = findVariant(variants, input.color, input.size);
+  let variant = findVariant(variants, input.color, input.size);
 
-  if (!variant) {
-    throw new HttpError(
-      400,
-      `Variant ${input.color || "Default"}/${input.size || "Default"} not found for ${product.en_name}`,
-    );
+  // Fallback if color/size is not specified or not matching a variant
+  if (!variant && variants.length > 0) {
+    variant = variants[0];
   }
+  if (!variant) {
+    variant = {
+      color: "Default",
+      size: "Default",
+      stock: product.stock !== undefined && product.stock !== null ? Number(product.stock) : 100,
+    };
+  }
+
   if (options.enforceAvailability !== false && !product.isActive) {
     throw new HttpError(400, `${product.en_name} is no longer available`);
   }
   if (options.enforceStock && variant.stock < quantity) {
     throw new HttpError(
       400,
-      `Insufficient stock for ${product.en_name} (${variant.color}/${variant.size}). Available: ${variant.stock}, requested: ${quantity}`,
+      `Insufficient stock for ${product.en_name}. Available: ${variant.stock}, requested: ${quantity}`,
     );
   }
 

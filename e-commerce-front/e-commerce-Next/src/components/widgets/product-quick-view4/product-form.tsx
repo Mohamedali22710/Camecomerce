@@ -23,8 +23,10 @@ export const ProductForm = ({ hinges, selected, product }: ProductFormProps) => 
 
   function onSubmit(values: FormType) {
     if (!product) return;
+    const prodId = String((product as any)._id || product.name);
     addItem({
-      _id: `${product.name}-${values.color}-${values.size}`,
+      _id: prodId,
+      productId: prodId,
       name: product.name,
       image: product.images[0]?.src ?? "",
       price: product.price.sale ?? product.price.regular,
