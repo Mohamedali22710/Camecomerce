@@ -13,7 +13,7 @@ const Logo = () => {
         ? 'Pour les caméras de surveillance'
         : 'CCTV & Security';
 
-    const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`;
+    const logoSrc = `${import.meta.env.BASE_URL}logo.svg`;
 
     return (
         <Box

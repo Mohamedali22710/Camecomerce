@@ -36,7 +36,7 @@ const Login = () => {
   const [loading, setLoading] = React.useState(false);
   const [imgError, setImgError] = React.useState(false);
 
-  const logoSrc = `${import.meta.env.BASE_URL}logo.jpg`;
+  const logoSrc = `${import.meta.env.BASE_URL}logo.svg`;
 
   const subtitle =
     locale === "ar"

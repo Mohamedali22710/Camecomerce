@@ -88,6 +88,7 @@ const BrandLogo = ({
             alt={logo.alt}
             width={40}
             height={40}
+            unoptimized={logo.src.endsWith(".svg")}
             className="size-10 object-contain p-0.5 transition-transform duration-200 group-hover:scale-105"
             onError={() => setImgError(true)}
           />
@@ -112,7 +113,7 @@ const BrandLogo = ({
 const Navbar1 = ({
   logo = {
     url: "/",
-    src: "/logo.png",
+    src: "/logo.svg",
     alt: "الحارث الذكي",
     title: "الحارث الذكي",
   },

@@ -5,6 +5,7 @@ const withNextIntl = createNextIntlPlugin();
 
 const nextConfig: NextConfig = {
   images: {
+    dangerouslyAllowSVG: true,
     remotePatterns: [
       { protocol: "https", hostname: "deifkwefumgah.cloudfront.net" },
       { protocol: "https", hostname: "res.cloudinary.com" },

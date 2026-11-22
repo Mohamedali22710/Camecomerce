@@ -37,7 +37,11 @@ export const metadata: Metadata = {
   description:
     "متجر الحارث الذكي — حلول وكاميرات المراقبة المتقدمة والأنظمة الأمنية الذكية في المملكة العربية السعودية.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/logo.png",
   },
 };
 
