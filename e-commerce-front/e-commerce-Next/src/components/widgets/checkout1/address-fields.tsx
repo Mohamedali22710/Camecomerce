@@ -1,6 +1,7 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
+import { useTranslations } from "next-intl";
 
 import {
   Field,
@@ -12,6 +13,7 @@ import { Input } from "@/components/base/input";
 
 export const AddressFields = () => {
   const form = useFormContext();
+  const t = useTranslations("checkout");
 
   return (
     <FieldGroup className="gap-3.5">
@@ -24,7 +26,7 @@ export const AddressFields = () => {
               className="text-sm font-normal"
               htmlFor="checkout-country"
             >
-              Country
+              {t("country")}
             </FieldLabel>
             <Input
               {...field}
@@ -44,7 +46,7 @@ export const AddressFields = () => {
               className="text-sm font-normal"
               htmlFor="checkout-fullName"
             >
-              Full Name
+              {t("fullName")}
             </FieldLabel>
             <Input
               {...field}
@@ -64,7 +66,7 @@ export const AddressFields = () => {
               className="text-sm font-normal"
               htmlFor="checkout-street"
             >
-              Street
+              {t("street")}
             </FieldLabel>
             <Input
               {...field}
@@ -84,7 +86,7 @@ export const AddressFields = () => {
               className="text-sm font-normal"
               htmlFor="checkout-state"
             >
-              State
+              {t("state")}
             </FieldLabel>
             <Input
               {...field}
@@ -105,7 +107,7 @@ export const AddressFields = () => {
                 className="text-sm font-normal"
                 htmlFor="checkout-zipCode"
               >
-                ZIP Code
+                {t("zipCode")}
               </FieldLabel>
               <Input
                 {...field}
@@ -125,7 +127,7 @@ export const AddressFields = () => {
                 className="text-sm font-normal"
                 htmlFor="checkout-city"
               >
-                City
+                {t("city")}
               </FieldLabel>
               <Input
                 {...field}
@@ -146,7 +148,7 @@ export const AddressFields = () => {
               className="text-sm font-normal"
               htmlFor="checkout-phone"
             >
-              Phone
+              {t("phone")}
             </FieldLabel>
             <Input
               {...field}

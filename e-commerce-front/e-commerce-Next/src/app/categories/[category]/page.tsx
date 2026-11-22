@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import api from "@/lib/api";
 import { SubcategoryGridSkeleton } from "@/components/widgets/skeletons";
@@ -27,6 +27,7 @@ interface Subcategory {
 }
 
 export default function CategorySubcategories() {
+  const t = useTranslations("subcategories");
   const locale = useLocale() as Locale;
   const { category } = useParams<{ category: string }>();
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
@@ -59,7 +60,7 @@ export default function CategorySubcategories() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        Subcategories
+        {t("title")}
       </motion.h1>
       <motion.div
         className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"

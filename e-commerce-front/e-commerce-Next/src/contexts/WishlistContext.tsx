@@ -7,6 +7,8 @@ import { parseImageURLs } from "@/lib/locale"
 export interface WishlistItem {
   _id: string
   name: string
+  en_name?: string
+  ar_name?: string
   image: string
   price: number
   originalPrice?: number
@@ -83,6 +85,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
           return {
             _id: String(wi.productId || wi.product_id || wi._id || wi.product?._id),
             name: wi.product?.en_name || wi.name || "",
+            en_name: wi.product?.en_name,
+            ar_name: wi.product?.ar_name,
             image: images[0] || wi.image || "",
             price: wi.product?.price ?? wi.price ?? 0,
             inStock: true,

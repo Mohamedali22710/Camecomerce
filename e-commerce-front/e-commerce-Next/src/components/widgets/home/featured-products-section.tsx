@@ -84,7 +84,7 @@ export function FeaturedProductsSection() {
           href="/products"
           className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#2563EB] hover:text-blue-700 transition-colors"
         >
-          <span>{isAr ? "عرض جميع المنتجات" : "View All Products"}</span>
+          <span>{t("viewAllProducts")}</span>
           <ArrowIcon className="size-4 transition-transform group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0.5" />
         </Link>
       </div>

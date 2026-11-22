@@ -11,6 +11,7 @@ import { useWishlist } from "@/contexts/WishlistContext";
 import { User } from "@/contexts/UserContext";
 import Cookies from "js-cookie";
 import api from "@/lib/api";
+import { getLocalizedField, type Locale } from "@/lib/locale";
 
 import {
   Accordion,
@@ -100,7 +101,7 @@ const BrandLogo = ({
       )}
       <div className="flex flex-col text-start">
         <span className="font-bold text-base md:text-lg tracking-tight text-foreground leading-tight">
-          {logo.title}
+          الحارث الذكي
         </span>
         <span className="text-[11px] font-medium text-muted-foreground leading-none">
           {locale === "ar" ? "لكاميرات المراقبة" : "CCTV & Security"}
@@ -159,7 +160,7 @@ const Navbar1 = ({
   };
 
   const getLocaleName = (item: any) =>
-    item[`${locale}_name`] || item.ar_name || item.en_name || item.name || "";
+    getLocalizedField(item, "name", locale as Locale) || item.name || "";
 
   const menu = menuProp ?? [
     { title: t("home"), url: "/" },
@@ -247,10 +248,10 @@ const Navbar1 = ({
             ) : (
               <>
                 <Button variant="outline" size="sm" render={<Link href={auth.login.url} />} nativeButton={false}>
-                  {auth.login.title}
+                  {t("login")}
                 </Button>
                 <Button size="sm" render={<Link href={auth.signup.url} />} nativeButton={false}>
-                  {auth.signup.title}
+                  {t("signup")}
                 </Button>
               </>
             )}
@@ -308,10 +309,10 @@ const Navbar1 = ({
                       ) : (
                         <>
                           <Button variant="outline" render={<Link href={auth.login.url} />} nativeButton={false}>
-                            {auth.login.title}
+                            {t("login")}
                           </Button>
                           <Button render={<Link href={auth.signup.url} />} nativeButton={false}>
-                            {auth.signup.title}
+                            {t("signup")}
                           </Button>
                         </>
                       )}

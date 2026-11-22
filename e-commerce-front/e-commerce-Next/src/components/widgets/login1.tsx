@@ -46,6 +46,7 @@ interface Login1Props {
 
 const Login1 = ({ className }: Login1Props) => {
   const t = useTranslations("auth");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const isAr = locale === "ar";
   const [showPassword, setShowPassword] = useState(false);
@@ -89,7 +90,7 @@ const Login1 = ({ className }: Login1Props) => {
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setServerError(err.response.data.message);
       } else {
-        setServerError(isAr ? "حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى." : "Network error. Please try again.");
+        setServerError(t("networkError"));
       }
     } finally {
       setIsSubmitting(false);
@@ -126,10 +127,10 @@ const Login1 = ({ className }: Login1Props) => {
             </div>
             <div className="flex flex-col text-start">
               <span className="font-bold text-lg text-foreground tracking-tight leading-tight">
-                الحارث الذكي
+                {tCommon("brandName")}
               </span>
               <span className="text-xs text-muted-foreground leading-none">
-                {isAr ? "لكاميرات المراقبة والأنظمة الأمنية" : "Smart CCTV & Security Solutions"}
+                {tCommon("brandSlogan")}
               </span>
             </div>
           </Link>

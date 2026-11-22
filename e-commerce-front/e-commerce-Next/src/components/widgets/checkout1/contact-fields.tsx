@@ -1,6 +1,7 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
+import { useTranslations } from "next-intl";
 
 import { Checkbox } from "@/components/base/checkbox";
 import {
@@ -13,6 +14,7 @@ import { Input } from "@/components/base/input";
 
 export const ContactFields = () => {
   const form = useFormContext();
+  const t = useTranslations("checkout");
 
   return (
     <FieldGroup className="gap-3.5">
@@ -25,7 +27,7 @@ export const ContactFields = () => {
               className="text-sm font-normal"
               htmlFor="checkout-email"
             >
-              Email
+              {t("email")}
             </FieldLabel>
             <Input
               {...field}
@@ -48,7 +50,7 @@ export const ContactFields = () => {
               onCheckedChange={field.onChange}
             />
             <FieldLabel htmlFor="checkout-subscribe" className="font-normal">
-              Email me with news and offers
+              {t("subscribeOffers")}
             </FieldLabel>
           </Field>
         )}

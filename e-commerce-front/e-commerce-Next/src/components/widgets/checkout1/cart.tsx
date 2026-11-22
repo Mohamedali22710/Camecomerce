@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import Link from "next/link";
 import Image from "next/image";
+import { useLocale, useTranslations } from "next-intl";
 
 import { AspectRatio } from "@/components/base/aspect-ratio";
 import { Button } from "@/components/base/button";
@@ -123,6 +124,8 @@ const CartItem = ({
 };
 
 export const Cart = ({ cartItems, form }: CartProps) => {
+  const t = useTranslations("cart");
+  const tCheckout = useTranslations("checkout");
   const { fields, remove, update } = useFieldArray({
     control: form.control,
     name: "products",
@@ -152,9 +155,9 @@ export const Cart = ({ cartItems, form }: CartProps) => {
     return (
       <div>
         <div className="border-b py-7">
-          <h2 className="text-lg leading-relaxed font-semibold">Your Cart</h2>
+          <h2 className="text-lg leading-relaxed font-semibold">{tCheckout("yourCart")}</h2>
         </div>
-        <p className="py-7 text-muted-foreground">Your cart is empty.</p>
+        <p className="py-7 text-muted-foreground">{t("empty")}</p>
       </div>
     );
   }
@@ -164,7 +167,7 @@ export const Cart = ({ cartItems, form }: CartProps) => {
   return (
     <div>
       <div className="border-b py-7">
-        <h2 className="text-lg leading-relaxed font-semibold">Your Cart</h2>
+        <h2 className="text-lg leading-relaxed font-semibold">{tCheckout("yourCart")}</h2>
       </div>
       <ul className="space-y-12 py-7">
         {fields.map((field, index) => {
@@ -187,7 +190,7 @@ export const Cart = ({ cartItems, form }: CartProps) => {
       <div>
         <div className="space-y-3.5 border-y py-7">
           <div className="flex justify-between gap-3">
-            <p className="text-sm">Subtotal</p>
+            <p className="text-sm">{t("subtotal")}</p>
             <Price className="text-sm font-normal">
               <PriceValue
                 price={totalPrice}
@@ -197,17 +200,13 @@ export const Cart = ({ cartItems, form }: CartProps) => {
             </Price>
           </div>
           <div className="flex justify-between gap-3">
-            <p className="text-sm">Shipping</p>
-            <p className="text-sm">Free</p>
-          </div>
-          <div className="flex justify-between gap-3">
-            <p className="text-sm">Estimated Tax</p>
-            <p className="text-sm">$35.80</p>
+            <p className="text-sm">{t("shipping")}</p>
+            <p className="text-sm">{t("free")}</p>
           </div>
         </div>
         <div className="py-7">
           <div className="flex justify-between gap-3">
-            <p className="text-lg leading-tight font-medium">Total</p>
+            <p className="text-lg leading-tight font-medium">{t("total")}</p>
             <Price className="text-xl font-medium">
               <PriceValue
                 price={totalPrice}

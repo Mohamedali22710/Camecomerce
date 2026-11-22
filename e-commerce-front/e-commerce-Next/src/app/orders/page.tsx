@@ -25,11 +25,21 @@ interface Order {
 export default function OrdersPage() {
   const t = useTranslations("orders");
   const locale = useLocale() as Locale;
+  const isAr = locale === "ar";
   const formatPrice = useFormatPrice(locale);
   const { userToken } = useContext(User)!;
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const statusLabels: Record<string, string> = {
+    pending: t("statusPending"),
+    processing: t("statusProcessing"),
+    shipped: t("statusShipped"),
+    delivered: t("statusDelivered"),
+    cancelled: t("statusCancelled"),
+    confirmed: t("statusConfirmed"),
+  };
 
   useEffect(() => {
     if (!userToken) {
@@ -104,13 +114,13 @@ export default function OrdersPage() {
                   <div>
                     <p className="font-semibold">{t("orderId", { id: order._id })}</p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(order.createdAt).toLocaleDateString()}
+                      {new Date(order.createdAt).toLocaleDateString(isAr ? "ar-SA" : "en-US")}
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="font-semibold">{formatPrice(order.totalAmount ?? order.total)}</p>
                     <Badge variant={statusColor(order.orderStatus)}>
-                      {order.orderStatus}
+                      {statusLabels[order.orderStatus] || order.orderStatus}
                     </Badge>
                   </div>
                 </CardContent>

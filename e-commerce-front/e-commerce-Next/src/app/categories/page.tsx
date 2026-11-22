@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import api from "@/lib/api";
 import { Card, CardContent } from "@/components/base/card";
@@ -28,6 +28,7 @@ const stagger = {
 };
 
 export default function CategoriesPage() {
+  const t = useTranslations("categories");
   const locale = useLocale() as Locale;
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +60,7 @@ export default function CategoriesPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        Categories
+        {t("title")}
       </motion.h1>
       <motion.div
         className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"

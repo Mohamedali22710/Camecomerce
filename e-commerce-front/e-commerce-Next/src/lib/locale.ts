@@ -11,13 +11,14 @@ export function slugify(text: string): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getLocalizedField(obj: any, field: string, locale: Locale): string {
+  if (!obj) return "";
   const localized = obj[`${locale}_${field}`];
   if (typeof localized === "string" && localized.trim()) return localized;
-  const en = obj[`en_${field}`];
-  if (typeof en === "string") return en;
-  const ar = obj[`ar_${field}`];
-  if (typeof ar === "string") return ar;
-  return "";
+  const target = locale === "ar" ? obj[`ar_${field}`] : obj[`en_${field}`];
+  if (typeof target === "string" && target.trim()) return target;
+  const fallback = locale === "ar" ? (obj[`en_${field}`] || obj[field]) : (obj[`ar_${field}`] || obj[field]);
+  if (typeof fallback === "string" && fallback.trim()) return fallback;
+  return obj[field] || "";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

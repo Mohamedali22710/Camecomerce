@@ -15,6 +15,7 @@ import type { ProductCardCctvProps } from "./types";
 
 export function ProductCardCctv({ product, className, priority = false }: ProductCardCctvProps) {
   const t = useTranslations("productDetail");
+  const tWishlist = useTranslations("wishlist");
   const locale = useLocale() as Locale;
   const isAr = locale === "ar";
   const { addItem } = useCart();
@@ -114,7 +115,7 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
           <button
             type="button"
             onClick={handleToggleWishlist}
-            aria-label={inWishlist ? (isAr ? "إزالة من المفضلة" : "Remove from wishlist") : (isAr ? "إضافة للمفضلة" : "Add to wishlist")}
+            aria-label={inWishlist ? tWishlist("removeFromWishlist") : tWishlist("addToWishlist")}
             className={cn(
               "absolute end-3 top-3 z-10 flex size-9 items-center justify-center rounded-full bg-white/95 dark:bg-slate-800/90 shadow-xs border border-border/80 transition-all active:scale-90 hover:scale-105",
               inWishlist ? "text-rose-500 hover:text-rose-600" : "text-slate-500 hover:text-rose-500"
@@ -146,7 +147,7 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
             {isOutOfStock && (
               <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-500 bg-rose-500/10 border border-rose-500/20 px-2.5 py-0.5 rounded-full whitespace-nowrap">
                 <span className="size-1.5 rounded-full bg-rose-500" />
-                {isAr ? "نفدت الكمية" : "Sold Out"}
+                {t("soldOut")}
               </span>
             )}
           </div>
@@ -169,11 +170,11 @@ export function ProductCardCctv({ product, className, priority = false }: Produc
           )}
         >
           {isOutOfStock ? (
-            <span>{isAr ? "نفدت الكمية" : "Sold Out"}</span>
+            <span>{t("soldOut")}</span>
           ) : isAdded ? (
             <>
               <Check className="size-4" />
-              <span>{isAr ? "تمت الإضافة للسلة" : "Added to Cart"}</span>
+              <span>{t("addedToCart")}</span>
             </>
           ) : (
             <>

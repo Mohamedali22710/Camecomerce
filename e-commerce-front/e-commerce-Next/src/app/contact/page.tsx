@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Mail, MapPin, Phone, Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/base/button";
 import { Input } from "@/components/base/input";
@@ -10,6 +10,8 @@ import api from "@/lib/api";
 
 export default function ContactPage() {
   const t = useTranslations("contact");
+  const locale = useLocale();
+  const isAr = locale === "ar";
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -54,12 +56,12 @@ export default function ContactPage() {
               <Card>
                 <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
                   <Send className="size-10 text-primary" />
-                  <h2 className="text-xl font-semibold">Message sent!</h2>
+                  <h2 className="text-xl font-semibold">{t("messageSent")}</h2>
                   <p className="text-sm text-muted-foreground">
-                    We&apos;ll get back to you within 24 hours.
+                    {t("messageSentDesc")}
                   </p>
                   <Button variant="outline" onClick={handleReset}>
-                    Send another
+                    {t("sendAnother")}
                   </Button>
                 </CardContent>
               </Card>
@@ -92,27 +94,27 @@ export default function ContactPage() {
                 <div className="flex items-center gap-3">
                   <Mail className="size-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Email</p>
-                    <a href="mailto:support@store.com" className="text-sm text-muted-foreground hover:text-foreground">
-                      support@store.com
+                    <p className="text-sm font-medium">{t("emailLabel")}</p>
+                    <a href="mailto:support@alharith-cctv.sa" className="text-sm text-muted-foreground hover:text-foreground">
+                      support@alharith-cctv.sa
                     </a>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <Phone className="size-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Phone</p>
-                    <a href="tel:+12345678910" className="text-sm text-muted-foreground hover:text-foreground">
-                      +1 (234) 567-8910
+                    <p className="text-sm font-medium">{t("phoneLabel")}</p>
+                    <a href="tel:+966500000000" className="text-sm text-muted-foreground hover:text-foreground" dir="ltr">
+                      +966 50 000 0000
                     </a>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
                   <MapPin className="size-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm font-medium">Address</p>
+                    <p className="text-sm font-medium">{t("addressLabel")}</p>
                     <p className="text-sm text-muted-foreground">
-                      123 Commerce St, New York, NY 10001
+                      {t("addressValue")}
                     </p>
                   </div>
                 </div>

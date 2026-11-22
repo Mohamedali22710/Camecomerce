@@ -98,8 +98,8 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
                     <Badge variant={inStock ? "secondary" : "destructive"} className="gap-1.5">
                       {inStock ? <CircleCheck className="size-4" /> : <CircleX className="size-4" />}
                       {inStock
-                        ? (product?.stock !== undefined ? (isAr ? `متوفر بالمخزون (${product.stock})` : `In Stock (${product.stock})`) : (isAr ? "متوفر بالمخزون" : "In Stock"))
-                        : (isAr ? "نفدت الكمية" : "Sold Out")}
+                        ? (product?.stock !== undefined ? t("inStockWithCount", { count: product.stock }) : t("inStock"))
+                        : t("soldOut")}
                     </Badge>
                   </div>
                 </div>
@@ -116,7 +116,7 @@ const ProductDetail1 = ({ className, product }: ProductDetail1Props) => {
               onClick={handleBuyNow}
               disabled={!inStock}
             >
-              {isAr ? "اشتري الآن" : "Buy Now"}
+              {t("buyNow")}
             </Button>
             {data === PRODUCT_DETAILS ? (
               <ProductForm

@@ -1,6 +1,7 @@
 "use client";
 
 import { Controller, useFormContext } from "react-hook-form";
+import { useTranslations } from "next-intl";
 
 import {
   Field,
@@ -14,29 +15,31 @@ import { RadioGroup, RadioGroupItem } from "@/components/base/radio-group";
 
 export const ShippingMethodFields = () => {
   const form = useFormContext();
+  const t = useTranslations("checkout");
 
   return (
     <Controller
       name="shippingMethod"
       control={form.control}
+      defaultValue="standard"
       render={({ field, fieldState }) => (
         <Field>
           <RadioGroup
             name={field.name}
-            value={field.value}
+            value={field.value || "standard"}
             onValueChange={field.onChange}
             className="flex max-sm:flex-col"
           >
             <FieldLabel htmlFor="checkout-shippingMethod-1">
               <Field orientation="horizontal" data-invalid={fieldState.invalid}>
                 <FieldContent>
-                  <FieldTitle>UPS</FieldTitle>
-                  <FieldDescription>Delivery: Tomorrow</FieldDescription>
+                  <FieldTitle>{t("standardShipping")}</FieldTitle>
+                  <FieldDescription>{t("standardShippingDesc")}</FieldDescription>
                 </FieldContent>
                 <div className="flex gap-3.5">
-                  <p className="text-sm">$10.00</p>
+                  <p className="text-sm font-semibold text-emerald-600">{t("free")}</p>
                   <RadioGroupItem
-                    value="UPS"
+                    value="standard"
                     id="checkout-shippingMethod-1"
                     aria-invalid={fieldState.invalid}
                   />
@@ -46,13 +49,13 @@ export const ShippingMethodFields = () => {
             <FieldLabel htmlFor="checkout-shippingMethod-2">
               <Field orientation="horizontal" data-invalid={fieldState.invalid}>
                 <FieldContent>
-                  <FieldTitle>FedEx</FieldTitle>
-                  <FieldDescription>Delivery: Next Week</FieldDescription>
+                  <FieldTitle>{t("expressShipping")}</FieldTitle>
+                  <FieldDescription>{t("expressShippingDesc")}</FieldDescription>
                 </FieldContent>
                 <div className="flex gap-3.5">
-                  <p className="text-sm">$2.99</p>
+                  <p className="text-sm font-semibold">{t("expressPrice")}</p>
                   <RadioGroupItem
-                    value="FedEx"
+                    value="express"
                     id="checkout-shippingMethod-2"
                     aria-invalid={fieldState.invalid}
                   />

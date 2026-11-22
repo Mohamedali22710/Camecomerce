@@ -2,6 +2,7 @@
 
 import { Controller, useFormContext } from "react-hook-form";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import {
   Field,
@@ -17,6 +18,7 @@ import { PAYMENT_METHODS, type PaymentMethod } from "./types";
 
 const DateInput = () => {
   const form = useFormContext();
+  const t = useTranslations("checkout");
 
   return (
     <Controller
@@ -28,7 +30,7 @@ const DateInput = () => {
             className="text-sm font-normal"
             htmlFor="checkout-payment-expiryDate"
           >
-            Expiry Date
+            {t("expiryDate")}
           </FieldLabel>
           <Input
             {...field}
@@ -65,8 +67,9 @@ const DateInput = () => {
 
 const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
   const form = useFormContext();
+  const t = useTranslations("checkout");
 
-  if (!method) return;
+  if (!method) return null;
 
   switch (method) {
     case PAYMENT_METHODS.creditCard:
@@ -81,7 +84,7 @@ const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
                   className="text-sm font-normal"
                   htmlFor="checkout-payment-cardholderName"
                 >
-                  Cardholder Name
+                  {t("cardholderName")}
                 </FieldLabel>
                 <Input
                   {...field}
@@ -103,7 +106,7 @@ const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
                   className="text-sm font-normal"
                   htmlFor="checkout-payment-cardNumber"
                 >
-                  Card Number
+                  {t("cardNumber")}
                 </FieldLabel>
                 <Input
                   {...field}
@@ -127,7 +130,7 @@ const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
                     className="text-sm font-normal"
                     htmlFor="checkout-payment-cvc"
                   >
-                    Security Code
+                    {t("cvc")}
                   </FieldLabel>
                   <Input
                     {...field}
@@ -180,11 +183,11 @@ const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
                   className="text-sm font-normal"
                   htmlFor="checkout-payment-bankName"
                 >
-                  Bank Name
+                  {t("bankName")}
                 </FieldLabel>
                 <Input
                   {...field}
-                  placeholder="Bank Name"
+                  placeholder={t("bankNamePlaceholder")}
                   id="checkout-payment-bankName"
                   aria-invalid={fieldState.invalid}
                 />
@@ -203,7 +206,7 @@ const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
                   className="text-sm font-normal"
                   htmlFor="checkout-payment-accountNumber"
                 >
-                  Account Number
+                  {t("accountNumber")}
                 </FieldLabel>
                 <Input
                   {...field}
@@ -225,6 +228,7 @@ const PaymentFieldsByMethod = ({ method }: { method: PaymentMethod }) => {
 
 export const PaymentFields = () => {
   const form = useFormContext();
+  const t = useTranslations("checkout");
   const paymentMethod = form.watch("payment.method") as PaymentMethod;
 
   return (
@@ -245,7 +249,7 @@ export const PaymentFields = () => {
                   data-invalid={fieldState.invalid}
                 >
                   <FieldContent className="flex-1">
-                    <FieldTitle>Credit Card</FieldTitle>
+                    <FieldTitle>{t("creditCard")}</FieldTitle>
                   </FieldContent>
                   <Image
                     src="https://deifkwefumgah.cloudfront.net/shadcnblocks/block/logos/visa-icon.svg"
@@ -287,7 +291,7 @@ export const PaymentFields = () => {
                   data-invalid={fieldState.invalid}
                 >
                   <FieldContent>
-                    <FieldTitle>Online Bank Transfer</FieldTitle>
+                    <FieldTitle>{t("onlineBankTransfer")}</FieldTitle>
                   </FieldContent>
                   <RadioGroupItem
                     value="onlineBankTransfer"

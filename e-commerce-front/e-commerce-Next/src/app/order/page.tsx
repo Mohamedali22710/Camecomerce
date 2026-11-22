@@ -4,9 +4,10 @@ import { useContext, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Suspense } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import api from "@/lib/api";
 import { User } from "@/contexts/UserContext";
+import { getLocalizedField, type Locale } from "@/lib/locale";
 
 import { Button } from "@/components/base/button";
 import { Loading } from "@/app/loading";
@@ -14,6 +15,8 @@ import { OrderSummary1 } from "@/components/widgets/order-summary1";
 
 function OrderInner() {
   const t = useTranslations("order");
+  const tCheckout = useTranslations("checkout");
+  const locale = useLocale() as Locale;
   const router = useRouter();
   const searchParams = useSearchParams();
   const { userToken } = useContext(User)!;
@@ -65,11 +68,11 @@ function OrderInner() {
     );
   }
 
-  const mappedOrder = mapApiOrder(orderData);
+  const mappedOrder = mapApiOrder(orderData, locale, tCheckout);
   return <OrderSummary1 order={mappedOrder as any} />;
 }
 
-function mapApiOrder(data: any) {
+function mapApiOrder(data: any, locale: Locale, tCheckout: (key: string) => string) {
   const getImage = (p: any): string => {
     if (typeof p.imageURLs === 'string') { try { const parsed = JSON.parse(p.imageURLs); return Array.isArray(parsed) ? (parsed[0] || "") : ""; } catch {} }
     if (Array.isArray(p.imageURLs)) return p.imageURLs[0] || "";
@@ -77,19 +80,20 @@ function mapApiOrder(data: any) {
   };
   const items = (data.items || data.products || []).map((item: any) => ({
     _id: String(item.productId || item.product_id || item._id),
-    name: item.product?.en_name || item.name || "",
+    name: getLocalizedField(item.product, "name", locale) || item.name || "",
     image: item.product ? getImage(item.product) : item.image || "",
     price: item.price ?? 0,
     quantity: item.quantity ?? 1,
   }));
 
+  const isAr = locale === "ar";
   return {
     orderNumber: `ORD-${data._id || data.orderId || data.id || Date.now()}`,
     orderDate: data.createdAt
-      ? new Date(data.createdAt).toLocaleDateString("en-US", {
+      ? new Date(data.createdAt).toLocaleDateString(isAr ? "ar-SA" : "en-US", {
           year: "numeric", month: "long", day: "numeric",
         })
-      : new Date().toLocaleDateString("en-US", {
+      : new Date().toLocaleDateString(isAr ? "ar-SA" : "en-US", {
           year: "numeric", month: "long", day: "numeric",
         }),
     status: data.orderStatus || data.status || "confirmed",
@@ -108,8 +112,8 @@ function mapApiOrder(data: any) {
       zipCode: data.shippingAddress?.zipCode || data.shippingAddress?.postalCode || "",
       country: data.shippingAddress?.country || "",
     },
-    shippingMethod: "Standard Shipping",
-    estimatedDelivery: "5-7 business days",
+    shippingMethod: tCheckout("standardShipping"),
+    estimatedDelivery: tCheckout("standardShippingDesc"),
     paymentMethod: {
       type: data.paymentMethod === "cod" ? "bank" : "card",
       lastFour: data.paymentMethod?.lastFour || "",

@@ -60,7 +60,7 @@ export function CategoryGridSection({ categories, locale }: CategoryGridSectionP
           href="/categories"
           className="group inline-flex items-center gap-1.5 text-sm font-semibold text-[#2563EB] hover:text-blue-700 transition-colors"
         >
-          <span>{isAr ? "عرض الكل" : "View All"}</span>
+          <span>{t("viewAll")}</span>
           <ArrowIcon className="size-4 transition-transform group-hover:-translate-x-0.5 rtl:group-hover:translate-x-0.5" />
         </Link>
       </div>
@@ -95,7 +95,7 @@ export function CategoryGridSection({ categories, locale }: CategoryGridSectionP
                   <div className="absolute inset-x-0 bottom-0 p-5 text-white flex items-end justify-between">
                     <div>
                       <span className="text-xs font-medium text-slate-300 block mb-1">
-                        {isAr ? "تصفح الفئة" : "Explore Category"}
+                        {t("exploreCategory")}
                       </span>
                       <h3 className="text-lg sm:text-xl font-bold tracking-tight text-white group-hover:text-blue-300 transition-colors">
                         {catName}

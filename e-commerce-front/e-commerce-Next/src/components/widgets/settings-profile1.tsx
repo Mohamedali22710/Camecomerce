@@ -2,6 +2,7 @@
 
 import { Camera, X } from "lucide-react";
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 
 import {
   FileUpload,
@@ -50,6 +51,8 @@ const SettingsProfile1 = ({
   },
   className,
 }: SettingsProfile1Props) => {
+  const t = useTranslations("profile");
+  const tCommon = useTranslations("common");
   const [avatarFiles, setAvatarFiles] = useState<File[]>([]);
 
   const initials = defaultValues.name
@@ -67,9 +70,9 @@ const SettingsProfile1 = ({
   return (
     <Card className={cn("w-full max-w-lg", className)}>
       <CardHeader>
-        <CardTitle>Profile</CardTitle>
+        <CardTitle>{t("title")}</CardTitle>
         <CardDescription>
-          Update your personal information and profile picture
+          {t("subtitle")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -179,8 +182,8 @@ const SettingsProfile1 = ({
         </div>
       </CardContent>
       <CardFooter className="flex justify-end gap-2">
-        <Button variant="outline">Cancel</Button>
-        <Button>Save Changes</Button>
+        <Button variant="outline">{tCommon("cancel")}</Button>
+        <Button>{tCommon("saveChanges")}</Button>
       </CardFooter>
     </Card>
   );

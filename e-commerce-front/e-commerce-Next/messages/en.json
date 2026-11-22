@@ -53,7 +53,12 @@
     "trustSupport": "Expert Tech Support",
     "trustSupportDesc": "Certified specialists to guide your security setup",
     "trustInstall": "Installation Service",
-    "trustInstallDesc": "Professional onsite installation & mobile app pairing"
+    "trustInstallDesc": "Professional onsite installation & mobile app pairing",
+    "smartSecurityBadge": "Smart Security Ecosystem",
+    "smartSecurityDesc": "AI Motion Detection • Night Vision • Instant Alerts",
+    "liveSurveillanceActive": "Live Surveillance Active",
+    "exploreCategory": "Explore Category",
+    "viewAllProducts": "View All Products"
   },
   "products": {
     "title": "Products",
@@ -77,7 +82,10 @@
     "soldOut": "Sold Out",
     "units": "{n} units",
     "addToCart": "Add to Cart",
-    "buyNow": "Buy Now"
+    "buyNow": "Buy Now",
+    "details": "Product Details",
+    "addedToCart": "Added to Cart",
+    "inStockWithCount": "In Stock ({count})"
   },
   "cart": {
     "title": "Cart",
@@ -104,7 +112,32 @@
     "payment": "Payment",
     "continue": "Continue",
     "placeOrder": "Place Order",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "yourCart": "Your Cart",
+    "country": "Country",
+    "fullName": "Full Name",
+    "street": "Street",
+    "state": "State / Province",
+    "city": "City",
+    "zipCode": "ZIP Code",
+    "phone": "Phone",
+    "email": "Email",
+    "subscribeOffers": "Email me with news and offers",
+    "creditCard": "Credit Card",
+    "onlineBankTransfer": "Online Bank Transfer",
+    "cardholderName": "Cardholder Name",
+    "cardNumber": "Card Number",
+    "expiryDate": "Expiry Date",
+    "cvc": "Security Code (CVC)",
+    "bankName": "Bank Name",
+    "bankNamePlaceholder": "e.g. Al Rajhi Bank",
+    "accountNumber": "Account / IBAN Number",
+    "standardShipping": "Standard Shipping",
+    "standardShippingDesc": "Delivery: 2-4 business days",
+    "expressShipping": "Express Shipping",
+    "expressShippingDesc": "Delivery: 24-48 hours",
+    "free": "Free",
+    "expressPrice": "35 SAR"
   },
   "order": {
     "thankYou": "Thank you for your order!",
@@ -127,21 +160,50 @@
     "contactSupport": "Contact Support",
     "continueShopping": "Continue Shopping",
     "noOrder": "No order found",
-    "noOrderDesc": "Looks like you haven't placed an order yet."
+    "noOrderDesc": "Looks like you haven't placed an order yet.",
+    "statusConfirmed": "Order Confirmed",
+    "statusProcessing": "Processing",
+    "statusShipped": "Shipped",
+    "statusDelivered": "Delivered",
+    "statusPending": "Pending",
+    "statusCancelled": "Cancelled",
+    "qty": "Qty:",
+    "each": "each",
+    "estimatedDelivery": "Estimated delivery:",
+    "endingIn": "ending in",
+    "paymentCompleted": "Payment completed"
   },
   "orders": {
     "title": "My Orders",
     "empty": "No orders yet.",
     "startShopping": "Start Shopping",
-    "orderId": "Order #{id}"
+    "orderId": "Order #{id}",
+    "statusPending": "Pending",
+    "statusProcessing": "Processing",
+    "statusShipped": "Shipped",
+    "statusDelivered": "Delivered",
+    "statusCancelled": "Cancelled",
+    "statusConfirmed": "Confirmed"
   },
   "wishlist": {
     "title": "My Wishlist",
     "empty": "Your wishlist is empty.",
     "startShopping": "Start Shopping",
-    "remove": "Remove"
+    "remove": "Remove",
+    "itemsSaved": "{count} items saved",
+    "addAllToCart": "Add All to Cart",
+    "priceDrop": "Price Drop",
+    "soldOut": "Sold Out",
+    "addToCart": "Add to Cart",
+    "notifyWhenAvailable": "Notify When Available",
+    "continueShopping": "Continue Shopping",
+    "emptyHint": "Save items you love by clicking the heart icon on any product",
+    "addToWishlist": "Add to wishlist",
+    "removeFromWishlist": "Remove from wishlist"
   },
   "profile": {
+    "title": "Profile",
+    "subtitle": "Update your personal information and profile picture",
     "loading": "Loading profile...",
     "personalInfo": "Personal Info",
     "email": "Email",
@@ -165,6 +227,11 @@
     "loginTitle": "Welcome back",
     "loginSubtitle": "Sign in to your account",
     "signupTitle": "Create Account",
+    "signupSubtitle": "Create an account to access our CCTV store & services",
+    "signupSuccess": "Account created successfully!",
+    "accountActivated": "Your account has been registered and activated. You can now log in directly.",
+    "goToLogin": "Go to Login",
+    "networkError": "Network error. Please try again.",
     "email": "Email",
     "phone": "Phone Number",
     "phonePlaceholder": "+9665xxxxxxxx",
@@ -205,7 +272,14 @@
     "message": "Message",
     "send": "Send Message",
     "sending": "Sending...",
-    "error": "Failed to send message. Please try again."
+    "error": "Failed to send message. Please try again.",
+    "messageSent": "Message sent successfully!",
+    "messageSentDesc": "We'll get back to you within 24 hours.",
+    "sendAnother": "Send another",
+    "emailLabel": "Email",
+    "phoneLabel": "Phone",
+    "addressLabel": "Address",
+    "addressValue": "Riyadh, Saudi Arabia"
   },
   "footer": {
     "products": "Products",
@@ -225,9 +299,9 @@
     "newsletterDesc": "Subscribe to get special offers and updates.",
     "subscribe": "Subscribe",
     "rights": "All rights reserved.",
-    "brandName": "Al-Harith Al-Dhaki",
+    "brandName": "الحارث الذكي",
     "slogan": "CCTV & Security Solutions",
-    "copyrightText": "Copyright © 2026 Al-Harith Al-Dhaki CCTV. All rights reserved."
+    "copyrightText": "Copyright © 2026 الحارث الذكي CCTV. All rights reserved."
   },
   "common": {
     "loading": "Loading...",
@@ -237,7 +311,14 @@
     "back": "Back",
     "save": "Save",
     "cancel": "Cancel",
-    "search": "Search"
+    "search": "Search",
+    "brandName": "الحارث الذكي",
+    "brandSlogan": "For Surveillance Cameras & Security Systems",
+    "pageNotFoundTitle": "Page not found",
+    "pageNotFoundDesc": "Sorry, the page you are looking for might have been removed or had its name changed.",
+    "somethingWentWrong": "Something went wrong!",
+    "tryAgain": "Try again",
+    "saveChanges": "Save Changes"
   },
   "categories": {
     "title": "Categories",
@@ -299,5 +380,11 @@
     "dark": "Dark",
     "system": "System",
     "toggleTheme": "Toggle theme"
+  },
+  "topBar": {
+    "certifiedWarranty": "Certified Security & 2-Year Warranty",
+    "shippingCoverage": "Fast shipping & installation across KSA",
+    "country": "Saudi Arabia 🇸🇦",
+    "currencySymbol": "SAR"
   }
 }

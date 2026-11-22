@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { motion } from "motion/react";
 import api from "@/lib/api";
 import { Card, CardContent } from "@/components/base/card";
@@ -15,7 +15,7 @@ interface Subcategory {
   id: number;
   en_name: string;
   ar_name?: string;
-  category?: { en_name: string };
+  category?: { en_name?: string; ar_name?: string; name?: string };
 }
 
 const fadeInUp = {
@@ -28,6 +28,7 @@ const stagger = {
 };
 
 export default function SubcategoriesPage() {
+  const t = useTranslations("subcategories");
   const locale = useLocale() as Locale;
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +69,7 @@ export default function SubcategoriesPage() {
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        Subcategories
+        {t("title")}
       </motion.h1>
       <motion.div
         className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
@@ -87,7 +88,7 @@ export default function SubcategoriesPage() {
                   <CardContent className="p-4">
                     <h2 className="font-semibold">{getLocalizedField(sub, "name", locale)}</h2>
                     {sub.category && (
-                      <p className="text-sm text-muted-foreground">{sub.category.en_name}</p>
+                      <p className="text-sm text-muted-foreground">{getLocalizedField(sub.category, "name", locale) || sub.category.name}</p>
                     )}
                   </CardContent>
                 </Card>

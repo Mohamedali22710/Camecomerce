@@ -53,7 +53,12 @@
     "trustSupport": "دعم فني واستشارات",
     "trustSupportDesc": "فريق متخصص لمساعدتك في اختيار وتهيئة النظام",
     "trustInstall": "خدمة التركيب والربط",
-    "trustInstallDesc": "فنيون محترفون للتركيب وربط التطبيق المباشر"
+    "trustInstallDesc": "فنيون محترفون للتركيب وربط التطبيق المباشر",
+    "smartSecurityBadge": "منظومة الأمان الذكية",
+    "smartSecurityDesc": "رصد ذكي للحركة • رؤية ليلية فائقة • تنبيهات فورية",
+    "liveSurveillanceActive": "النظام نشط ومتصل",
+    "exploreCategory": "تصفح الفئة",
+    "viewAllProducts": "عرض جميع المنتجات"
   },
   "products": {
     "title": "المنتجات",
@@ -77,7 +82,10 @@
     "soldOut": "نفدت الكمية",
     "units": "{n} وحدة",
     "addToCart": "أضف إلى السلة",
-    "buyNow": "اشتري الآن"
+    "buyNow": "اشتري الآن",
+    "details": "تفاصيل المنتج",
+    "addedToCart": "تمت الإضافة للسلة",
+    "inStockWithCount": "متوفر بالمخزون ({count})"
   },
   "cart": {
     "title": "سلة التسوق",
@@ -104,7 +112,32 @@
     "payment": "الدفع",
     "continue": "متابعة",
     "placeOrder": "تأكيد الطلب",
-    "processing": "جاري المعالجة..."
+    "processing": "جاري المعالجة...",
+    "yourCart": "سلة مشترياتك",
+    "country": "الدولة",
+    "fullName": "الاسم الكامل",
+    "street": "اسم الشارع والحي",
+    "state": "المنطقة / المحافظة",
+    "city": "المدينة",
+    "zipCode": "الرمز البريدي",
+    "phone": "رقم الهاتف",
+    "email": "البريد الإلكتروني",
+    "subscribeOffers": "أرسل لي أحدث العروض والمنتجات الجديدة",
+    "creditCard": "بطاقة ائتمان / مدى",
+    "onlineBankTransfer": "تحويل بنكي / دفع عند الاستلام",
+    "cardholderName": "اسم صاحب البطاقة",
+    "cardNumber": "رقم البطاقة",
+    "expiryDate": "تاريخ الانتهاء",
+    "cvc": "رمز الأمان (CVC)",
+    "bankName": "اسم البنك",
+    "bankNamePlaceholder": "مثال: مصرف الراجحي",
+    "accountNumber": "رقم الحساب / الآيبان",
+    "standardShipping": "شحن قياسي",
+    "standardShippingDesc": "التوصيل خلال 2-4 أيام عمل",
+    "expressShipping": "شحن سريع فوري",
+    "expressShippingDesc": "خلال 24-48 ساعة",
+    "free": "مجاني",
+    "expressPrice": "35 ر.س"
   },
   "order": {
     "thankYou": "شكراً لطلبك!",
@@ -127,21 +160,50 @@
     "contactSupport": "اتصل بالدعم",
     "continueShopping": "متابعة التسوق",
     "noOrder": "لم يتم العثور على طلب",
-    "noOrderDesc": "يبدو أنك لم تقم بأي طلب بعد."
+    "noOrderDesc": "يبدو أنك لم تقم بأي طلب بعد.",
+    "statusConfirmed": "تم تأكيد الطلب",
+    "statusProcessing": "قيد التجهيز",
+    "statusShipped": "تم الشحن",
+    "statusDelivered": "تم التسليم",
+    "statusPending": "قيد الانتظار",
+    "statusCancelled": "ملغي",
+    "qty": "الكمية:",
+    "each": "لكل قطعة",
+    "estimatedDelivery": "التوصيل المتوقع:",
+    "endingIn": "ينتهي بـ",
+    "paymentCompleted": "تم الدفع بنجاح"
   },
   "orders": {
     "title": "طلباتي",
     "empty": "لا توجد طلبات بعد.",
     "startShopping": "ابدأ التسوق",
-    "orderId": "طلب #{id}"
+    "orderId": "طلب #{id}",
+    "statusPending": "قيد الانتظار",
+    "statusProcessing": "قيد التجهيز",
+    "statusShipped": "تم الشحن",
+    "statusDelivered": "تم التسليم",
+    "statusCancelled": "ملغي",
+    "statusConfirmed": "تم التأكيد"
   },
   "wishlist": {
     "title": "المفضلة",
     "empty": "قائمة المفضلة فارغة.",
     "startShopping": "ابدأ التسوق",
-    "remove": "إزالة"
+    "remove": "إزالة",
+    "itemsSaved": "{count} منتجات محفوظة",
+    "addAllToCart": "إضافة الكل إلى السلة",
+    "priceDrop": "خصم بالسعر",
+    "soldOut": "نفدت الكمية",
+    "addToCart": "أضف إلى السلة",
+    "notifyWhenAvailable": "أعلمني عند التوفر",
+    "continueShopping": "متابعة التسوق",
+    "emptyHint": "احفظ المنتجات المفضلة لديك بالضغط على أيقونة القلب في أي منتج",
+    "addToWishlist": "إضافة للمفضلة",
+    "removeFromWishlist": "إزالة من المفضلة"
   },
   "profile": {
+    "title": "الملف الشخصي",
+    "subtitle": "تحديث معلوماتك الشخصية وصورة الحساب",
     "loading": "جاري تحميل الملف الشخصي...",
     "personalInfo": "المعلومات الشخصية",
     "email": "البريد الإلكتروني",
@@ -165,6 +227,11 @@
     "loginTitle": "مرحباً بعودتك",
     "loginSubtitle": "سجل الدخول إلى حسابك",
     "signupTitle": "إنشاء حساب",
+    "signupSubtitle": "أنشئ حسابك للوصول إلى كافة المنتجات والخدمات الأمنية",
+    "signupSuccess": "تم إنشاء الحساب بنجاح!",
+    "accountActivated": "تم تسجيل وتفعيل حسابك، ويمكنك الآن تسجيل الدخول مباشرة.",
+    "goToLogin": "تسجيل الدخول الآن",
+    "networkError": "حدث خطأ في الاتصال، يرجى المحاولة مرة أخرى.",
     "email": "البريد الإلكتروني",
     "phone": "رقم الهاتف",
     "phonePlaceholder": "+9665xxxxxxxx",
@@ -205,7 +272,14 @@
     "message": "الرسالة",
     "send": "إرسال",
     "sending": "جاري الإرسال...",
-    "error": "فشل إرسال الرسالة. حاول مرة أخرى."
+    "error": "فشل إرسال الرسالة. حاول مرة أخرى.",
+    "messageSent": "تم إرسال رسالتك بنجاح!",
+    "messageSentDesc": "سنقوم بالرد عليك خلال 24 ساعة عمل.",
+    "sendAnother": "إرسال رسالة أخرى",
+    "emailLabel": "البريد الإلكتروني",
+    "phoneLabel": "الهاتف الموحد",
+    "addressLabel": "العنوان",
+    "addressValue": "المملكة العربية السعودية، الرياض"
   },
   "footer": {
     "products": "المنتجات",
@@ -237,7 +311,14 @@
     "back": "رجوع",
     "save": "حفظ",
     "cancel": "إلغاء",
-    "search": "بحث"
+    "search": "بحث",
+    "brandName": "الحارث الذكي",
+    "brandSlogan": "لكاميرات المراقبة والأنظمة الأمنية",
+    "pageNotFoundTitle": "الصفحة غير موجودة",
+    "pageNotFoundDesc": "عذراً، الصفحة التي تحاول الوصول إليها قد تكون حذفت أو تم تغيير عنوانها.",
+    "somethingWentWrong": "حدث خطأ غير متوقع!",
+    "tryAgain": "إعادة المحاولة",
+    "saveChanges": "حفظ التغييرات"
   },
   "categories": {
     "title": "الفئات",
@@ -299,5 +380,11 @@
     "dark": "الوضع الداكن",
     "system": "تلقائي",
     "toggleTheme": "تبديل المظهر"
+  },
+  "topBar": {
+    "certifiedWarranty": "أنظمة أمنية معتمدة وضمان سنتين",
+    "shippingCoverage": "شحن وتغطية تركيب لكافة مناطق المملكة",
+    "country": "المملكة العربية السعودية 🇸🇦",
+    "currencySymbol": "ر.س"
   }
 }

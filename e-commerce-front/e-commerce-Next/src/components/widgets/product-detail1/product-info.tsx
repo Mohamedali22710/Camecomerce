@@ -1,10 +1,12 @@
+import { useTranslations } from "next-intl";
 import type { ProductInfoProps } from "./types";
 
 const ProductInfo = ({ info }: ProductInfoProps) => {
+  const t = useTranslations("productDetail");
   if (!info) return;
   return (
     <div>
-      <h2 className="mb-4 text-lg font-semibold">Product Details</h2>
+      <h2 className="mb-4 text-lg font-semibold">{t("details")}</h2>
       <dl>
         {info.map((item, index) => (
           <div key={`product-detail-1-info-${index}`} className="flex items-center justify-between border-b py-3 last:border-b-0">

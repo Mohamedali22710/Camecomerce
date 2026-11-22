@@ -1,6 +1,7 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/base/button";
 import { useCart } from "@/contexts/CartContext";
@@ -18,7 +19,7 @@ const ProductForm = ({ product }: ProductFormProps) => {
     product?.stock === undefined || product?.stock === null
       ? true
       : Number(product.stock) > 0;
-  const isAr = product?.locale === "ar";
+  const t = useTranslations("productDetail");
 
   function onSubmit(values: FormType) {
     if (!inStock) return;
@@ -45,9 +46,7 @@ const ProductForm = ({ product }: ProductFormProps) => {
         className="w-full"
         disabled={!inStock}
       >
-        {!inStock
-          ? (isAr ? "نفدت الكمية" : "Sold Out")
-          : (isAr ? "أضف إلى السلة" : "Add to Cart")}
+        {!inStock ? t("soldOut") : t("addToCart")}
       </Button>
     </form>
   );

@@ -74,6 +74,7 @@ interface Signup1Props {
 
 const Signup1 = ({ className }: Signup1Props) => {
   const t = useTranslations("auth");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const isAr = locale === "ar";
   const [showPassword, setShowPassword] = useState(false);
@@ -269,10 +270,10 @@ const Signup1 = ({ className }: Signup1Props) => {
             </div>
             <div className="flex flex-col text-start">
               <span className="font-bold text-lg text-foreground tracking-tight leading-tight">
-                الحارث الذكي
+                {tCommon("brandName")}
               </span>
               <span className="text-xs text-muted-foreground leading-none">
-                {isAr ? "لكاميرات المراقبة والأنظمة الأمنية" : "Smart CCTV & Security Solutions"}
+                {tCommon("brandSlogan")}
               </span>
             </div>
           </Link>
@@ -286,22 +287,20 @@ const Signup1 = ({ className }: Signup1Props) => {
                 <CheckCircle2 className="size-7" />
               </div>
               <h2 className="mb-2 text-xl font-bold text-foreground">
-                {isAr ? "تم إنشاء الحساب بنجاح!" : "Account created successfully!"}
+                {t("signupSuccess")}
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-4">
-                {isAr
-                  ? "تم تسجيل وتفعيل حسابك، ويمكنك الآن تسجيل الدخول مباشرة."
-                  : "Your account has been registered and activated. You can now log in directly."}
+                {t("accountActivated")}
               </p>
               <Button
                 type="button"
                 className="h-10 px-6 rounded-xl bg-[#2563EB] hover:bg-blue-700 text-white font-medium text-xs shadow-xs transition-colors"
                 onClick={() => router.push("/login")}
               >
-                {isAr ? "تسجيل الدخول الآن" : "Go to Login"}
+                {t("goToLogin")}
               </Button>
               <p className="mt-4 text-[11px] text-muted-foreground">
-                {isAr ? "جاري تحويلك تلقائياً..." : "Redirecting automatically..."}
+                {t("redirecting")}
               </p>
             </div>
           ) : (
@@ -311,7 +310,7 @@ const Signup1 = ({ className }: Signup1Props) => {
                   {t("signupTitle")}
                 </h1>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {isAr ? "أنشئ حسابك للوصول إلى كافة المنتجات والخدمات الأمنية" : "Create an account to access our CCTV store & services"}
+                  {t("signupSubtitle")}
                 </p>
               </div>
 

@@ -52,10 +52,10 @@ const EcommerceFooter1 = ({
                 </div>
                 <div className="flex flex-col text-start">
                   <span className="font-bold text-sm text-foreground tracking-tight leading-tight">
-                    {t("brandName") || "الحارث الذكي"}
+                    {t("brandName")}
                   </span>
                   <span className="text-[10px] text-muted-foreground leading-none">
-                    {t("slogan") || (isAr ? "لكاميرات المراقبة والأنظمة الأمنية" : "CCTV & Security Solutions")}
+                    {t("slogan")}
                   </span>
                 </div>
               </Link>
@@ -69,7 +69,7 @@ const EcommerceFooter1 = ({
           <p className="text-muted-foreground">
             {t("copyrightText") || (isAr
               ? `جميع الحقوق محفوظة © 2026 الحارث الذكي لكاميرات المراقبة.`
-              : `Copyright © 2026 Al-Harith Al-Dhaki CCTV. All rights reserved.`)}
+              : `Copyright © 2026 الحارث الذكي CCTV. All rights reserved.`)}
           </p>
 
           <div className="flex flex-wrap items-center gap-4">

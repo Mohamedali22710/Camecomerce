@@ -1,11 +1,10 @@
 "use client";
 
-import { useLocale } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Phone, ShieldCheck, Truck } from "lucide-react";
 
 export function TopUtilityBar() {
-  const locale = useLocale();
-  const isAr = locale === "ar";
+  const t = useTranslations("topBar");
 
   return (
     <div className="bg-[#101D35] text-slate-300 text-xs py-2 px-4 border-b border-slate-800">
@@ -23,7 +22,7 @@ export function TopUtilityBar() {
           <span className="hidden sm:inline text-slate-600">|</span>
           <span className="hidden sm:inline-flex items-center gap-1 text-slate-300">
             <ShieldCheck className="size-3.5 text-emerald-400" />
-            {isAr ? "أنظمة أمنية معتمدة وضمان سنتين" : "Certified Security & 2-Year Warranty"}
+            {t("certifiedWarranty")}
           </span>
         </div>
 
@@ -31,9 +30,7 @@ export function TopUtilityBar() {
         <div className="hidden md:flex items-center gap-1 text-slate-300 text-xs">
           <Truck className="size-3.5 text-[#F59E0B]" />
           <span>
-            {isAr
-              ? "شحن وتغطية تركيب لكافة مناطق المملكة"
-              : "Fast shipping & installation across KSA"}
+            {t("shippingCoverage")}
           </span>
         </div>
 
@@ -41,15 +38,14 @@ export function TopUtilityBar() {
         <div className="flex items-center gap-3 text-slate-300">
           <span className="inline-flex items-center gap-1">
             <span className="text-[11px] font-semibold tracking-wider text-slate-200">SAR</span>
-            <span className="text-slate-400">({isAr ? "ر.س" : "SAR"})</span>
+            <span className="text-slate-400">({t("currencySymbol")})</span>
           </span>
           <span className="text-slate-600">|</span>
           <span className="text-slate-300 font-medium">
-            {isAr ? "المملكة العربية السعودية 🇸🇦" : "Saudi Arabia 🇸🇦"}
+            {t("country")}
           </span>
         </div>
       </div>
     </div>
   );
 }
-

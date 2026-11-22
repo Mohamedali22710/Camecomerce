@@ -137,10 +137,10 @@ export function HeroSection() {
                     </span>
                   </div>
                   <h4 className="text-lg font-bold text-white tracking-tight">
-                    {isAr ? "منظومة الأمان الذكية" : "Smart Security Ecosystem"}
+                    {t("smartSecurityBadge")}
                   </h4>
                   <p className="text-xs text-slate-400 mt-1">
-                    {isAr ? "رصد ذكي للحركة • رؤية ليلية فائقة • تنبيهات فورية" : "AI Motion Detection • Night Vision • Instant Alerts"}
+                    {t("smartSecurityDesc")}
                   </p>
                 </div>
               </div>
@@ -149,7 +149,7 @@ export function HeroSection() {
               <div className="mt-4 flex items-center justify-between text-xs text-slate-300 px-2 py-1.5 rounded-lg bg-slate-800/40 border border-slate-700/40">
                 <div className="flex items-center gap-1.5">
                   <span className="size-2 rounded-full bg-emerald-400" />
-                  <span>{isAr ? "النظام نشط ومتصل" : "Live Surveillance Active"}</span>
+                  <span>{t("liveSurveillanceActive")}</span>
                 </div>
                 <span className="text-slate-400 font-mono text-[11px]">4K UHD 60FPS</span>
               </div>

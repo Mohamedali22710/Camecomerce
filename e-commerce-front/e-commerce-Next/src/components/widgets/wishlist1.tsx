@@ -4,9 +4,10 @@ import { Heart, House, ShoppingCart, Trash2, TrendingDown } from "lucide-react";
 import { useContext, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { motion, AnimatePresence } from "motion/react";
 import api from "@/lib/api";
+import { getLocalizedField, useFormatPrice, type Locale } from "@/lib/locale";
 
 import { AspectRatio } from "@/components/base/aspect-ratio";
 import { Badge } from "@/components/base/badge";
@@ -23,7 +24,8 @@ interface Wishlist1Props {
 }
 
 const Wishlist1 = ({ className }: Wishlist1Props) => {
-  const locale = useLocale();
+  const t = useTranslations("wishlist");
+  const locale = useLocale() as Locale;
   const isAr = locale === "ar";
   const { items: wishlistItems, removeItem, fetchFromApi } = useWishlist();
   const { addItem } = useCart();
@@ -47,12 +49,7 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
     }
   };
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(price);
-  };
+  const formatPrice = useFormatPrice(locale);
 
   const handleAddAllToCart = () => {
     for (const item of wishlistItems) {
@@ -101,17 +98,17 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
         >
           <div>
             <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-              My Wishlist
+              {t("title")}
             </h1>
             <p className="mt-1 text-muted-foreground">
-              {wishlistItems.length} items saved
+              {t("itemsSaved", { count: wishlistItems.length })}
             </p>
           </div>
           {wishlistItems.length > 0 && (
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Button variant="outline" onClick={handleAddAllToCart}>
                 <ShoppingCart className="mr-2 size-4" />
-                Add All to Cart
+                {t("addAllToCart")}
               </Button>
             </motion.div>
           )}
@@ -149,12 +146,12 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
                     {item.priceDrop && (
                       <Badge className="bg-emerald-600 hover:bg-emerald-600">
                         <TrendingDown className="mr-1 size-3" />
-                        Price Drop
+                        {t("priceDrop")}
                       </Badge>
                     )}
                     {!item.inStock && (
                       <Badge variant="destructive" className="bg-rose-500/10 text-rose-500 border border-rose-500/20">
-                        {isAr ? "نفدت الكمية" : "Sold Out"}
+                        {t("soldOut")}
                       </Badge>
                     )}
                   </div>
@@ -170,7 +167,9 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
                 </div>
 
                 <CardContent className="p-4">
-                  <h3 className="leading-tight font-medium">{item.name}</h3>
+                  <h3 className="leading-tight font-medium">
+                    {getLocalizedField(item, "name", locale) || item.name}
+                  </h3>
                   <div className="mt-2 flex items-center gap-2">
                     <span className="text-lg font-semibold">
                       {formatPrice(item.price)}
@@ -191,6 +190,8 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
                           _id: item._id,
                           productId: item._id,
                           name: item.name,
+                          en_name: item.en_name,
+                          ar_name: item.ar_name,
                           image: item.image,
                           price: item.price,
                           originalPrice: item.originalPrice,
@@ -200,7 +201,7 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
                       }
                     }}
                   >
-                    {item.inStock ? "Add to Cart" : "Notify When Available"}
+                    {item.inStock ? t("addToCart") : t("notifyWhenAvailable")}
                   </Button>
                 </CardContent>
               </Card>
@@ -212,7 +213,7 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
           <div className="text-center">
               <Button render={<Link href="/products" />} nativeButton={false}>
               <House className="mr-2 size-4" />
-              Continue Shopping
+              {t("continueShopping")}
             </Button>
           </div>
           </>
@@ -222,11 +223,11 @@ const Wishlist1 = ({ className }: Wishlist1Props) => {
               <div className="mb-4 flex size-16 items-center justify-center rounded-full bg-muted">
                 <Heart className="size-8 text-muted-foreground" />
               </div>
-              <h2 className="text-xl font-semibold">Your wishlist is empty</h2>
+              <h2 className="text-xl font-semibold">{t("empty")}</h2>
               <p className="mt-2 max-w-sm text-muted-foreground">
-                Save items you love by clicking the heart icon on any product
+                {t("emptyHint")}
               </p>
-              <Button className="mt-6" render={<Link href="/products" />} nativeButton={false}>Continue Shopping</Button>
+              <Button className="mt-6" render={<Link href="/products" />} nativeButton={false}>{t("continueShopping")}</Button>
             </CardContent>
           </Card>
         )}
