@@ -99,8 +99,36 @@ export default function ProductDetail() {
     stock: data.stock,
   };
 
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: getLocalizedField(data, "name", locale),
+    description: getLocalizedField(data, "description", locale),
+    image: parseImageURLs(data),
+    sku: String(data._id),
+    offers: {
+      "@type": "Offer",
+      url: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/products/${data._id}`,
+      priceCurrency: "SAR",
+      price: salePrice ?? data.price,
+      itemCondition: "https://schema.org/NewCondition",
+      availability:
+        data.stock === undefined || data.stock === null || Number(data.stock) > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+      seller: {
+        "@type": "Organization",
+        name: "الحارث الذكي",
+      },
+    },
+  };
+
   return (
     <div className="relative">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
       <ProductDetail1 product={productData} />
       <div className="fixed bottom-6 right-6 z-50">
         <Button

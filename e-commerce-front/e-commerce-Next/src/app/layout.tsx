@@ -29,13 +29,87 @@ const inter = Inter({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
-    default: "الحارث الذكي | كاميرات المراقبة والأنظمة الأمنية",
+    default: "الحارث الذكي | كاميرات المراقبة والأنظمة الأمنية الذكية",
     template: "%s | الحارث الذكي",
   },
   description:
-    "متجر الحارث الذكي — حلول وكاميرات المراقبة المتقدمة والأنظمة الأمنية الذكية في المملكة العربية السعودية.",
+    "متجر الحارث الذكي — حلول وكاميرات المراقبة المتقدمة، أنظمة الإنتركوم، والأنظمة الأمنية الذكية والشبكات في المملكة العربية السعودية بأفضل الأسعار وأعلى جودة.",
+  keywords: [
+    "كاميرات مراقبة",
+    "كاميرات مراقبة السعودية",
+    "كاميرات هيكفيجن",
+    "كاميرات داهوا",
+    "انتركوم منزلي",
+    "أنظمة أمنية ذكية",
+    "تركيب كاميرات مراقبة",
+    "كاميرات مراقبة لاسلكية",
+    "كاميرات مراقبة IP",
+    "أجهزة تسجيل DVR",
+    "أجهزة تسجيل NVR",
+    "شبكات سلكية ولاسلكية",
+    "متجر الحارث الذكي",
+    "Security Cameras Saudi",
+    "Hikvision",
+    "Dahua",
+    "CCTV Saudi",
+    "Smart Security",
+  ],
+  authors: [{ name: "الحارث الذكي", url: siteUrl }],
+  creator: "الحارث الذكي",
+  publisher: "الحارث الذكي",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  alternates: {
+    canonical: "/",
+    languages: {
+      "ar": "/",
+      "en": "/en",
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "ar_SA",
+    alternateLocale: ["en_US"],
+    url: siteUrl,
+    siteName: "الحارث الذكي | كاميرات المراقبة والأنظمة الأمنية",
+    title: "الحارث الذكي | أفضل حلول كاميرات المراقبة والأنظمة الأمنية في السعودية",
+    description:
+      "متجر الحارث الذكي — حلول وكاميرات المراقبة المتقدمة والأنظمة الأمنية الذكية في المملكة العربية السعودية.",
+    images: [
+      {
+        url: "/logo.svg",
+        width: 800,
+        height: 600,
+        alt: "متجر الحارث الذكي لكاميرات المراقبة",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "الحارث الذكي | كاميرات المراقبة والأنظمة الأمنية",
+    description:
+      "متجر الحارث الذكي — حلول وكاميرات المراقبة المتقدمة والأنظمة الأمنية الذكية في المملكة العربية السعودية.",
+    images: ["/logo.svg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/logo.svg", type: "image/svg+xml" },
@@ -54,6 +128,36 @@ export default async function RootLayout({
   const messages = await getMessages();
   const dir = locale === "ar" ? "rtl" : "ltr";
 
+  const organizationSchema = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "الحارث الذكي",
+    alternateName: "Al-Harith Smart Security Systems",
+    url: siteUrl,
+    logo: `${siteUrl}/logo.svg`,
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "customer service",
+      areaServed: "SA",
+      availableLanguage: ["Arabic", "English"],
+    },
+  };
+
+  const websiteSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "الحارث الذكي",
+    url: siteUrl,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${siteUrl}/products?search={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html
       lang={locale}
@@ -66,6 +170,14 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://res.cloudinary.com" />
         <link rel="dns-prefetch" href="https://deifkwefumgah.cloudfront.net" />
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
       </head>
       <body className="flex min-h-full flex-col bg-background text-foreground overflow-x-hidden max-w-full" suppressHydrationWarning>
         <WebVitals />

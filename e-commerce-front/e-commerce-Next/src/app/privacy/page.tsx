@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
+
+export const metadata: Metadata = {
+  title: "سياسة الخصوصية",
+  description: "سياسة الخصوصية وحماية بيانات العملاء في متجر الحارث الذكي للأنظمة الأمنية.",
+  alternates: {
+    canonical: "/privacy",
+  },
+};
 
 export default function PrivacyPage() {
   const t = useTranslations("privacy");

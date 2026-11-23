@@ -23,6 +23,7 @@ build/
 config/.env
 config/.env.*
 !**/.env.example
+e-commerce-front\e-commerce-Next\.env
 
 # Logs and runtime data
 *.log

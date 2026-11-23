@@ -1,4 +1,13 @@
+import type { Metadata } from "next";
 import { useTranslations } from "next-intl";
+
+export const metadata: Metadata = {
+  title: "الشروط والأحكام",
+  description: "الشروط والأحكام والضمانات الخاصة بمتجر الحارث الذكي لكاميرات المراقبة والأنظمة الأمنية.",
+  alternates: {
+    canonical: "/terms",
+  },
+};
 
 export default function TermsPage() {
   const t = useTranslations("terms");
