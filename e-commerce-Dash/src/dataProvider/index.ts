@@ -144,7 +144,8 @@ const createProvider = (): DataProvider => ({
     if (params.filter) {
       for (const [k, v] of Object.entries(params.filter)) {
         if (v !== undefined && v !== '' && v !== null) {
-          qs.set(k, String(v));
+          const paramKey = (resource === 'products' && k === 'q') ? 'search' : k;
+          qs.set(paramKey, String(v));
         }
       }
     }

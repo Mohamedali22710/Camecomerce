@@ -1,5 +1,7 @@
 import * as React from 'react';
-import { Box, Chip, Typography } from '@mui/material';
+import { Box, Chip, Typography, InputBase, IconButton } from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import CloseIcon from '@mui/icons-material/Close';
 import {
     CreateButton,
     ListBase,
@@ -27,8 +29,10 @@ const ProductList = () => {
     return (
         <ListBase perPage={24} sort={{ field: 'createdAt', order: 'DESC' }}>
             <ProductTitle />
-            <ListActions />
-            <Box sx={{ display: 'flex', mt: 1 }}>
+            <Box sx={{ pt: 2.5, pb: 0.5 }}>
+                <ListActions />
+            </Box>
+            <Box sx={{ display: 'flex', mt: 1.5 }}>
                 <Box sx={{ width: '100%' }}>
                     <Datagrid
                         rowClick="edit"
@@ -236,22 +240,137 @@ export const productFilters = [
     </ReferenceInput>,
 ];
 
-const ListActions = () => (
-    <TopToolbar sx={{ gap: 1 }}>
-        <SortButton fields={['en_name', 'price', 'createdAt']} />
-        <CreateButton
-            variant="contained"
+const ListActions = () => {
+    const translate = useTranslate();
+    const { filterValues, setFilters } = useListContext();
+    const [search, setSearch] = React.useState(filterValues?.q || filterValues?.search || '');
+
+    // Synchronize local state if filters change externally
+    React.useEffect(() => {
+        const external = filterValues?.q || filterValues?.search || '';
+        setSearch(external);
+    }, [filterValues?.q, filterValues?.search]);
+
+    // Debounce applying search filter to prevent redundant API calls
+    React.useEffect(() => {
+        const timer = setTimeout(() => {
+            const currentFilter = filterValues?.q || filterValues?.search || '';
+            const trimmed = search.trim();
+            if (trimmed !== currentFilter) {
+                const nextFilters = { ...filterValues };
+                if (trimmed) {
+                    nextFilters.q = trimmed;
+                } else {
+                    delete nextFilters.q;
+                    delete nextFilters.search;
+                }
+                setFilters(nextFilters, null);
+            }
+        }, 350);
+
+        return () => clearTimeout(timer);
+    }, [search, filterValues, setFilters]);
+
+    const handleClear = () => {
+        setSearch('');
+        const nextFilters = { ...filterValues };
+        delete nextFilters.q;
+        delete nextFilters.search;
+        setFilters(nextFilters, null);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const currentFilter = filterValues?.q || filterValues?.search || '';
+            const trimmed = search.trim();
+            if (trimmed !== currentFilter) {
+                const nextFilters = { ...filterValues };
+                if (trimmed) {
+                    nextFilters.q = trimmed;
+                } else {
+                    delete nextFilters.q;
+                    delete nextFilters.search;
+                }
+                setFilters(nextFilters, null);
+            }
+        }
+    };
+
+    return (
+        <TopToolbar
             sx={{
-                backgroundColor: '#2563EB',
-                borderRadius: '8px',
-                fontWeight: 600,
-                boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
-                '&:hover': {
-                    backgroundColor: '#1D4ED8',
-                },
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 2,
+                p: '0 !important',
+                minHeight: 'unset !important',
             }}
-        />
-    </TopToolbar>
-);
+        >
+            {/* Search Box on start (Right in Arabic RTL, Left in English LTR) */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    bgcolor: 'background.paper',
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: '8px',
+                    px: 1.5,
+                    py: 0.65,
+                    width: { xs: '100%', sm: 300, md: 360 },
+                    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                        borderColor: 'primary.light',
+                    },
+                    '&:focus-within': {
+                        borderColor: 'primary.main',
+                        boxShadow: '0 0 0 2px rgba(37, 99, 235, 0.2)',
+                    },
+                }}
+            >
+                <SearchIcon sx={{ color: 'text.secondary', marginInlineEnd: 1, fontSize: 20 }} />
+                <InputBase
+                    placeholder={translate('pos.products.search', { _: 'بحث عن المنتجات...' })}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    sx={{ flex: 1, fontSize: '0.875rem' }}
+                    inputProps={{ 'aria-label': 'search products' }}
+                />
+                {search && (
+                    <IconButton
+                        size="small"
+                        onClick={handleClear}
+                        sx={{ p: 0.25, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
+                    >
+                        <CloseIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                )}
+            </Box>
+
+            {/* Actions: Sort & Create Button on the opposite side */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <SortButton fields={['en_name', 'price', 'createdAt']} />
+                <CreateButton
+                    variant="contained"
+                    sx={{
+                        backgroundColor: '#2563EB',
+                        borderRadius: '8px',
+                        fontWeight: 600,
+                        boxShadow: '0 2px 6px rgba(37, 99, 235, 0.3)',
+                        '&:hover': {
+                            backgroundColor: '#1D4ED8',
+                        },
+                    }}
+                />
+            </Box>
+        </TopToolbar>
+    );
+};
 
 export default ProductList;
