@@ -16,6 +16,7 @@ import { cartModel } from "../../database/model/cart.model.js";
 import { installationRequestModel } from "../../database/model/installation.model.js";
 import { IOrder, IOrderStatusHistoryEntry, orderModel } from "../../database/model/order.model.js";
 import { productModel } from "../../database/model/product.model.js";
+import { getEffectiveShippingConfig } from "../setting/setting.service.js";
 import {
   OrderLineSnapshot,
   resolveBundleLine,
@@ -78,11 +79,6 @@ interface InstallationInput {
   preferredDate?: string | Date;
   notes?: string;
 }
-
-const shippingConfig = () => ({
-  type: env.SHIPPING_COST_TYPE,
-  value: Number(env.SHIPPING_COST_VALUE) || 0,
-});
 
 const requireUserId = (req: Request): string => {
   const userId = req.user?._id;
@@ -338,7 +334,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     const orderItems = await resolveOrderLines(requestedItems, dbSession);
     const subtotal = sumLineTotals(orderItems);
-    const shippingCost = calculateShipping(subtotal, shippingConfig());
+    const shipping = await getEffectiveShippingConfig();
+    const shippingCost = calculateShipping(subtotal, shipping);
     const totalAmount = roundMoney(subtotal + shippingCost);
     const orderNumber = await allocateOrderNumber(dbSession);
     const now = new Date();

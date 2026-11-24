@@ -207,6 +207,7 @@ const customEnglishMessages: TranslationMessages = {
       catalog: "Catalog",
       customers: "Customers",
       orders: "Orders",
+      shipping: "Delivery Fee",
       products: "Products",
       categories: "Categories",
       subcategories: "Subcategories",
@@ -220,6 +221,18 @@ const customEnglishMessages: TranslationMessages = {
       order: {
         title: "Ordered 1 poster |||| Ordered %{smart_count} posters",
       },
+    },
+    shipping: {
+      title: "Delivery Fee Settings",
+      subtitle: "Configure store-wide shipping and delivery rates for all orders",
+      current_rate: "Current Delivery Fee",
+      input_label: "Delivery Fee",
+      input_helper: "Enter 0 for completely free delivery across all orders",
+      save_button: "Save Changes",
+      saving: "Saving...",
+      success_message: "Delivery fee updated successfully",
+      error_message: "Failed to update delivery fee",
+      note: "Note: This rate is immediately applied to the cart and checkout for all customers.",
     },
   },
   resources: {

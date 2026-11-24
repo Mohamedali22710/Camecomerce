@@ -59,20 +59,57 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 const STORAGE_KEY = "cart-items"
 
-function computeShipping(subtotal: number): number {
-  const costType = process.env.NEXT_PUBLIC_SHIPPING_COST_TYPE || "fixed"
-  const costValue = Number(process.env.NEXT_PUBLIC_SHIPPING_COST_VALUE) || 50
-  return costType === "percentage"
-    ? Math.round((subtotal * costValue) / 100 * 100) / 100
-    : costValue
+interface StoreShippingConfig {
+  cost: number
+  type: string
+}
+
+function computeShipping(subtotal: number, config: StoreShippingConfig | null): number {
+  if (!config) {
+    const costType = process.env.NEXT_PUBLIC_SHIPPING_COST_TYPE || "fixed"
+    const costValue = Number(process.env.NEXT_PUBLIC_SHIPPING_COST_VALUE) || 0
+    return costType === "percentage"
+      ? Math.round(((subtotal * costValue) / 100) * 100) / 100
+      : costValue
+  }
+  return config.type === "percentage"
+    ? Math.round(((subtotal * config.cost) / 100) * 100) / 100
+    : config.cost
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([])
   const [loaded, setLoaded] = useState(false)
   const [shippingCost, setShippingCost] = useState<number | null>(null)
+  const [storeShipping, setStoreShipping] = useState<StoreShippingConfig | null>(null)
   const [currency, setCurrency] = useState<string>("SAR")
   const isSyncingRef = useRef(false)
+
+  // Fetch store shipping settings on mount
+  useEffect(() => {
+    let isMounted = true
+    api
+      .get("/settings/shipping")
+      .then((res) => {
+        if (!isMounted) return
+        const data = res.data?.data
+        if (data && typeof data.shippingCost === "number") {
+          setStoreShipping({
+            cost: data.shippingCost,
+            type: data.shippingType || "fixed",
+          })
+          if (data.currency) {
+            setCurrency(data.currency)
+          }
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // 1. Initial load and deduplication from localStorage
   useEffect(() => {
@@ -438,7 +475,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }
 
   const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0)
-  const computedShipping = shippingCost !== null ? shippingCost : computeShipping(subtotal)
+  const computedShipping =
+    items.length === 0
+      ? 0
+      : shippingCost !== null
+        ? shippingCost
+        : computeShipping(subtotal, storeShipping)
   const total = Math.round((subtotal + computedShipping) * 100) / 100
   const itemCount = items.reduce((sum, i) => sum + i.quantity, 0)
   const hasOutOfStockItems = items.some(

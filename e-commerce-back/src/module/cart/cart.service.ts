@@ -13,6 +13,7 @@ import { findVariant, parseVariants } from "../../common/validation/variant.js";
 import { bundleModel, IBundleComponent } from "../../database/model/bundle.model.js";
 import { cartModel, ICart } from "../../database/model/cart.model.js";
 import { productModel } from "../../database/model/product.model.js";
+import { getEffectiveShippingConfig } from "../setting/setting.service.js";
 
 import {
   bundleStockKey,
@@ -47,11 +48,6 @@ const requireUserId = (req: Request): string => {
   }
   return userId;
 };
-
-const shippingConfig = () => ({
-  type: env.SHIPPING_COST_TYPE,
-  value: Number(env.SHIPPING_COST_VALUE) || 0,
-});
 
 const lineResponse = (
   item: ICart,
@@ -432,7 +428,8 @@ export const getCart = async (req: Request, res: Response): Promise<void> => {
   });
 
   subtotal = roundMoney(subtotal);
-  const shippingCost = calculateShipping(subtotal, shippingConfig());
+  const shipping = await getEffectiveShippingConfig();
+  const shippingCost = calculateShipping(subtotal, shipping);
 
   res.status(200).json({
     message: "Cart",

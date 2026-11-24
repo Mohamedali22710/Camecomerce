@@ -21,6 +21,7 @@ import { Layout, Login } from "./layout";
 import orders from "./orders";
 import products from "./products";
 import users from "./users";
+import settings from "./settings";
 import { themes, ThemeName } from "./themes/themes";
 
 const getInitialLocale = (): string => {
@@ -94,6 +95,9 @@ const App = () => {
       <Resource name="products" {...products} />
       <Resource name="orders" {...orders} />
       <Resource name="users" {...users} />
+      <CustomRoutes>
+        <Route path="/shipping" element={<settings.page />} />
+      </CustomRoutes>
     </Admin>
   );
 };

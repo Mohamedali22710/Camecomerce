@@ -3,6 +3,8 @@
 import { Controller, useFormContext } from "react-hook-form";
 import { useTranslations } from "next-intl";
 
+import { useCart } from "@/contexts/CartContext";
+
 import {
   Field,
   FieldContent,
@@ -16,6 +18,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/base/radio-group";
 export const ShippingMethodFields = () => {
   const form = useFormContext();
   const t = useTranslations("checkout");
+  const { shippingCost, currency } = useCart();
 
   return (
     <Controller
@@ -37,26 +40,12 @@ export const ShippingMethodFields = () => {
                   <FieldDescription>{t("standardShippingDesc")}</FieldDescription>
                 </FieldContent>
                 <div className="flex gap-3.5">
-                  <p className="text-sm font-semibold text-emerald-600">{t("free")}</p>
+                  <p className="text-sm font-semibold text-emerald-600">
+                    {shippingCost > 0 ? `${shippingCost} ${currency}` : t("free")}
+                  </p>
                   <RadioGroupItem
                     value="standard"
                     id="checkout-shippingMethod-1"
-                    aria-invalid={fieldState.invalid}
-                  />
-                </div>
-              </Field>
-            </FieldLabel>
-            <FieldLabel htmlFor="checkout-shippingMethod-2">
-              <Field orientation="horizontal" data-invalid={fieldState.invalid}>
-                <FieldContent>
-                  <FieldTitle>{t("expressShipping")}</FieldTitle>
-                  <FieldDescription>{t("expressShippingDesc")}</FieldDescription>
-                </FieldContent>
-                <div className="flex gap-3.5">
-                  <p className="text-sm font-semibold">{t("expressPrice")}</p>
-                  <RadioGroupItem
-                    value="express"
-                    id="checkout-shippingMethod-2"
                     aria-invalid={fieldState.invalid}
                   />
                 </div>

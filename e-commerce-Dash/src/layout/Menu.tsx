@@ -14,6 +14,7 @@ import orders from '../orders';
 import products from '../products';
 import categories from '../categories';
 import subcategories from '../subcategories';
+import settings from '../settings';
 import SubMenu from './SubMenu';
 
 type MenuName = 'menuCatalog' | 'menuSales' | 'menuUsers';
@@ -60,6 +61,13 @@ const Menu = ({ dense = false }: MenuProps) => {
                     state={{ _scrollToTop: true }}
                     primaryText={translate('pos.menu.orders')}
                     leftIcon={<orders.icon />}
+                    dense={dense}
+                />
+                <MenuItemLink
+                    to="/shipping"
+                    state={{ _scrollToTop: true }}
+                    primaryText={translate('pos.menu.shipping')}
+                    leftIcon={<settings.icon />}
                     dense={dense}
                 />
             </SubMenu>

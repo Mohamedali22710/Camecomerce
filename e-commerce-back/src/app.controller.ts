@@ -25,6 +25,7 @@ import securityRouter from "./module/security/security.controller.js";
 import subcategoryRouter from "./module/subcategory/subcategory.controller.js";
 import userRouter from "./module/user/user.controller.js";
 import wishlistRouter from "./module/wishlist/wishlist.controller.js";
+import settingRouter from "./module/setting/setting.controller.js";
 
 const app = express();
 
@@ -107,6 +108,7 @@ app.use("/v1/payment", paymentRouter);
 app.use("/v1/installation", installationRouter);
 app.use("/v1/security", securityRouter);
 app.use("/v1/contact", contactRouter);
+app.use("/v1/settings", settingRouter);
 
 app.use((req: Request, res: Response) => {
   res.status(404).json({ message: `Route not found: ${req.method} ${req.originalUrl}` });

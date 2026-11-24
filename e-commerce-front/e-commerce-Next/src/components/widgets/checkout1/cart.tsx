@@ -13,6 +13,7 @@ import { Card, CardTitle } from "@/components/base/card";
 import { Field } from "@/components/base/field";
 import { Price, PriceValue } from "@/components/widgets/price";
 import QuantityInput from "@/components/widgets/quantity-input";
+import { useCart } from "@/contexts/CartContext";
 
 import type { CartItem, CartItemProps, CartProps } from "./types";
 
@@ -126,6 +127,7 @@ const CartItem = ({
 export const Cart = ({ cartItems, form }: CartProps) => {
   const t = useTranslations("cart");
   const tCheckout = useTranslations("checkout");
+  const { shippingCost } = useCart();
   const { fields, remove, update } = useFieldArray({
     control: form.control,
     name: "products",
@@ -137,6 +139,9 @@ export const Cart = ({ cartItems, form }: CartProps) => {
     (sum, p) => sum + p.price * p.quantity,
     0,
   );
+
+  const currentShipping = shippingCost ?? 0;
+  const grandTotal = Math.round(((totalPrice || 0) + currentShipping) * 100) / 100;
 
   const handleRemove = useCallback(
     (index: number) => () => {
@@ -201,7 +206,17 @@ export const Cart = ({ cartItems, form }: CartProps) => {
           </div>
           <div className="flex justify-between gap-3">
             <p className="text-sm">{t("shipping")}</p>
-            <p className="text-sm">{t("free")}</p>
+            {currentShipping > 0 ? (
+              <Price className="text-sm font-normal">
+                <PriceValue
+                  price={currentShipping}
+                  currency={currency}
+                  variant="regular"
+                />
+              </Price>
+            ) : (
+              <p className="text-sm">{t("free")}</p>
+            )}
           </div>
         </div>
         <div className="py-7">
@@ -209,7 +224,7 @@ export const Cart = ({ cartItems, form }: CartProps) => {
             <p className="text-lg leading-tight font-medium">{t("total")}</p>
             <Price className="text-xl font-medium">
               <PriceValue
-                price={totalPrice}
+                price={grandTotal}
                 currency={currency}
                 variant="regular"
               />
